@@ -1,0 +1,75 @@
+{
+ "title": "Spellmaze in one minute",
+ "topic": "start",
+ "order": 1,
+ "cards": [
+  {
+   "id": "pitch",
+   "kind": "report",
+   "rarity": "common",
+   "title": "The game in one minute",
+   "text": "Survive endless waves in a dark square maze. Build your own attacks from modules found in dead-end chests.",
+   "why": "Everything else in this pack hangs off this. Mark any part that's off.",
+   "parts": [
+    {
+     "id": "you",
+     "title": "You",
+     "text": "A 2×2-cell glowing ring in a square labyrinth. You only see what's in your line of sight."
+    },
+    {
+     "id": "waves",
+     "title": "Waves",
+     "text": "Enemies pour in from the dark, more every minute, like Vampire Survivors. Kills drop XP."
+    },
+    {
+     "id": "chests",
+     "title": "Chests",
+     "text": "Dead ends hold chests. Each has one module: a part that changes an attack (Bounce, Burn, Split…). The deeper the dead end, the better the chest."
+    },
+    {
+     "id": "levels",
+     "title": "Level-ups",
+     "text": "Each level-up shows 4 upgrades for modules you already have (Bounce 2 → 3 bounces). Pick one. Chests give new effects; XP makes them stronger."
+    },
+    {
+     "id": "casts",
+     "title": "Three casts",
+     "text": "Weapon, Summon and Dash. Each is a shape with module slots, and any module works in any of them. That's the build."
+    },
+    {
+     "id": "exit",
+     "title": "The exit",
+     "text": "An exit opens at 10:00. Leave to bank your shards, or stay longer for more until you die."
+    },
+    {
+     "id": "meta",
+     "title": "Between runs",
+     "text": "Shards buy more slots, more modules in the chests, new shapes, and a practice room for building big spells."
+    }
+   ],
+   "images": [
+    "../../../art/out/key-C.png"
+   ]
+  },
+  {
+   "id": "scope",
+   "kind": "report",
+   "rarity": "common",
+   "title": "What this pack is",
+   "text": "Design only. Nothing is built yet. Every call in here is my pick until you answer it.",
+   "why": "Start with Look and Spell system: they decide the most. Statuses, enemies and the maze can wait if you're short on time.",
+   "details": "The full design is in docs/DESIGN.md in the new Spellmaze folder.\n\nIt borrows the building blocks and rules from your maze roguelike design doc (the projectile/line/zone/entity atoms, what children inherit, Piercing and Bouncy, the stacking maths) and cuts them down to what a phone survivor game can show.\n\nYour Wings spell, the Lightning arena and the 21 pressure tests are mapped against it in the Spell system topic."
+  },
+  {
+   "id": "go",
+   "kind": "question",
+   "rarity": "epic",
+   "title": "Start building?",
+   "text": "Once the Look and Spell system answers are in, start stage 1?",
+   "why": "Stage 1 is the maze, line of sight, the three sticks, the Bolt and the Mite, playable on your phone. Stage 2 adds the Ball, the Dash and five modules on all three, which proves the system. Nothing past that until you've played it.",
+   "pick": "Yes: stage 1 as soon as Look and Spell system are answered, then stage 2.",
+   "details": "Build order:\n1. Maze, line of sight, movement, the three sticks, Bolt, Mite. Feel on the phone.\n2. Ball and Dash, five modules (Bounce, Burn, Extra, Explode, Home) on all three casts.\n3. Chests, level-ups, rarity, the build screen.\n4. All enemies, statuses, waves, the exit, the first boss.\n5. The rest of the modules, Runes, between-run unlocks, the practice room.\n\nSame setup as Delve: an offline web app on GitHub Pages, landscape, added to the home screen."
+  }
+ ],
+ "priority": 1
+}

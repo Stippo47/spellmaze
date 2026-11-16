@@ -1,0 +1,99 @@
+{
+ "title": "Controls",
+ "topic": "look",
+ "order": 2,
+ "cards": [
+  {
+   "id": "hud",
+   "kind": "report",
+   "rarity": "common",
+   "title": "The screen",
+   "text": "Brawl Stars layout in landscape. Mark any part that's off.",
+   "why": "This is what your thumbs do every second, so it matters more than anything else on screen.",
+   "parts": [
+    {
+     "id": "move",
+     "title": "Move stick",
+     "text": "Anywhere on the left half. It appears under your thumb."
+    },
+    {
+     "id": "fire",
+     "title": "Fire stick",
+     "text": "Bottom right. Drag to see the aim line, release to fire. A quick tap fires at the nearest enemy you can see. Keep holding to keep firing."
+    },
+    {
+     "id": "summon",
+     "title": "Summon stick",
+     "text": "Above-left of Fire. It fills as your hits land (like a Super) and slowly on its own. Drag to aim the throw, release to throw."
+    },
+    {
+     "id": "dash",
+     "title": "Dash button",
+     "text": "Left of Fire. Tap to dash where you're moving, or drag to aim it. 2 charges, shown as dots."
+    },
+    {
+     "id": "top",
+     "title": "Top bar",
+     "text": "XP bar and level, the clock, pause (opens the build screen), and the minimap with the exit."
+    },
+    {
+     "id": "ammo",
+     "title": "Ammo bars",
+     "text": "Three bars under you that reload one at a time."
+    }
+   ],
+   "images": [
+    "../../../art/out/key-C.png"
+   ]
+  },
+  {
+   "id": "firing",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "How firing works",
+   "text": "Twin-stick aim, but survivor games usually fire by themselves. Which?",
+   "why": "Brawl Stars fires on release; Vampire Survivors fires by itself. Manual aim makes Bounce and Pierce feel earned.",
+   "pick": "a",
+   "options": [
+    {
+     "id": "a",
+     "label": "Release + hold",
+     "text": "Release fires, keep holding to repeat, tap = nearest. My pick."
+    },
+    {
+     "id": "b",
+     "label": "Auto-fire",
+     "text": "Fires at the nearest enemy by itself; the stick only steers it."
+    },
+    {
+     "id": "c",
+     "label": "Release only",
+     "text": "One shot per release, like Brawl Stars exactly."
+    },
+    {
+     "id": "d",
+     "label": "Both, a setting",
+     "text": "Release + hold by default, auto-fire as an option."
+    }
+   ]
+  },
+  {
+   "id": "ammo",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Ammo bars",
+   "text": "Every weapon shape uses 3 ammo bars that reload, like Brawl Stars?",
+   "why": "It gives a bolt, a beam and a bomb the same rhythm on the Fire stick, and makes Haste and +1 ammo upgrades mean something. Without it, every shape needs its own rate rule.",
+   "pick": "Yes, 3 bars. A beam drains a bar per second while held."
+  },
+  {
+   "id": "aim",
+   "kind": "question",
+   "rarity": "common",
+   "title": "No aim assist",
+   "text": "Keep the maze roguelike's rule: no aim assist, apart from tap-to-nearest?",
+   "why": "Home and Follow modules already help aim. More help would make them pointless.",
+   "pick": "Yes, no aim assist."
+  }
+ ]
+}

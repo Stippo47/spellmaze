@@ -1,0 +1,157 @@
+{
+ "title": "Enemies",
+ "topic": "enemies",
+ "order": 1,
+ "cards": [
+  {
+   "id": "roster",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Ten enemies",
+   "text": "One simple shape each. The shape tells you what it does.",
+   "why": "From your maze doc: most enemies share a shape and differ by behaviour. Mark any that's dull or unfair.",
+   "parts": [
+    {
+     "id": "mite",
+     "title": "Mite",
+     "text": "Small red circle. Swarms toward you. The fodder.",
+     "images": [
+      "../../../art/out/enemy-mite.png"
+     ]
+    },
+    {
+     "id": "dart",
+     "title": "Dart",
+     "text": "Thin triangle. When it sees you it flashes, then charges in a straight line until a wall. Dash sideways.",
+     "images": [
+      "../../../art/out/enemy-dart.png"
+     ]
+    },
+    {
+     "id": "brute",
+     "title": "Brute",
+     "text": "Big square. Slow and tanky, shoves smaller enemies along, hard to knock back.",
+     "images": [
+      "../../../art/out/enemy-brute.png"
+     ]
+    },
+    {
+     "id": "spitter",
+     "title": "Spitter",
+     "text": "Diamond. Keeps its distance, needs line of sight, lobs slow orbs. Break line of sight.",
+     "images": [
+      "../../../art/out/enemy-spitter.png"
+     ]
+    },
+    {
+     "id": "splitter",
+     "title": "Splitter",
+     "text": "Hexagon. Splits into 2, then 4 small ones. Blasts and Pierce.",
+     "images": [
+      "../../../art/out/enemy-splitter.png"
+     ]
+    },
+    {
+     "id": "bomber",
+     "title": "Bomber",
+     "text": "Runs at you, swells, blows up. Its blast hurts enemies too: kill it in a crowd.",
+     "images": [
+      "../../../art/out/enemy-bomber.png"
+     ]
+    },
+    {
+     "id": "crawler",
+     "title": "Crawler",
+     "text": "Half-circle stuck to a wall. Slides along it and fires across the corridor. Bounce and Ghost.",
+     "images": [
+      "../../../art/out/enemy-crawler.png"
+     ]
+    },
+    {
+     "id": "drifter",
+     "title": "Drifter",
+     "text": "Faded outline that floats through walls slowly. Can only be hit while solid; it flickers in and out.",
+     "images": [
+      "../../../art/out/enemy-drifter.png"
+     ]
+    },
+    {
+     "id": "shield",
+     "title": "Shield",
+     "text": "Square with a front bar that blocks shots. Turns slowly. Go around: Bounce, Home, Orbit, blasts.",
+     "images": [
+      "../../../art/out/enemy-shield.png"
+     ]
+    },
+    {
+     "id": "nest",
+     "title": "Nest",
+     "text": "Spiky star in a dead end, making Mites. Kill it for a chest.",
+     "images": [
+      "../../../art/out/enemy-nest.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "big",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Elites and bosses",
+   "text": "Elites carry your modules. A boss every 5 minutes.",
+   "why": "Elites tie enemies to the module system: same parts both ways.",
+   "parts": [
+    {
+     "id": "elite",
+     "title": "Elites",
+     "text": "A normal enemy with a module, shown as a coloured ring. An elite Spitter with Burn throws fire. Killing it drops that module.",
+     "images": [
+      "../../../art/out/enemy-elite.png"
+     ]
+    },
+    {
+     "id": "hulk",
+     "title": "Hulk, 5:00",
+     "text": "A square as wide as a corridor that rolls through the maze. You can't get past, so you route around and hit it from behind.",
+     "images": [
+      "../../../art/out/enemy-hulk.png"
+     ]
+    },
+    {
+     "id": "queen",
+     "title": "Queen, 10:00",
+     "text": "Sits in a hall spawning waves, behind a ring of shields that open in turn.",
+     "images": [
+      "../../../art/out/enemy-queen.png"
+     ]
+    },
+    {
+     "id": "mirror",
+     "title": "Mirror, 15:00",
+     "text": "A copy of you built from your own casts and modules. Your build fights you.",
+     "images": [
+      "../../../art/out/enemy-mirror.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "elites",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Elites drop modules",
+   "text": "Killing an elite always drops the module it carried?",
+   "why": "It gives a second way to find modules besides chests, and makes elites worth chasing. The risk: fewer reasons to explore dead ends.",
+   "pick": "Yes, always, but at common rarity. Chests stay the way to rare ones."
+  },
+  {
+   "id": "mirror",
+   "kind": "question",
+   "rarity": "common",
+   "title": "The Mirror boss",
+   "text": "A boss built from your own build?",
+   "why": "It's the strongest proof the system is generic: the same modules run on an enemy. The risk is a build that's unbeatable against itself, like heavy Ghost or Leech.",
+   "pick": "Yes, at 15:00, with half your levels."
+  }
+ ]
+}

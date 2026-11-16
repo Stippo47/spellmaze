@@ -1,0 +1,202 @@
+{
+ "title": "How spells are built",
+ "topic": "spells",
+ "order": 1,
+ "cards": [
+  {
+   "id": "casts",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Casts, shapes, modules",
+   "text": "Three casts. Each is one shape plus slots. Any module in any slot.",
+   "why": "This is the core of the game. Mark any part that doesn't sit right.",
+   "parts": [
+    {
+     "id": "casts",
+     "title": "Casts",
+     "text": "What you trigger: Weapon (Fire stick), Summon (Summon stick), Dash (Dash button)."
+    },
+    {
+     "id": "shapes",
+     "title": "Five shapes",
+     "text": "Bolt: a fast shot. Beam: a held line. Burst: a lobbed bomb that blasts a circle. Ball: a thrown body with HP that hits by contact, harder when faster. Self: the dash, your own body moving."
+    },
+    {
+     "id": "start",
+     "title": "Starting kit",
+     "text": "Weapon = Bolt, Summon = Ball, Dash = Self. Beam and Burst come from unlocks and from shape cards in chests."
+    },
+    {
+     "id": "shapecards",
+     "title": "Shape cards",
+     "text": "A shape card swaps a cast's shape and keeps its modules. Bolt + Bounce + Burn becomes Beam + Bounce + Burn: a burning beam that reflects."
+    },
+    {
+     "id": "slots",
+     "title": "Slots",
+     "text": "Weapon 3, Summon 2, Dash 2 at the start. Unlocks raise them to 6, 5 and 4."
+    }
+   ],
+   "images": [
+    "../../../art/out/ui-build.png"
+   ]
+  },
+  {
+   "id": "channels",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Any module, any shape",
+   "text": "Every shape answers the same seven questions. Modules are written against those, never against a shape.",
+   "why": "This is your 'make modules generic' test. If a module ever had no answer on a shape, this is where it would break.",
+   "parts": [
+    {
+     "id": "count",
+     "title": "Count",
+     "text": "How many per cast. Bolts, beams, bombs, balls, or dash charges."
+    },
+    {
+     "id": "size",
+     "title": "Size",
+     "text": "Bolt radius, beam width, blast radius, ball size and HP, dash width."
+    },
+    {
+     "id": "speed",
+     "title": "Speed",
+     "text": "Flight speed and reload, beam reach and tick rate, throw speed, ball speed and charge rate, dash length and recharge."
+    },
+    {
+     "id": "path",
+     "title": "Path",
+     "text": "How it moves: the flight, the line, the lob, the throw then drift, the dash line."
+    },
+    {
+     "id": "contact",
+     "title": "Contact",
+     "text": "Touching an enemy: the hit, each beam tick, everything in the blast, each ball collision, everyone you dash through or shove."
+    },
+    {
+     "id": "wall",
+     "title": "Wall",
+     "text": "Touching a wall: a bolt dies, a beam stops, a blast is blocked, a ball thuds, a dash stops."
+    },
+    {
+     "id": "end",
+     "title": "End",
+     "text": "When it's over: a bolt runs out, a beam is released, a blast fades, a ball dies, a dash ends."
+    },
+    {
+     "id": "fallback",
+     "title": "Fallbacks",
+     "text": "Where the obvious answer is 'nothing', the module names a fallback. Shrapnel on a dash: a ring of bolts where you land. No module ever does nothing."
+    }
+   ],
+   "images": [
+    "../../../art/out/mod-bounce.png"
+   ]
+  },
+  {
+   "id": "inherit",
+   "kind": "report",
+   "rarity": "common",
+   "title": "What children inherit",
+   "text": "Some modules make new things: a blast, small bolts, copies. Those carry some of the parent's modules.",
+   "why": "This is your maze doc's rule 20, unchanged. It's what lets a burning ball's turret shots burn without you adding Burn twice.",
+   "parts": [
+    {
+     "id": "yes",
+     "title": "Payloads pass down",
+     "text": "Burn, Chill, Shock, Poison, Mark, Knock, Pull and Leech pass to children. A burning ball's Gunner shots burn; its death blast is a fire blast."
+    },
+    {
+     "id": "no",
+     "title": "Nothing else does",
+     "text": "Path, count and spawner modules don't pass down. That stops endless chains and keeps the screen readable."
+    },
+    {
+     "id": "split",
+     "title": "Splits stop",
+     "text": "Split children never split again."
+    },
+    {
+     "id": "depth",
+     "title": "Depth limit",
+     "text": "Things making things making things: 2 deep in a run, 3 with an unlock."
+    }
+   ]
+  },
+  {
+   "id": "runes",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Runes: spells in spells",
+   "text": "A Rune is a module with a trigger and an empty socket. Put a shape card in it, and 2 modules of its own.",
+   "why": "This is how your Wings-sized spells become buildable. Fixed spawners (Explode, Gunner…) are runes that come pre-filled.",
+   "parts": [
+    {
+     "id": "how",
+     "title": "How it works",
+     "text": "'On wall: cast ___'. Drop in Burst, add Pull and Chill: every time your bolt hits a wall, a freezing blast sucks enemies in."
+    },
+    {
+     "id": "triggers",
+     "title": "Triggers",
+     "text": "On hit, On wall, On end, Every 1 s, On kill. The trigger is fixed when the Rune drops; it's printed on the card."
+    },
+    {
+     "id": "rarity",
+     "title": "Rarity",
+     "text": "Epic or better only. A run might see two or three."
+    }
+   ],
+   "images": [
+    "../../../art/out/mod-rune.png"
+   ]
+  },
+  {
+   "id": "levels",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Levels, rarity, slots",
+   "text": "How modules grow and how many you carry.",
+   "why": "The questions after this card are about these numbers.",
+   "parts": [
+    {
+     "id": "numbers",
+     "title": "Numbers shown",
+     "text": "Upgrade cards show the number: 'Bounce 2 → 3'."
+    },
+    {
+     "id": "caps",
+     "title": "Rarity caps levels",
+     "text": "Common 3, Rare 5, Epic 7, Legendary 9."
+    },
+    {
+     "id": "dupes",
+     "title": "Duplicates",
+     "text": "The same module at a higher rarity promotes yours, keeping levels. Same or lower rarity: +1 level, or scrap it for XP."
+    },
+    {
+     "id": "full",
+     "title": "When full",
+     "text": "A new module can replace one you have (the old one is scrapped for XP), or be scrapped itself."
+    },
+    {
+     "id": "move",
+     "title": "Moving",
+     "text": "On the build screen you can move any module between casts. Its level goes with it."
+    },
+    {
+     "id": "levelup",
+     "title": "Level-up",
+     "text": "4 cards, mostly modules below their cap. When everything's capped: vitals like +10 max HP."
+    }
+   ],
+   "images": [
+    "../../../art/out/ui-levelup.png",
+    "../../../art/out/ui-chest.png"
+   ]
+  }
+ ],
+ "priority": 3,
+ "stack": "spells"
+}

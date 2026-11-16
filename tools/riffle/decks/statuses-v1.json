@@ -1,0 +1,88 @@
+{
+ "title": "Status effects",
+ "topic": "statuses",
+ "order": 1,
+ "cards": [
+  {
+   "id": "all",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Five statuses",
+   "text": "Same model as Delve: each hit builds up to 100, then something bigger happens.",
+   "why": "Delve's statuses already work this way, so it's tested. Mark any part that's off.",
+   "parts": [
+    {
+     "id": "burn",
+     "title": "Burn → Flare",
+     "text": "Damage over time. At 100 it drops to 20, a big hit, and a small fire blast that burns those nearby.",
+     "images": [
+      "../../../art/out/status-burn.png"
+     ]
+    },
+    {
+     "id": "chill",
+     "title": "Chill → Freeze → Shatter",
+     "text": "Slows up to 60%. At 100: frozen 2 s. A hard hit on a frozen enemy shatters it into icicles that chill others.",
+     "images": [
+      "../../../art/out/status-chill.png"
+     ]
+    },
+    {
+     "id": "shock",
+     "title": "Shock → Overload",
+     "text": "Each hit arcs a small jump to one nearby enemy. At 100: stunned 0.6 s and arcs to 3.",
+     "images": [
+      "../../../art/out/status-shock.png"
+     ]
+    },
+    {
+     "id": "poison",
+     "title": "Poison → Rot",
+     "text": "Slow damage. At 100: loses 15% of max HP at once. Dies leaving a gas cloud that poisons.",
+     "images": [
+      "../../../art/out/status-poison.png"
+     ]
+    },
+    {
+     "id": "mark",
+     "title": "Mark → Detonate",
+     "text": "No damage. Marked enemies take +25% from your hits. At 5 marks it pops for heavy damage.",
+     "images": [
+      "../../../art/out/status-mark.png"
+     ]
+    },
+    {
+     "id": "mixes",
+     "title": "Three mixes",
+     "text": "Thaw: Burn on chill clears both for a burst. Ignite: fire in gas explodes. Conduct: Shock arcs prefer marked enemies and jump twice as far between them.",
+     "images": [
+      "../../../art/out/status-mixes.png"
+     ]
+    },
+    {
+     "id": "hard",
+     "title": "Hard effects",
+     "text": "Knockback, stun (from Freeze and Overload) and slow (from Chill). These don't build up."
+    }
+   ]
+  },
+  {
+   "id": "beam",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Beams build slower",
+   "text": "Beams and trails add less build-up per tick than a bolt hit?",
+   "why": "A beam ticks 8 times a second. At full strength, Burn on a beam would Flare everything instantly and other shapes would never be worth it.",
+   "pick": "Yes: each shape has a strength for statuses; beams and trails are low, the Ball and charged shots are high."
+  },
+  {
+   "id": "enemyfx",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Enemies use statuses",
+   "text": "Elite enemies can burn, chill or shock you?",
+   "why": "Elites carry modules (see Enemies), so an elite with Burn would set you on fire. It keeps one system both ways. The cost: you need a way to shake statuses off.",
+   "pick": "Yes, from elites only; a dash clears half your build-up."
+  }
+ ]
+}

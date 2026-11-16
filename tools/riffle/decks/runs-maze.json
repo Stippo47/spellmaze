@@ -1,0 +1,117 @@
+{
+ "title": "The maze and a run",
+ "topic": "runs",
+ "order": 1,
+ "cards": [
+  {
+   "id": "maze",
+   "kind": "report",
+   "rarity": "common",
+   "title": "The maze",
+   "text": "A square labyrinth, 24×24 squares. Dead ends hold chests; deeper ones are better.",
+   "why": "Mark any part that's off.",
+   "parts": [
+    {
+     "id": "size",
+     "title": "Sizes",
+     "text": "Corridors 6 cells wide (three of you side by side), walls 2 cells thick. The screen shows about 6×3 squares."
+    },
+    {
+     "id": "loops",
+     "title": "Loops and halls",
+     "text": "A maze with many dead ends, plus 15% of walls knocked out so you can't be trapped forever, plus 4–6 open halls for big fights and bosses."
+    },
+    {
+     "id": "los",
+     "title": "Line of sight",
+     "text": "Simple, from your centre. Outside it is dark; walls you've seen stay faint. Enemies outside it are hidden, but close ones show a small tick at the screen edge."
+    },
+    {
+     "id": "chests",
+     "title": "Chests",
+     "text": "At most dead ends. The longer the tunnel, the better the rarity. They glow through the dark within about 12 cells, so you notice side tunnels."
+    },
+    {
+     "id": "waves",
+     "title": "Waves",
+     "text": "Enemies spawn out of sight, 20–35 cells away along the paths. Every minute adds more and new kinds. Hordes come down one corridor at set times."
+    },
+    {
+     "id": "exit",
+     "title": "The exit",
+     "text": "Opens at 10:00 somewhere far away, shown on the minimap. Leave to bank all shards. Stay for a growing multiplier and a boss every 5 minutes. Dying banks half."
+    }
+   ],
+   "images": [
+    "../../../art/out/maze.png"
+   ]
+  },
+  {
+   "id": "width",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "Corridor width",
+   "text": "How wide are corridors, in player widths?",
+   "why": "Narrow corridors make a horde a wall and dead ends deadly. Wide ones give room to kite like Vampire Survivors.",
+   "pick": "b",
+   "options": [
+    {
+     "id": "a",
+     "label": "2 wide",
+     "text": "4 cells. Tight, every dead end is a trap."
+    },
+    {
+     "id": "b",
+     "label": "3 wide",
+     "text": "6 cells. Room to dodge one enemy. My pick."
+    },
+    {
+     "id": "c",
+     "label": "4 wide",
+     "text": "8 cells. Plenty of kiting room, less maze-like."
+    },
+    {
+     "id": "d",
+     "label": "Mixed",
+     "text": "Mostly 3, some 2-wide tunnels and 4-wide main roads."
+    }
+   ]
+  },
+  {
+   "id": "hidden",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Hide unseen enemies",
+   "text": "Enemies outside your line of sight are fully hidden (with a small edge tick when close)?",
+   "why": "Hiding them makes the maze tense and corners scary. Showing them makes it fairer but the dark means less.",
+   "pick": "Hidden, with the edge tick."
+  },
+  {
+   "id": "beacon",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Chest glow",
+   "text": "Chests glow through the dark when you're within about 12 cells?",
+   "why": "You wanted chests to make players explore. A glow says 'there's something down there' without a map marker.",
+   "pick": "Yes, a faint glow; seen chests stay on the minimap."
+  },
+  {
+   "id": "runend",
+   "kind": "question",
+   "rarity": "rare",
+   "title": "When a run ends",
+   "text": "Exit opens at 10:00; stay for more until you die; dying banks half?",
+   "why": "It gives a clear goal, a greed choice, and keeps the endless survivor feel for those who want it.",
+   "pick": "Yes."
+  },
+  {
+   "id": "selfhit",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Your blasts and you",
+   "text": "Your own blasts never hurt you, but enemy Bomber blasts hurt enemies?",
+   "why": "Your maze doc says explosions hit everything. In a survivor game with blasts everywhere, hurting yourself would mean never picking Explode.",
+   "pick": "Yours never hurt you. Enemy blasts hit everything, you included."
+  }
+ ]
+}

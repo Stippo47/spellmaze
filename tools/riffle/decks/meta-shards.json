@@ -1,0 +1,80 @@
+{
+ "title": "Between runs",
+ "topic": "meta",
+ "order": 1,
+ "cards": [
+  {
+   "id": "shards",
+   "kind": "design",
+   "rarity": "rare",
+   "title": "What shards buy",
+   "text": "Shards come from kills, chests and time survived. They buy mostly new options, few raw stats.",
+   "why": "You prefer upgrades that change how you play over +20% numbers. So most of this is more slots, more modules and more shapes.",
+   "pick": "These seven, in this order of importance.",
+   "parts": [
+    {
+     "id": "slots",
+     "title": "Slots",
+     "text": "+1 slot to a cast. Up to Weapon 6, Summon 5, Dash 4."
+    },
+    {
+     "id": "pool",
+     "title": "Module pool",
+     "text": "Runs start with 14 of the 28 modules in chests. Some unlock by shards, some by doing (kill 300 burning enemies)."
+    },
+    {
+     "id": "shapes",
+     "title": "Shapes",
+     "text": "Beam and Burst as starting weapons, and in chests."
+    },
+    {
+     "id": "kit",
+     "title": "Start kit",
+     "text": "Begin a run with one module you've found before, at common."
+    },
+    {
+     "id": "depth",
+     "title": "Depth",
+     "text": "Runes nest one level deeper."
+    },
+    {
+     "id": "rerolls",
+     "title": "Rerolls and bans",
+     "text": "Reroll a level-up, or ban a module from showing up."
+    },
+    {
+     "id": "vitals",
+     "title": "A few vitals",
+     "text": "Small max HP and pickup range. Kept small on purpose."
+    }
+   ]
+  },
+  {
+   "id": "practice",
+   "kind": "question",
+   "rarity": "rare",
+   "title": "Practice room",
+   "text": "Unlock a practice room early: build anything from modules you've found, no slot limits, on dummies?",
+   "why": "This is where Wings-sized spells get made. A run caps a Weapon at 6 modules; here there's no cap. It's also where players learn the system.",
+   "pick": "Yes, after the first run, with spawnable enemies."
+  },
+  {
+   "id": "codex",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Codex",
+   "text": "A codex page per module, showing it on all five shapes like the pictures in this pack?",
+   "why": "The five-shapes picture is the clearest way to teach that modules work everywhere.",
+   "pick": "Yes, filled in as you find them."
+  },
+  {
+   "id": "bydoing",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Unlock by doing",
+   "text": "Some modules unlock by doing something, not by spending shards?",
+   "why": "It ties unlocks to how you play (earned, not bought). The risk is grinding a weird challenge.",
+   "pick": "Yes for about a third of them, with plain goals."
+  }
+ ]
+}

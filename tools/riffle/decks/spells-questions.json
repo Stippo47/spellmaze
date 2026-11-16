@@ -1,0 +1,88 @@
+{
+ "title": "Spell system questions",
+ "topic": "spells",
+ "order": 3,
+ "cards": [
+  {
+   "id": "numbers",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Show the numbers",
+   "text": "Show numbers on modules and upgrades ('Bounce 2 → 3')?",
+   "why": "Your maze doc said hidden numbers, visible results. Your brief here says '+1 bounces on a bounce module'. Survivor games live on reading the upgrade, so I went with shown.",
+   "pick": "Shown here. The maze roguelike keeps its hidden rule."
+  },
+  {
+   "id": "caps",
+   "kind": "options",
+   "rarity": "uncommon",
+   "title": "Rarity caps",
+   "text": "Rarity limits how far a module levels. Which caps?",
+   "why": "Low caps make finding a rare copy exciting; high caps make XP matter more than chests.",
+   "pick": "a",
+   "options": [
+    {
+     "id": "a",
+     "label": "3 / 5 / 7 / 9",
+     "text": "Common to Legendary. My pick."
+    },
+    {
+     "id": "b",
+     "label": "2 / 3 / 4 / 5",
+     "text": "Tighter. Chests matter more."
+    },
+    {
+     "id": "c",
+     "label": "5 / 5 / 5 / 5 + perks",
+     "text": "Same cap; rarity adds a bonus effect instead."
+    }
+   ]
+  },
+  {
+   "id": "dupes",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Duplicates promote",
+   "text": "A higher-rarity copy of a module you own promotes yours and keeps its levels?",
+   "why": "Without it, finding a better Bounce means throwing away the levels on the old one, which feels bad.",
+   "pick": "Yes, promote and keep levels; a lower copy gives +1 level."
+  },
+  {
+   "id": "move",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Move modules freely",
+   "text": "On the build screen, move any module between Weapon, Summon and Dash at any time?",
+   "why": "Building is the point, so trying Explode on the Dash instead of the Ball should cost nothing. The cost is that slots per cast matter less.",
+   "pick": "Yes, free, any time you pause."
+  },
+  {
+   "id": "shapecards",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Shape cards in chests",
+   "text": "Rare chests can hold a shape card that swaps a cast's shape mid-run?",
+   "why": "Turning your Bolt build into a Beam build halfway through a run is the clearest proof that modules are generic. It's also how Runes get filled.",
+   "pick": "Yes, rare and up."
+  },
+  {
+   "id": "runesv1",
+   "kind": "question",
+   "rarity": "rare",
+   "title": "Runes in the first version",
+   "text": "Include Runes (open sockets) from the start, at Epic and up?",
+   "why": "They're how big spells get built, which you said is the main goal. They're also the most complex screen to make on a phone.",
+   "pick": "Yes, in stage 5, Epic and up. The fixed spawners come first."
+  },
+  {
+   "id": "depth",
+   "kind": "question",
+   "rarity": "common",
+   "title": "How deep spells nest",
+   "text": "Things that make things: 2 deep in a run, 3 with an unlock?",
+   "why": "Deeper means bigger spells and a busier screen. 3 is enough for Wings' death aura.",
+   "pick": "2, and 3 with an unlock. No limit in the practice room."
+  }
+ ],
+ "stack": "spells"
+}

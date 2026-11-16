@@ -1,0 +1,97 @@
+{
+ "title": "The look",
+ "topic": "look",
+ "order": 1,
+ "cards": [
+  {
+   "id": "style",
+   "kind": "board",
+   "rarity": "rare",
+   "title": "Pick a style",
+   "text": "The same moment drawn four ways. Tick the ones you like.",
+   "why": "This sets every picture in the game. They differ in how shapes and walls are drawn, not in colours. Colours are the next card.",
+   "pick": [
+    "C"
+   ],
+   "items": [
+    {
+     "id": "A",
+     "label": "A: thin line",
+     "image": "../../../art/out/key-A.png",
+     "text": "Outlines only, strong glow, no floor grid. Most 'vector'."
+    },
+    {
+     "id": "B",
+     "label": "B: solid",
+     "image": "../../../art/out/key-B.png",
+     "text": "Filled glowing shapes, bright solid walls."
+    },
+    {
+     "id": "C",
+     "label": "C: line + soft fill",
+     "image": "../../../art/out/key-C.png",
+     "text": "Outline plus a faint fill, double-line walls, faint grid. My pick: reads fast, glow stays cheap."
+    },
+    {
+     "id": "D",
+     "label": "D: flat",
+     "image": "../../../art/out/key-D.png",
+     "text": "No glow at all, thick lines, flat fills. Cheapest to run on the phone."
+    }
+   ]
+  },
+  {
+   "id": "colours",
+   "kind": "report",
+   "rarity": "common",
+   "title": "One job per colour",
+   "text": "Each colour means one thing, so a glance tells you what's dangerous.",
+   "why": "From your maze doc: each visual channel gets one job. Mark anything that clashes.",
+   "parts": [
+    {
+     "id": "you",
+     "title": "You: cyan and white",
+     "text": "The player, your shots, your summon. Enemy shots are never cyan."
+    },
+    {
+     "id": "foes",
+     "title": "Enemies: red and magenta",
+     "text": "Enemy bodies are red or magenta. Enemy shots are red and always drawn on top of yours."
+    },
+    {
+     "id": "loot",
+     "title": "Green and gold",
+     "text": "XP gems are mint green. Chests and gold are amber, and glow through the dark."
+    },
+    {
+     "id": "status",
+     "title": "Statuses in their colours",
+     "text": "Burn orange, Chill pale ice, Shock yellow, Poison lime, Mark pink."
+    },
+    {
+     "id": "size",
+     "title": "Size = health",
+     "text": "A bigger enemy has more HP. Rings and particles show modules."
+    },
+    {
+     "id": "rarity",
+     "title": "Rarity",
+     "text": "Common white, Rare blue, Epic purple, Legendary gold."
+    }
+   ],
+   "images": [
+    "../../../art/out/key-C.png"
+   ]
+  },
+  {
+   "id": "name",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Working title",
+   "text": "Call it Spellmaze for now?",
+   "why": "Only so files and the Riffle pack have a name. Plain, says what it's about, no neon in it.",
+   "pick": "Spellmaze until you think of better."
+  }
+ ],
+ "priority": 2
+}

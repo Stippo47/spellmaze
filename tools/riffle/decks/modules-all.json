@@ -1,0 +1,321 @@
+{
+ "title": "All 28 modules",
+ "topic": "modules",
+ "order": 1,
+ "cards": [
+  {
+   "id": "read",
+   "kind": "report",
+   "rarity": "common",
+   "title": "How to read these",
+   "text": "Each picture shows one module on all five shapes: Bolt, Beam, Burst, Ball, Dash.",
+   "why": "Mark a module part as a problem if one of its five versions is wrong or boring. That's the pressure test you asked for.",
+   "images": [
+    "../../../art/out/icons.png"
+   ],
+   "details": "Text order is always Bolt | Beam | Burst | Ball | Dash.\n\nRed circles are enemies, the cyan ring is you, the cyan ball with a green health arc is your summon. Faded rings are where the dash was."
+  },
+  {
+   "id": "path",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Path modules",
+   "text": "How it moves. Cyan.",
+   "why": "One part per module, each with its picture.",
+   "parts": [
+    {
+     "id": "home",
+     "title": "Home",
+     "text": "Curves to the nearest enemy | bends toward enemies | the bomb steers onto one | hunts, re-targets after each hit | the dash curves into one (a lunge).",
+     "images": [
+      "../../../art/out/mod-home.png"
+     ]
+    },
+    {
+     "id": "bounce",
+     "title": "Bounce",
+     "text": "Reflects off walls | reflects | the bomb hops, blasting each hop | pinball, no speed lost | the dash rebounds and keeps going. +1 bounce a level.",
+     "images": [
+      "../../../art/out/mod-bounce.png"
+     ]
+    },
+    {
+     "id": "pierce",
+     "title": "Pierce",
+     "text": "Through enemies | through enemies | the blast reaches through one wall | through at full speed | dash through enemies, hitting each. +1 a level.",
+     "images": [
+      "../../../art/out/mod-pierce.png"
+     ]
+    },
+    {
+     "id": "orbit",
+     "title": "Orbit",
+     "text": "Circles you, then flies out | sweeps a full circle | blasts in a ring around you | guards you, blocking shots | the dash arcs around an enemy.",
+     "images": [
+      "../../../art/out/mod-orbit.png"
+     ]
+    },
+    {
+     "id": "return",
+     "title": "Return",
+     "text": "Boomerang | swings out and back | blast expands then collapses, hitting twice | flies back; catch it for half the charge | you snap back to your start after 1 s.",
+     "images": [
+      "../../../art/out/mod-return.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "form",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Form modules",
+   "text": "How many, how big, how fast. White.",
+   "why": "One part per module, each with its picture.",
+   "parts": [
+    {
+     "id": "extra",
+     "title": "Extra",
+     "text": "+1 bolt | +1 beam | +1 bomb | +1 ball | +1 dash charge.",
+     "images": [
+      "../../../art/out/mod-extra.png"
+     ]
+    },
+    {
+     "id": "grow",
+     "title": "Grow",
+     "text": "Bigger bolt | wider beam | bigger blast | bigger, tougher, slower ball | wider dash that shoves more.",
+     "images": [
+      "../../../art/out/mod-grow.png"
+     ]
+    },
+    {
+     "id": "haste",
+     "title": "Haste",
+     "text": "Faster shots and reload | faster ticks, longer reach | faster throw and cooldown | faster ball and summon charge | longer dash, faster recharge.",
+     "images": [
+      "../../../art/out/mod-haste.png"
+     ]
+    },
+    {
+     "id": "split",
+     "title": "Split",
+     "text": "Splits in two at its end | forks partway | two small bombs after the blast | two small balls on death | two echo dashes at ±35°. Children never split.",
+     "images": [
+      "../../../art/out/mod-split.png"
+     ]
+    },
+    {
+     "id": "swarm",
+     "title": "Swarm",
+     "text": "6 tiny homing bolts | 6 thin homing threads | 6 homing bomblets | 6 small homing balls | 6 homing sparks along the dash. Rare or better.",
+     "images": [
+      "../../../art/out/mod-swarm.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "payload",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Payload modules",
+   "text": "What a touch does. Element colours.",
+   "why": "One part per module, each with its picture.",
+   "parts": [
+    {
+     "id": "burn",
+     "title": "Burn",
+     "text": "Sets enemies on fire. At 100: Flare.",
+     "images": [
+      "../../../art/out/mod-burn.png"
+     ]
+    },
+    {
+     "id": "chill",
+     "title": "Chill",
+     "text": "Slows. At 100: Freeze; a hard hit on a frozen enemy shatters it into icicles.",
+     "images": [
+      "../../../art/out/mod-chill.png"
+     ]
+    },
+    {
+     "id": "shock",
+     "title": "Shock",
+     "text": "Each hit arcs to a neighbour. At 100: Overload.",
+     "images": [
+      "../../../art/out/mod-shock.png"
+     ]
+    },
+    {
+     "id": "poison",
+     "title": "Poison",
+     "text": "Slow damage. At 100: Rot; it dies into gas.",
+     "images": [
+      "../../../art/out/mod-poison.png"
+     ]
+    },
+    {
+     "id": "mark",
+     "title": "Mark",
+     "text": "+25% damage taken. At 5 marks: Detonate.",
+     "images": [
+      "../../../art/out/mod-mark.png"
+     ]
+    },
+    {
+     "id": "knock",
+     "title": "Knock",
+     "text": "Push far | push along the beam | hurl outward | enemies fly and bowl others over | dash shoves become a shockwave.",
+     "images": [
+      "../../../art/out/mod-knock.png"
+     ]
+    },
+    {
+     "id": "pull",
+     "title": "Pull",
+     "text": "Drags enemies to its line | drags them toward you | sucks in, then blasts | a magnet that gathers them | pulls them to where you land.",
+     "images": [
+      "../../../art/out/mod-pull.png"
+     ]
+    },
+    {
+     "id": "leech",
+     "title": "Leech",
+     "text": "Hits heal you a little. The ball's hits heal it too. Each enemy you dash through heals you.",
+     "images": [
+      "../../../art/out/mod-leech.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "spawn",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Spawner modules",
+   "text": "Make something at a moment. Yellow.",
+   "why": "One part per module, each with its picture.",
+   "parts": [
+    {
+     "id": "explode",
+     "title": "Explode",
+     "text": "Blast on hit | blast at the beam's end every 0.5 s | a second blast | blast on death | blast where you land.",
+     "images": [
+      "../../../art/out/mod-explode.png"
+     ]
+    },
+    {
+     "id": "shrapnel",
+     "title": "Shrapnel",
+     "text": "A ring of small bolts where it ends, on every shape. +2 bolts a level.",
+     "images": [
+      "../../../art/out/mod-shrapnel.png"
+     ]
+    },
+    {
+     "id": "gunner",
+     "title": "Gunner",
+     "text": "Side-shots while flying | sparks jump off the beam | the area stays and strikes fall | turret pet | 2 s of auto-fire after a dash.",
+     "images": [
+      "../../../art/out/mod-gunner.png"
+     ]
+    },
+    {
+     "id": "trail",
+     "title": "Trail",
+     "text": "Leaves a strip that carries its payloads (Burn makes fire): behind the bolt, the beam's sweep, a pool, behind the ball, along the dash.",
+     "images": [
+      "../../../art/out/mod-trail.png"
+     ]
+    },
+    {
+     "id": "echo",
+     "title": "Echo",
+     "text": "The whole cast repeats 0.4 s later from where it was cast. A ghost ball; a ghost of you dashing.",
+     "images": [
+      "../../../art/out/mod-echo.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rule",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Rule modules",
+   "text": "Bend a rule. Purple.",
+   "why": "One part per module, each with its picture.",
+   "parts": [
+    {
+     "id": "link",
+     "title": "Link",
+     "text": "Bolts in a volley joined by a damaging line (alone: a whip to you) | beam ends joined | the Lightning arena ring | balls linked (alone: a flail on you) | a 1 s tripwire along the dash.",
+     "images": [
+      "../../../art/out/mod-link.png"
+     ]
+    },
+    {
+     "id": "follow",
+     "title": "Follow",
+     "text": "Bolts hover by you, then fire at what comes near | the beam locks onto what it hits | the blast becomes an aura that moves with you | finds its way to you through the maze | dash to your ball.",
+     "images": [
+      "../../../art/out/mod-follow.png"
+     ]
+    },
+    {
+     "id": "charge",
+     "title": "Charge",
+     "text": "Hold to charge before release. Bigger and stronger with no cap, but less each second. Every shape.",
+     "images": [
+      "../../../art/out/mod-charge.png"
+     ]
+    },
+    {
+     "id": "ghost",
+     "title": "Ghost",
+     "text": "Through walls: bolt, beam, blast, ball. The dash goes through one wall if the far side is open. Legendary only.",
+     "images": [
+      "../../../art/out/mod-ghost.png"
+     ]
+    },
+    {
+     "id": "rune",
+     "title": "Rune",
+     "text": "On a trigger, cast the shape in its socket, with 2 slots of its own. Epic or better.",
+     "images": [
+      "../../../art/out/mod-rune.png"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ghost",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Ghost in a maze",
+   "text": "Keep Ghost (through walls) as a Legendary-only module?",
+   "why": "It breaks the maze: bolts through walls, a dash through one wall. That's a big, fun moment once a run, but common Ghost would make the maze pointless.",
+   "pick": "Yes, Legendary only, and the dash goes through one wall at a time."
+  },
+  {
+   "id": "dashpay",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Payloads on the Dash",
+   "text": "The Dash shoves enemies and does no damage until a module gives it some?",
+   "why": "Then Burn on the Dash means 'everyone you shove burns', and Pierce gives the dash a real hit. A dash that always hurts would make those modules less special.",
+   "pick": "Yes: no damage by default; Pierce, Explode, Trail and payloads give it some."
+  },
+  {
+   "id": "missing",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Modules you want",
+   "text": "Any module you expected that isn't here? Add a comment.",
+   "why": "28 is the first set. The four later systems (capture, origin, patterns, stage triggers) bring more.",
+   "pick": "Ship these 28; add yours to the later list."
+  }
+ ],
+ "priority": 4
+}

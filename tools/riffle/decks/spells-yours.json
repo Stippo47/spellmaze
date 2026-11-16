@@ -1,0 +1,126 @@
+{
+ "title": "Your spells, mapped",
+ "topic": "spells",
+ "order": 2,
+ "cards": [
+  {
+   "id": "arena",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Lightning arena",
+   "text": "Burst + Link + Shock + Gunner + Knock. All four modules are in the first set.",
+   "why": "Your Lightning arena falls out of generic modules, with no special code. That's the test passing.",
+   "parts": [
+    {
+     "id": "ring",
+     "title": "The ring",
+     "text": "Link on a Burst turns the blast's edge into a ring of linked points. Enemies that touch it join the ring."
+    },
+    {
+     "id": "strikes",
+     "title": "Sky strikes",
+     "text": "Gunner on a Burst keeps the area for 2 s and drops strikes inside it."
+    },
+    {
+     "id": "push",
+     "title": "Knockback",
+     "text": "Knock pushes them back out, the way they came."
+    },
+    {
+     "id": "gap",
+     "title": "What's not exact",
+     "text": "Your version kept 6 even anchors and re-sorted by angle when someone joined. Mine adds them where they touch. Close, not the same."
+    }
+   ],
+   "images": [
+    "../../../art/out/spell-arena.png"
+   ]
+  },
+  {
+   "id": "summon",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Your three summons",
+   "text": "Explosive, pet that shoots, swarm. Each is the starting Ball plus modules.",
+   "why": "These were your examples for why the summon is the base for many things.",
+   "parts": [
+    {
+     "id": "bomb",
+     "title": "Explosive",
+     "text": "Ball + Explode: it blasts when it dies."
+    },
+    {
+     "id": "pet",
+     "title": "Pet",
+     "text": "Ball + Follow + Gunner: Follow makes it find its way to you through the maze; Gunner makes it shoot."
+    },
+    {
+     "id": "swarm",
+     "title": "Swarm",
+     "text": "Ball + Swarm: 6 small homing balls that hit by contact."
+    }
+   ],
+   "images": [
+    "../../../art/out/spell-pet.png"
+   ]
+  },
+  {
+   "id": "wings",
+   "kind": "report",
+   "rarity": "common",
+   "title": "Wings, the big test",
+   "text": "About 14 modules on one Weapon. The engine can hold it; one run can't.",
+   "why": "Honest scope. A run's Weapon has 6 slots at most, so the full Wings lives in the practice room, and a run builds a smaller Wings.",
+   "parts": [
+    {
+     "id": "fits",
+     "title": "Fits now",
+     "text": "Charging orb, side streams, homing bouncing piercing pull orb, hit burst, spirit summon, death blast and aura."
+    },
+    {
+     "id": "later",
+     "title": "Needs later pieces",
+     "text": "The perpendicular 20-shot wall (a Row pattern), and the laser from the charging orb that forks (an 'On charge level' trigger)."
+    },
+    {
+     "id": "size",
+     "title": "Too big for a run",
+     "text": "About 14 modules. A run tops out at 6 on the Weapon. The practice room has no slot limit."
+    }
+   ],
+   "details": "Weapon = Bolt (big and slow), with:\n• Charge — the orb grows while held. ✔\n• Gunner — side streams while it flies. ✔\n• Home, Bounce ×3, Pierce, Pull — the released orb. ✔\n• Rune Every 1 s → Bolt — the trail of small orbs. ✔\n• Rune On hit → Bolt + Shrapnel — 12 radial. ✔\n• Rune On kill → Ball + Follow + Gunner — the spirit. ✔ except healing allies (no allies yet).\n• Rune On end → Burst + Grow + Rune Every 1 s → Burst — death blast and the star-lobbing aura. ✔ at depth 3.\n• Rune On wall → Bolt ×20 — the wall of shots. Partly: 'a perpendicular row, each slower than the last' needs a later Row module.\n• The laser out of the charging orb that forks at stage 2 — needs a later 'On charge level' trigger."
+  },
+  {
+   "id": "tests",
+   "kind": "report",
+   "rarity": "common",
+   "title": "The 21 pressure tests",
+   "text": "About a third fit fully, a third partly, a third need four later systems.",
+   "why": "The later systems all fit the same model without changing it. They're listed by how much they add.",
+   "parts": [
+    {
+     "id": "capture",
+     "title": "1. Capture and throw",
+     "text": "Grab enemies or shots and launch them. Unlocks the grab ray, the steal ability, smack-to-launch."
+    },
+    {
+     "id": "origin",
+     "title": "2. Origin",
+     "text": "Fire from the aim point, a mark or a flare instead of from you. Arrow rain, cursor shots, airstrikes."
+    },
+    {
+     "id": "pattern",
+     "title": "3. Patterns",
+     "text": "Rows, helixes, figure eights, formations. Wings' wall, the helix ladder, the water wave."
+    },
+    {
+     "id": "stage",
+     "title": "4. Stage triggers",
+     "text": "On charge level, on speed below X. Wings' laser, the orb pet that drifts back."
+    }
+   ],
+   "details": "Fit fully: fire tornado that throws fire summons; stomp; rapier lunge; bouncing pet orb; chained homing bomb (minus the tug on you).\n\nPartly: held lightning (no damage scaling down the chain yet); bouncing laser (no head-on split or merge yet); hammer slam (no backflip or spike chains); arrow rain (no flare targeting); rocket boots; spinning black hole; helix ladder (no helix or transform).\n\nLater: steal-and-throw ability, grab ray, curse and bless, smart sticky, water wave, figure-eight boomerang, projectile from the cursor, teleport knife."
+  }
+ ],
+ "stack": "spells"
+}
