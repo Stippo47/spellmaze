@@ -88,18 +88,18 @@ function newModCards(g, n, rarity) {
 // The start of a run (round 4: pick 1 of 3 common modules).
 export function startOffer(g) { return { kind: 'start', cards: newModCards(g, 3, 'common') }; }
 
-// Level-up: 3 cards. Every MODULE_EVERY levels (from the first level-up), new modules while there's room;
-// otherwise levels for modules you have (below their cap) and for you.
+// Level-up: 3 cards. The first level-up offers new modules. After that any card may be a new module (while there's
+// room): a small chance, a bigger one every MODULE_EVERY levels (round 5). The rest level what you have, or you.
 export function levelOffer(g) {
-  if ((g.level - 2) % MODULE_EVERY === 0) {
-    const cards = newModCards(g, 3);
-    if (cards.length >= 2) return { kind: 'level', modules: true, cards };
-  }
+  if (g.level === 2) { const cards = newModCards(g, 3); if (cards.length >= 2) return { kind: 'level', modules: true, cards }; }
+  const chance = (g.level - 2) % MODULE_EVERY === 0 ? 0.6 : 0.15, fresh = newModCards(g, 3);
   const pool = [];
   for (const c of CAST_ORDER) for (const m of g.run.mods[c]) if (m.level < RARITY[m.rarity].cap) pool.push({ type: 'mod', cast: c, id: m.id, w: 3 });
   for (const v of Object.keys(VITALS)) pool.push({ type: 'vital', id: v, w: 1.2 });
   const cards = [];
-  while (cards.length < 3 && pool.length) {
+  while (cards.length < 3) {
+    if (fresh.length && (g.R() < chance || !pool.length)) { cards.push(fresh.shift()); continue; }
+    if (!pool.length) break;
     let x = g.R() * pool.reduce((a, p) => a + p.w, 0), i = 0;
     for (; i < pool.length - 1; i++) { x -= pool[i].w; if (x <= 0) break; }
     cards.push(pool.splice(i, 1)[0]);

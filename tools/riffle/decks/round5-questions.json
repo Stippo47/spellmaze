@@ -1,0 +1,85 @@
+{
+ "title": "Shard look and a question",
+ "topic": "builds",
+ "order": 11,
+ "cards": [
+  {
+   "id": "shard",
+   "kind": "board",
+   "rarity": "uncommon",
+   "title": "What a shard looks like",
+   "text": "You marked the gold crystal a problem. Tick the looks you like for the module pickup.",
+   "why": "It sits in dead ends and rooms and has to read as 'a spell part' from across the screen.",
+   "pick": [
+    "rune",
+    "rarity"
+   ],
+   "details": "The colour idea works with any of them: the pickup shows the rarity of what's inside.",
+   "items": [
+    {
+     "id": "crystal",
+     "label": "Crystal (now)",
+     "text": "The gold crystal you marked.",
+     "image": "../../../films/shard-crystal.png"
+    },
+    {
+     "id": "rarity",
+     "label": "Crystal, rarity colour",
+     "text": "Same crystal, coloured by what it holds: white, green, blue, purple, gold.",
+     "image": "../../../films/shard-rarity.png"
+    },
+    {
+     "id": "rune",
+     "label": "Rune circle",
+     "text": "A glowing ring drawn on the floor. Walk onto it.",
+     "image": "../../../films/shard-rune.png"
+    },
+    {
+     "id": "orb",
+     "label": "Orb on a stand",
+     "text": "A gold ball resting on a small dark stand.",
+     "image": "../../../films/shard-orb.png"
+    },
+    {
+     "id": "tome",
+     "label": "Spell book",
+     "text": "A closed book with a sigil. Each one is a page of spell.",
+     "image": "../../../films/shard-tome.png"
+    },
+    {
+     "id": "cube",
+     "label": "Floating cube",
+     "text": "A small cube hovering and turning slowly.",
+     "image": "../../../films/shard-cube.png"
+    },
+    {
+     "id": "obelisk",
+     "label": "Obelisk",
+     "text": "A tall thin stone with a glowing band. Touch it.",
+     "image": "../../../films/shard-obelisk.png"
+    },
+    {
+     "id": "plate",
+     "label": "Glyph plate",
+     "text": "A raised square plate in the floor with a glyph.",
+     "image": "../../../films/shard-plate.png"
+    },
+    {
+     "id": "star",
+     "label": "Spinning star",
+     "text": "A four-point star turning in the air.",
+     "image": "../../../films/shard-star.png"
+    }
+   ]
+  },
+  {
+   "id": "after",
+   "kind": "question",
+   "rarity": "common",
+   "title": "The after images",
+   "text": "You said the enemy pictures had after images. Was that the films (trails behind moving things)?",
+   "why": "If it's in the game itself I'll fix it there; if only the films, I'll film differently.",
+   "pick": "I think it was the films: they're made from 30 snapshots a second, which smears fast darts."
+  }
+ ]
+}

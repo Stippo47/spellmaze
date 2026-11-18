@@ -3,21 +3,23 @@
 import { rng } from './util.js';
 
 // Corridor sets: widths in cells for main roads, normal corridors and side tunnels.
+// Round 5: everything twice the size ("every 1 cell becomes 2x2"), the player stays 2x2. Walls 4 thick.
 export const WIDTHS = {
-  mixed:    { road: 8, normal: 6, tunnel: 4, label: 'Mixed' },
-  standard: { road: 6, normal: 6, tunnel: 6, label: 'All 3 wide' },
-  narrow:   { road: 4, normal: 4, tunnel: 4, label: 'All 2 wide' },
-  wide:     { road: 8, normal: 8, tunnel: 8, label: 'All 4 wide' },
+  mixed:    { road: 16, normal: 12, tunnel: 8, label: 'Mixed' },
+  standard: { road: 12, normal: 12, tunnel: 12, label: 'All 6 wide' },
+  narrow:   { road: 8, normal: 8, tunnel: 8, label: 'All 4 wide' },
+  wide:     { road: 16, normal: 16, tunnel: 16, label: 'All 8 wide' },
 };
+const WALL = 4, CHUNK = 4;   // a breakable block is a CHUNK x CHUNK square of cells
 
 export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15, halls = Math.round(nodes * nodes / 72) } = {}) {   // 24x24: 8 rooms, bigger and of several shapes (round 4)
   const R = rng(seed);
   const W = WIDTHS[widths] || WIDTHS.mixed;
   const N = nodes;
-  const P = Math.max(W.road, W.normal, W.tunnel) + 2;   // pitch: widest corridor + a 2-cell wall
+  const P = Math.max(W.road, W.normal, W.tunnel) + WALL;   // pitch: widest corridor + a wall
   // Some rows and columns sit further apart, so some walls are as thick as a tunnel (round 2 answer).
   const gapX = [], gapY = [];
-  for (let i = 0; i < N; i++) { gapX.push(R() < 0.3 ? 4 : 0); gapY.push(R() < 0.3 ? 4 : 0); }
+  for (let i = 0; i < N; i++) { gapX.push(R() < 0.3 ? 8 : 0); gapY.push(R() < 0.3 ? 8 : 0); }
   const cxs = [], cys = [];
   let ax = 1, ay = 1;
   for (let i = 0; i < N; i++) { cxs.push(ax + (P + gapX[i]) / 2); ax += P + gapX[i]; cys.push(ay + (P + gapY[i]) / 2); ay += P + gapY[i]; }
@@ -52,14 +54,13 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
 
   // 3. Rooms (round 4: bigger, more shapes, fewer ways in). A room is a set of nodes opened into one space.
   //    Shapes: rect, round, L, cross, pillars (a rect with pillars between its nodes).
-  const SHAPES = ['rect', 'rect', 'round', 'L', 'cross', 'pillars'];
+  const SHAPES = ['rect', 'rect', 'L', 'cross', 'pillars'];   // round 5: no round rooms
   const ri = (n) => (R() * n) | 0;
   const rooms = [], roomOf = new Int16Array(N * N).fill(-1);
   for (let t = 0; t < halls * 10 && rooms.length < halls; t++) {
     const kind = SHAPES[ri(SHAPES.length)];
     let w, h;
-    if (kind === 'round') w = h = 3 + ri(2);
-    else if (kind === 'cross') w = h = 5;
+    if (kind === 'cross') w = h = 5;
     else if (kind === 'L') { w = 3 + ri(3); h = 3 + ri(3); }
     else if (kind === 'pillars') { w = 3 + ri(3); h = 3 + ri(2); }
     else { w = 2 + ri(4); h = 2 + ri(3); }
@@ -108,6 +109,27 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     }
     r.ways = left;
   });
+
+  // 3b. Round 5: "only short local dead ends, not entire branches". A dead-end branch longer than 2 squares has its
+  //     tip joined to a neighbour (not into a room, so rooms keep their few ways in).
+  for (let pass = 0; pass < 6; pass++) {
+    const ad = Array.from({ length: N * N }, () => []);
+    for (const k of edges.keys()) { const [a, b] = k.split('-').map(Number); ad[a].push(b); ad[b].push(a); }
+    const touched = new Uint8Array(N * N); let added = 0;
+    for (let c = 0; c < N * N; c++) {
+      if (ad[c].length !== 1 || roomOf[c] >= 0 || touched[c]) continue;
+      let len = 0, prev = -1, cur = c;
+      while (ad[cur].length <= 2 && len < 4) { const nx = ad[cur].find(n => n !== prev); if (nx == null) break; prev = cur; cur = nx; len++; }
+      if (len <= 2) continue;
+      const ci = c % N, cj = (c / N) | 0, nb = [];
+      if (ci > 0) nb.push(c - 1); if (ci < N - 1) nb.push(c + 1); if (cj > 0) nb.push(c - N); if (cj < N - 1) nb.push(c + N);
+      const opts = nb.filter(n => roomOf[n] < 0 && !edges.has(key(c, n)));
+      if (!opts.length) continue;
+      const n = opts.find(n => ad[n].length === 1) ?? opts[ri(opts.length)];
+      edges.set(key(c, n), 0); touched[c] = touched[n] = 1; added++;
+    }
+    if (!added) break;
+  }
 
   // 4. Widths. Roads: the tree paths from the centre to the far corners. Tunnels: the last stretch into a
   //    dead end. Everything else normal.
@@ -165,10 +187,10 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
         for (let x = Math.max(1, Math.floor(mx - rad)); x < Math.min(G - 1, Math.ceil(mx + rad)); x++)
           if ((x + 0.5 - mx) ** 2 + (y + 0.5 - my) ** 2 < rad * rad) cells[y * G + x] = 0;
     } else for (const [a, b, c, d] of r.parts) open(cx(a) - w / 2, cy(b) - w / 2, cx(c) + w / 2, cy(d) + w / 2);
-    if (r.kind === 'pillars') // 3x3 pillars where four room nodes meet
+    if (r.kind === 'pillars') // 6x6 pillars where four room nodes meet
       for (let j = r.j; j < r.j + r.h - 1; j++) for (let i = r.i; i < r.i + r.w - 1; i++) {
         const px = Math.floor((cx(i) + cx(i + 1)) / 2), py = Math.floor((cy(j) + cy(j + 1)) / 2);
-        open(px - 1, py - 1, px + 2, py + 2, 1);
+        open(px - 3, py - 3, px + 3, py + 3, 1);
       }
     // where its shard goes: the room node nearest the middle
     const mx = (cx(r.i) + cx(r.i + r.w - 1)) / 2, my = (cy(r.j) + cy(r.j + r.h - 1)) / 2;
@@ -178,24 +200,82 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     r.box = { x0: cx(r.i) - w / 2, y0: cy(r.j) - w / 2, x1: cx(r.i + r.w - 1) + w / 2, y1: cy(r.j + r.h - 1) + w / 2 };
   }
 
-  // "clear": a 2x2 body centred on this cell's centre fits (the cell and its 8 neighbours are open).
-  const clear = new Uint8Array(G * G);
-  for (let y = 1; y < G - 1; y++) for (let x = 1; x < G - 1; x++) {
-    let ok = 1;
-    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (cells[(y + dy) * G + x + dx]) { ok = 0; break; }
-    clear[y * G + x] = ok;
+  // 6. Breakable blocks (round 5): arms off corridor walls (some reach right across), crates in wide spots and rooms,
+  //    and barriers in some walls between neighbouring squares, so breaking through makes a shortcut. Each block is
+  //    a CHUNK x CHUNK square of cells (value 2) with its own health.
+  const blockId = new Int32Array(G * G), blocks = [];
+  const sx0 = cx(N >> 1), sy0 = cy(N >> 1);
+  const addBlock = (x0, y0, any) => {
+    x0 = Math.round(x0); y0 = Math.round(y0);
+    if (x0 < 2 || y0 < 2 || x0 + CHUNK > G - 2 || y0 + CHUNK > G - 2) return false;
+    if (Math.abs(x0 + 2 - sx0) < 14 && Math.abs(y0 + 2 - sy0) < 14) return false;   // never at the start
+    for (let y = y0; y < y0 + CHUNK; y++) for (let x = x0; x < x0 + CHUNK; x++) { const i = y * G + x; if (blockId[i] || (!any && cells[i])) return false; }
+    blocks.push({ x0, y0, x1: x0 + CHUNK, y1: y0 + CHUNK, hp: 40, maxHp: 40 });
+    for (let y = y0; y < y0 + CHUNK; y++) for (let x = x0; x < x0 + CHUNK; x++) { cells[y * G + x] = 2; blockId[y * G + x] = blocks.length; }
+    return true;
+  };
+  // arms: across the middle of a corridor, from one side; a quarter reach all the way
+  for (const [k, w] of edges) {
+    if (w < 8 || R() > 0.2) continue;
+    const [a, b] = k.split('-').map(Number), ax = cx(a % N), ay = cy((a / N) | 0), bx = cx(b % N), by = cy((b / N) | 0);
+    const across = w / CHUNK, n = R() < 0.25 ? across : 1 + ri(across - 1), fromLow = R() < 0.5;
+    for (let c = 0; c < n; c++) {
+      if (ay === by) { const x0 = Math.round((ax + bx) / 2) - 2; addBlock(x0, fromLow ? ay - w / 2 + c * CHUNK : ay + w / 2 - (c + 1) * CHUNK); }
+      else { const y0 = Math.round((ay + by) / 2) - 2; addBlock(fromLow ? ax - w / 2 + c * CHUNK : ax + w / 2 - (c + 1) * CHUNK, y0); }
+    }
   }
+  // crates: in some wide squares, and a few in each room (away from its shard spot)
+  for (let c = 0; c < N * N; c++) {
+    const w = nodeW[c]; if (roomOf[c] >= 0 || w < 12 || R() > 0.06) continue;
+    addBlock(cx(c % N) - w / 2 + 2 + ri(w - 8), cy((c / N) | 0) - w / 2 + 2 + ri(w - 8));
+  }
+  for (const r of rooms) for (let t = 0, made = 0; t < 30 && made < 2 + ri(3); t++) {
+    const x = r.box.x0 + 2 + ri(Math.max(1, r.box.x1 - r.box.x0 - 8)), y = r.box.y0 + 2 + ri(Math.max(1, r.box.y1 - r.box.y0 - 8));
+    if (Math.hypot(x + 2 - r.x, y + 2 - r.y) > 8 && addBlock(x, y)) made++;
+  }
+  // barriers: a wall between two squares that aren't joined becomes blocks
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) for (const [di, dj] of [[1, 0], [0, 1]]) {
+    if (i + di >= N || j + dj >= N || R() > 0.08) continue;
+    const a = at(i, j), b = at(i + di, j + dj);
+    if (edges.has(key(a, b)) || roomOf[a] >= 0 || roomOf[b] >= 0) continue;
+    const wa = nodeW[a] || W.normal, wb = nodeW[b] || W.normal, wn = Math.min(wa, wb);
+    if (di) { for (let y = cy(j) - wn / 2; y < cy(j) + wn / 2; y += CHUNK) for (let x = cx(i) + wa / 2; x < cx(i + 1) - wb / 2; x += CHUNK) addBlock(x, y, true); }
+    else { for (let x = cx(i) - wn / 2; x < cx(i) + wn / 2; x += CHUNK) for (let y = cy(j) + wa / 2; y < cy(j + 1) - wb / 2; y += CHUNK) addBlock(x, y, true); }
+  }
+
+  const clear = new Uint8Array(G * G);
+  const mm = { G, cells, clear };
+  updateClear(mm, 1, 1, G - 1, G - 1);
 
   const startX = cx(N >> 1), startY = cy(N >> 1);
   return { G, N, P, cells, clear, deadEnds: deadEnds.map(c => ({ x: cx(c % N), y: cy((c / N) | 0) })), cxs, cys,
-    halls: rooms, start: { x: startX, y: startY }, widths };
+    halls: rooms, start: { x: startX, y: startY }, widths, blockId, blocks };
 }
 
 export const solid = (m, x, y) => {
   const cx = Math.floor(x), cy = Math.floor(y);
   if (cx < 0 || cy < 0 || cx >= m.G || cy >= m.G) return true;
-  return m.cells[cy * m.G + cx] === 1;
+  return m.cells[cy * m.G + cx] !== 0;
 };
+
+// "clear": a 2x2 body centred on this cell's centre fits (the cell and its 8 neighbours are open). Redone in a box
+// when a block breaks.
+export function updateClear(m, x0, y0, x1, y1) {
+  const G = m.G, cells = m.cells, clear = m.clear;
+  for (let y = Math.max(1, y0); y < Math.min(G - 1, y1); y++) for (let x = Math.max(1, x0); x < Math.min(G - 1, x1); x++) {
+    let ok = 1;
+    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (cells[(y + dy) * G + x + dx]) { ok = 0; break; }
+    clear[y * G + x] = ok;
+  }
+}
+
+// Break a block: its cells open up, and the room around it is walkable again.
+export function breakBlock(m, b) {
+  if (b.broken) return;
+  b.broken = true;
+  for (let y = b.y0; y < b.y1; y++) for (let x = b.x0; x < b.x1; x++) { const i = y * m.G + x; m.cells[i] = 0; m.blockId[i] = 0; }
+  updateClear(m, b.x0 - 2, b.y0 - 2, b.x1 + 2, b.y1 + 2);
+}
 
 // Grid ray march (DDA). Returns the distance to the first wall, up to max.
 export function rayDist(m, x, y, dx, dy, max) {

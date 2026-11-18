@@ -45,6 +45,28 @@ const TRIO = `(() => { const g = SM.g, m = g.m, p = g.p, rays = [];
   rays.sort((x, y) => y.r - x.r); const used = [];
   for (const t of ['dart', 'spitter', 'brute', 'dart']) { const o = rays.find(o => used.every(u => Math.abs(Math.atan2(Math.sin(o.a - u), Math.cos(o.a - u))) > 0.9)) || rays[0]; used.push(o.a);
     const r = Math.min(13, o.r - 1); SM.lib.makeEnemy(g, t, p.x + Math.cos(o.a) * r, p.y + Math.sin(o.a) * r); } })()`;
+// Round 5: breaking blocks. A scripted player walks to the nearest block it can see, shoots it with the SMG, and
+// dashes into every other one.
+const BLOCKS = `(() => { const g = SM.g, p = g.p, m0 = g.m;
+  // stand beside the nearest block with open floor in front of it (the clip jumps to the next when none is in reach)
+  const hop = () => { const cand = m0.blocks.filter(b => !b.broken).map(b => ({ b, d: Math.hypot(b.x0 + 2 - p.x, b.y0 + 2 - p.y) })).sort((a, c) => a.d - c.d);
+    for (const { b } of cand) for (const [dx, dy] of [[0, -8], [0, 8], [-8, 0], [8, 0]]) { const x = b.x0 + 2 + dx, y = b.y0 + 2 + dy;
+      if (m0.clear[Math.floor(y) * m0.G + Math.floor(x)] && SM.lib.lineClear(m0, x, y, b.x0 + 2 + dx * 0.35, b.y0 + 2 + dy * 0.35)) { p.x = x; p.y = y; return; } } };
+  hop(); let idle = 0;
+  g.enemies = g.enemies.filter(e => e.camp && Math.hypot(e.x - p.x, e.y - p.y) > 50); g.nextWave = 1e9; g.waveWarn = null; g.spawnAcc = -1e9;
+  SM.setOpt('weapon', 'smg'); let n = 0, tg = null, dashT = 0;
+  BOT.think = () => { const g = SM.g, p = g.p, m = g.m, I = SM.inp;
+    if (!tg || tg.broken) { tg = null; let bd = 26; n++;
+      for (const b of m.blocks) { if (b.broken) continue; const x = b.x0 + 2, y = b.y0 + 2, d = Math.hypot(x - p.x, y - p.y); if (d > bd || d < 1) continue;
+        if (SM.lib.lineClear(m, p.x, p.y, x - (x - p.x) / d * 3.2, y - (y - p.y) / d * 3.2)) { bd = d; tg = b; } } }
+    I.fire.engaged = false; I.fire.down = false; I.move.x = 0; I.move.y = 0;
+    if (!tg) { if (++idle > 15) { hop(); idle = 0; } return; }
+    idle = 0;
+    const dx = tg.x0 + 2 - p.x, dy = tg.y0 + 2 - p.y, d = Math.hypot(dx, dy);
+    if (n % 2 === 0 && d < 12) { if (dashT-- <= 0 && g.p.charges >= 1) { I.events.push({ type: 'dashRelease', x: dx / d, y: dy / d }); dashT = 12; } if (d > 4) { I.move.x = dx / d; I.move.y = dy / d; } return; }
+    if (d > 9) { I.move.x = dx / d; I.move.y = dy / d; return; }
+    I.fire.engaged = true; I.fire.down = true; I.fire.x = dx / d; I.fire.y = dy / d; }; })()`;
+SCENES['blocks'] = { q: 'weapon=smg&sight=remember', warm: 1, film: 12, small: true, setup: BLOCKS, bot: {} };
 SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,

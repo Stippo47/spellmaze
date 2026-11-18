@@ -44,6 +44,27 @@ export function makeRenderer(canvas) {
       drawCells(m, x0, y0, x1, y1, null, true, LIT, 'walls', g.visStamp, g.visNow);
     }
 
+    // breakable blocks (round 5): brown squares with a lighter rim, a crack growing as they're hit. Seen-but-not-in-view
+    // ones are left to the faded memory, like walls.
+    for (const b of m.blocks) {
+      if (b.broken || b.x1 < x0 || b.x0 > x1 || b.y1 < y0 || b.y0 > y1) continue;
+      let lit = mode === 'all';
+      for (let y = b.y0; y < b.y1 && !lit; y++) for (let x = b.x0; x < b.x1; x++) if (g.visStamp[y * G + x] === g.visNow) { lit = true; break; }
+      if (!lit) continue;
+      const w = b.x1 - b.x0;
+      ctx.fillStyle = b.flash > 0 ? '#ffffff' : '#6e4320'; ctx.fillRect(b.x0, b.y0, w, w);
+      ctx.fillStyle = '#c98a4a'; ctx.fillRect(b.x0 + 0.25, b.y0 + 0.25, w - 0.5, w - 0.5);
+      ctx.fillStyle = '#9a6230'; ctx.fillRect(b.x0 + 0.65, b.y0 + 0.65, w - 1.3, w - 1.3);
+      const dmg = 1 - b.hp / b.maxHp;
+      if (dmg > 0) {
+        ctx.strokeStyle = '#3a2210'; ctx.lineWidth = 0.22; ctx.lineCap = 'round'; ctx.beginPath();
+        const cx = b.x0 + w / 2, cy = b.y0 + w / 2, L = 0.4 + dmg * 1.6;
+        ctx.moveTo(cx - L, cy - L * 0.6); ctx.lineTo(cx - L * 0.2, cy + L * 0.2); ctx.lineTo(cx + L * 0.3, cy - L * 0.3); ctx.lineTo(cx + L, cy + L * 0.7);
+        if (dmg > 0.5) { ctx.moveTo(cx - L * 0.2, cy + L * 0.2); ctx.lineTo(cx - L * 0.1, cy + L); }
+        ctx.stroke();
+      }
+    }
+
     // shards (were chests; round 4: a chest didn't fit): a standing gold crystal, two flat faces, bobbing.
     // Seen ones stay drawn (faint out of sight) in Remembered sight; a taken one leaves a dim outline.
     for (const c of g.chests) {
@@ -170,7 +191,7 @@ export function makeRenderer(canvas) {
     // bits
     for (const q of g.parts) {
       ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.col === 'dash' ? 0.5 : 1);
-      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : COL.shot;
+      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'block' ? '#c98a4a' : COL.shot;
       ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s);
     }
     ctx.globalAlpha = 1;

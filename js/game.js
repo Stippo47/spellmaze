@@ -1,5 +1,5 @@
 // The simulation: fixed steps, no drawing. Units are maze cells; the player is a 2x2 body (radius 1).
-import { makeMaze, rayStamp, lineClear, pathField } from './maze.js';
+import { makeMaze, rayStamp, lineClear, pathField, breakBlock } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
 import { level, turn, hunt, lunge, burn, blastR, blastDmg } from './modules.js';
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
@@ -15,7 +15,7 @@ const FIELD_STEPS = 90;
 //   brute: big, slow, tanky; hard to knock back, and shoves smaller enemies along.
 export const ENEMIES = {
   mite:    { r: 1, hp: 20, speed: 6.0, damage: 8, xp: 1, mass: 1 },
-  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, charge: 28, chargeDamage: 18, aim: 0.6 },
+  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, charge: 42, chargeTime: 0.4, sight: 11, chargeDamage: 18, aim: 0.6 },   // round 5: shorter, faster
   spitter: { r: 1, hp: 30, speed: 4.6, damage: 6, xp: 3, mass: 1, reload: 2.4, orb: { speed: 11, r: 0.55, damage: 10, life: 3 } },
   brute:   { r: 1.7, hp: 170, speed: 3.4, damage: 20, xp: 8, mass: 5 },
 };
@@ -61,7 +61,7 @@ function placeCamps(g) {
   const m = g.m, s = m.start;
   const rooms = m.halls.map(r => ({ r, d: Math.hypot(r.x - s.x, r.y - s.y) })).filter(o => o.d > 24).sort((a, b) => a.d - b.d);
   rooms.forEach(({ r }, k) => {
-    const tier = Math.min(2, Math.floor(k / rooms.length * 3)), camp = { tier, x: r.x, y: r.y };
+    const tier = Math.min(2, Math.floor(k / rooms.length * 3)), camp = { tier, x: r.x, y: r.y, box: r.box };
     g.camps.push(camp);
     for (const [type, n] of Object.entries(CAMPS[tier])) for (let i = 0; i < n; i++) for (let t = 0; t < 40; t++) {
       const a = g.R() * TAU, rad = 2.5 + g.R() * 5.5, x = Math.floor(r.x + Math.cos(a) * rad) + 0.5, y = Math.floor(r.y + Math.sin(a) * rad) + 0.5;
@@ -174,6 +174,7 @@ function addBurn(g, e, amt) {
 // A blast: hits every enemy inside that the blast can see (walls block it). Yours never hurt you.
 function blast(g, x, y, r, dmg, pay) {
   g.blasts.push({ x, y, r, t: 0, fire: !!(pay && pay.burn) });
+  for (const b of blocksNear(g, x, y, r)) hitBlock(g, b, dmg * 1.5);
   for (const e of g.enemies) {
     if (e.hp <= 0) continue;
     const dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
@@ -235,6 +236,8 @@ function stepBolts(g, dt) {
       const ox = b.x, oy = b.y;
       b.x += b.vx * dt / 3; b.y += b.vy * dt / 3; b.left -= Math.hypot(b.vx, b.vy) * dt / 3;
       if (m.cells[Math.floor(b.y) * G + Math.floor(b.x)]) {
+        const bi = m.blockId[Math.floor(b.y) * G + Math.floor(b.x)];
+        if (bi) hitBlock(g, m.blocks[bi - 1], b.dmg);
         if (b.bounces > 0) { // reflect off the side it crossed
           b.bounces--;
           const hx = m.cells[Math.floor(oy) * G + Math.floor(b.x)], hy = m.cells[Math.floor(b.y) * G + Math.floor(ox)];
@@ -317,6 +320,29 @@ function stepBalls(g, dt) {
   }
 }
 
+// ---------- breakable blocks (round 5) ----------
+// Blocks near a point: every block whose square comes within r of it.
+function blocksNear(g, x, y, r) {
+  const m = g.m, G = m.G, out = [];
+  for (let cy = Math.floor(y - r); cy <= Math.floor(y + r); cy++) for (let cx = Math.floor(x - r); cx <= Math.floor(x + r); cx++) {
+    if (cx < 0 || cy < 0 || cx >= G || cy >= G) continue;
+    const bi = m.blockId[cy * G + cx]; if (!bi) continue;
+    const b = m.blocks[bi - 1];
+    if (out.includes(b)) continue;
+    const nx = Math.max(b.x0, Math.min(x, b.x1)), ny = Math.max(b.y0, Math.min(y, b.y1));
+    if (Math.hypot(x - nx, y - ny) <= r) out.push(b);
+  }
+  return out;
+}
+function hitBlock(g, b, dmg, quiet) {
+  if (b.broken) return;
+  b.hp -= dmg; if (!quiet) b.flash = 0.08;
+  if (b.hp <= 0) {
+    breakBlock(g.m, b); g.fieldT = 0;   // enemies find the new way at once
+    for (let i = 0; i < 14; i++) { const a = g.R() * TAU, s = 3 + g.R() * 8; g.parts.push({ x: b.x0 + 2, y: b.y0 + 2, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, max: 0.5, col: 'block', s: 0.6 }); }
+  }
+}
+
 // ---------- enemy orbs ----------
 // A dash through an orb deletes it (decisions: the base Dash deletes enemy bullets). Spawns block them.
 function stepShots(g, dt) {
@@ -358,6 +384,7 @@ function stepDash(g, dt, inp) {
   const p = g.p, m = g.m, sp = DASH.length * durMul(g) / DASH.time;
   const r = moveBodyN(m, p, p.dx * sp * dt, p.dy * sp * dt);
   p.dashT -= dt;
+  for (const b of blocksNear(g, p.x, p.y, p.r + 0.5)) if (!p.dashHit.has(b)) { p.dashHit.add(b); hitBlock(g, b, DASH.block * dmgMul(g)); }
   if (r.hit) {
     const nl = Math.hypot(r.nx, r.ny);
     if (p.dashBounces > 0 && nl > 1e-6) {
@@ -536,12 +563,12 @@ export function step(g, dt, inp) {
       if (e.st === 'aim') {
         spd = 0; e.t -= dt;
         if (e.t > 0.2 && d > 0.1) { e.ax = dx / d; e.ay = dy / d; }   // follows you, then locks for the last 0.2 s
-        if (e.t <= 0) { e.st = 'charge'; e.t = 1.1; }
+        if (e.t <= 0) { e.st = 'charge'; e.t = S.chargeTime; }
       } else if (e.st === 'charge') {
         tx = e.ax; ty = e.ay; spd = S.charge; e.t -= dt;
         if (e.t <= 0) { e.st = 'rest'; e.t = 0.6; }
       } else if (e.st === 'rest') { spd = 0; e.t -= dt; if (e.t <= 0) { e.st = null; e.cd = 2; } }
-      else if (e.cd <= 0 && sees && d < 16) { e.st = 'aim'; e.t = S.aim; e.ax = dx / d; e.ay = dy / d; spd = 0; }
+      else if (e.cd <= 0 && sees && d < S.sight) { e.st = 'aim'; e.t = S.aim; e.ax = dx / d; e.ay = dy / d; spd = 0; }
     } else if (e.type === 'spitter' && sees && d < 20) { // keep a distance, and lob orbs
       if (d < 9) { tx = -dx / d; ty = -dy / d; } else if (d < 15) spd = 0;
       if (e.cd <= 0) {
@@ -557,13 +584,21 @@ export function step(g, dt, inp) {
   }
   // enemies don't overlap each other, or you
   separate(g);
-  for (const e of g.enemies) if (pushOutOfWalls(m, e) && e.st === 'charge') { e.st = 'rest'; e.t = 0.7; burst(g, e.x + e.fx, e.y + e.fy, 'enemy', 5); }
+  for (const e of g.enemies) if (pushOutOfWalls(m, e)) {
+    if (e.st === 'charge') { e.st = 'rest'; e.t = 0.7; burst(g, e.x + e.fx, e.y + e.fy, 'enemy', 5); }
+    if (e.type === 'brute') for (const b of blocksNear(g, e.x, e.y, e.r + 0.4)) hitBlock(g, b, 35 * dt, true);   // brutes break blocks
+  }
   pushOutOfWalls(m, p);
   // far behind or lost: come back from somewhere nearer, out of sight
   for (let i = g.enemies.length - 1; i >= 0; i--) {
     const e = g.enemies[i], fd = g.field[Math.floor(e.y) * G + Math.floor(e.x)];
-    if (e.camp) { // a camp that lost you goes home and rests
-      if (!e.sleep && ((fd > 70 && fd !== 65535) || (e.lost || 0) > 3)) { e.x = e.home.x; e.y = e.home.y; e.sleep = true; e.lost = 0; e.st = null; }
+    if (e.camp) { // round 5: leave their room and a camp goes home (out of your sight) and heals
+      if (e.sleep) continue;
+      const bx = e.camp.box, out = p.x < bx.x0 - 8 || p.x > bx.x1 + 8 || p.y < bx.y0 - 8 || p.y > bx.y1 + 8;
+      e.away = out ? (e.away || 0) + dt : 0;
+      if ((e.away > 3 || (e.lost || 0) > 3) && !canSee(g, e.x, e.y) && !canSee(g, e.home.x, e.home.y)) {
+        e.x = e.home.x; e.y = e.home.y; e.sleep = true; e.lost = 0; e.away = 0; e.st = null; e.hp = e.maxHp; e.burn = 0;
+      }
       continue;
     }
     if ((fd > 60 && fd !== 65535) || (e.lost || 0) > 1.5) { g.enemies.splice(i, 1); spawnEnemy(g, e.type, 20, 36, Math.atan2(e.y - p.y, e.x - p.x)) || spawnEnemy(g, e.type, 20, 36); }
@@ -598,6 +633,7 @@ export function step(g, dt, inp) {
     if (!g.practice) g.run.offers.push(levelOffer(g));
   }
 
+  for (const b of m.blocks) if (b.flash > 0) b.flash -= dt;
   for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.9; q.vy *= 0.9; if (q.life <= 0) g.parts.splice(i, 1); }
   for (let i = g.pops.length - 1; i >= 0; i--) { g.pops[i].t += dt; if (g.pops[i].t > 1.6) g.pops.splice(i, 1); }
 }

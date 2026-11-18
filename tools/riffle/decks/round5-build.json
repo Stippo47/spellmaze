@@ -1,0 +1,76 @@
+{
+ "title": "Bigger maze, breakable blocks",
+ "topic": "builds",
+ "order": 10,
+ "cards": [
+  {
+   "id": "build",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Twice the maze",
+   "text": "Every cell is now 2x2, dead ends are short, and brown blocks can be broken. Plus your fixes.",
+   "why": "Your notes from the fixes deck and the start of the stage 4 deck. Mark any part that's off.",
+   "details": "Version 0.7.0. Close and reopen the app twice to get it.",
+   "parts": [
+    {
+     "id": "scale",
+     "title": "Maze 2x",
+     "text": "Corridors and walls twice as big; you're the same size. Same number of squares, so a run covers more ground.",
+     "images": [
+      "../../../films/maze-overview.png"
+     ],
+     "videos": [
+      "../../../films/pistol.mp4"
+     ]
+    },
+    {
+     "id": "deadends",
+     "title": "Short dead ends",
+     "text": "A dead end is at most 2 squares deep now; longer branches join back into the maze. No round rooms."
+    },
+    {
+     "id": "blocks",
+     "title": "Breakable blocks",
+     "text": "Brown blocks: arms off corridor walls (some reach across), crates you go round, and barriers between corridors. Shots chip them, dashes hit hard, brutes grind through.",
+     "videos": [
+      "../../../films/blocks.mp4"
+     ]
+    },
+    {
+     "id": "dash",
+     "title": "Dash and spawn",
+     "text": "Dash 9 cells (was 6). A spawn is thrown softly and rolls about 4 cells."
+    },
+    {
+     "id": "dart",
+     "title": "Dart",
+     "text": "Sees you from 11 cells (was 16) and charges faster, for a shorter way.",
+     "videos": [
+      "../../../films/enemies.mp4"
+     ]
+    },
+    {
+     "id": "camps",
+     "title": "Camps go home",
+     "text": "Leave a camp's room for 3 seconds and it goes back, heals and rests."
+    },
+    {
+     "id": "levels",
+     "title": "Level-up cards",
+     "text": "The first level-up offers new modules. After that any card can be a new module, more often every 3rd level. Bands say what kind: New module, Upgrade, You.",
+     "images": [
+      "../../../films/card-level.png"
+     ]
+    },
+    {
+     "id": "drag",
+     "title": "Build: drag",
+     "text": "Drag a module onto another cast to move it. No buttons.",
+     "images": [
+      "../../../films/build.png"
+     ]
+    }
+   ]
+  }
+ ]
+}

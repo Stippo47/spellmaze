@@ -3,6 +3,32 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-18 — round 4 fixes answered; round 5 built (v0.7.0)
+
+Answers: crowd/waves, dash safety, Power/Duration good ("short base dash length"). Level-ups decent: "inconsistent
+naming, You vs Common level 2". New modules decent: "after the first upgrade, only a chance to show a module, higher
+chance every 3 levels". Spawns decent: "slower start velocity, weaker drag, at base move at most 4 tiles in front of
+you". Cards decent: "don't like 'new here' different label; drag and drop, no 'move to'". **Shards: PROBLEM** (no
+comment). Rooms decent: **no round rooms; only short local dead ends, not whole branches; shouldn't take forever to
+reach somewhere new.** Breakable walls: **cracked blocks, go**: "walls inside the tunnels (go around them, like crates)
+or barriers between tunnels; have HP; extra damage from dashes". Enemies breaking walls: go (my pick: one heavy type).
+Stage 4 deck notes so far: **camps return and heal if you leave the room**; darts **shorter range, faster charge**;
+"descriptor images had after images" (unclear, asked); **maze 2x: every cell becomes 2x2; small arms of breakable
+blocks off walls, reaching across or not.**
+
+Built (round 5), my numbers:
+- Maze at twice the scale (corridors 16/12/8 cells, walls 4), the player still 2x2. 24 squares across as before.
+- Dead-end branches longer than 2 squares get their tip joined to a neighbour (not into rooms).
+- Breakable blocks, 4x4 cells, 40 health each: arms across the middle of 1 in 5 corridors (a quarter reach all the
+  way), crates in some wide squares and 2-4 per room, barriers in 1 in 12 walls between unjoined squares. Bolts and
+  blasts (1.5x) damage them, a dash does 45, brutes grind through them. Enemies path round them until broken.
+- Dash 9 cells (was 6). Spawn thrown at 8 with drag 2: rolls 4 cells. Dart: sees 11, charges at 42 for 0.4 s.
+- Camps: once you're 8 cells outside their room for 3 s, they go home out of sight, heal and rest.
+- Level-ups: the first offers 3 new modules; after that each card has a 15% chance to be a new module, 60% every 3rd
+  level. Card bands now say the kind: New module, Upgrade, You (rarity in the line below).
+- Build screen: drag a module onto another cast; no buttons.
+- Shards: board of 9 looks sent; code unchanged until they pick.
+
 ## 2026-11-17 — stage 4 part 1 built (v0.6.0), my calls
 
 - **Camps** in every room more than 24 cells from the start, around the room's shard, resting (drawn dim) until one

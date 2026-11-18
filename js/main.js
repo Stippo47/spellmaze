@@ -108,16 +108,16 @@ function levelCard(c) {
   const take = () => { takeLevelCard(g, c); closeOffer(); };
   if (c.type === 'new') {
     const M = MODULES[c.id], Rr = RARITY[c.rarity];
-    return card({ color: Rr.color, band: `New · ${Rr.name}`, ic: c.id, icColor: modColor(c.id), name: M.name,
-      sub: `${icon(c.cast, '#8b94bb', 14)} on ${CASTS[c.cast].name}`, pipsHtml: pips(0, Rr.cap, true), text: cardText(c.cast, c.id, 1), onClick: take });
+    return card({ color: Rr.color, band: 'New module', ic: c.id, icColor: modColor(c.id), name: M.name,
+      sub: `${Rr.name} · ${icon(c.cast, '#8b94bb', 14)} ${CASTS[c.cast].name}`, pipsHtml: pips(0, Rr.cap, true), text: cardText(c.cast, c.id, 1), onClick: take });
   }
   if (c.type === 'mod') {
     const m = g.run.mods[c.cast].find(m => m.id === c.id), M = MODULES[c.id], Rr = RARITY[m.rarity];
-    return card({ color: Rr.color, band: `${Rr.name} · level ${m.level + 1}`, ic: c.id, icColor: modColor(c.id), name: M.name,
-      sub: `${icon(c.cast, '#8b94bb', 14)} ${CASTS[c.cast].name}`, pipsHtml: pips(m.level, Rr.cap, true), text: cardText(c.cast, c.id, m.level + 1), onClick: take });
+    return card({ color: Rr.color, band: 'Upgrade', ic: c.id, icColor: modColor(c.id), name: M.name,
+      sub: `${Rr.name} · ${icon(c.cast, '#8b94bb', 14)} ${CASTS[c.cast].name}`, pipsHtml: pips(m.level, Rr.cap, true), text: cardText(c.cast, c.id, m.level + 1), onClick: take });
   }
   const V = VITALS[c.id], n = g.run.vitals[c.id];
-  return card({ color: '#8b94bb', band: 'You', ic: c.id, icColor: '#e8f0ff', name: V.name, sub: `level ${n} → ${n + 1}`, text: V.text(n), onClick: take });
+  return card({ color: '#8b94bb', band: 'You', ic: c.id, icColor: '#e8f0ff', name: V.name, sub: `${n} → ${n + 1}`, text: V.text(n), onClick: take });
 }
 
 function showOffer() {
@@ -138,7 +138,7 @@ function showOffer() {
       promote: `Yours becomes ${Rr.name}: keeps level ${have && have.level}, can reach ${Rr.cap}`,
       level: `Yours goes up: level ${have && have.level} → ${have && have.level + 1}`,
       capped: `Yours is at its cap`, full: `Full: replace one`, no: `Doesn't fit here` }[r];
-    const band = { new: 'New here', promote: 'Upgrade', level: '+1 level', capped: 'At cap', full: 'Full', no: '—' }[r];
+    const band = { new: 'New module', promote: 'Upgrade', level: 'Upgrade', capped: 'At cap', full: 'Replace', no: "Can't" }[r];
     cards.appendChild(card({ color: r === 'no' || r === 'capped' ? '#2a3360' : Rr.color, band, ic: c, icColor: '#e8f0ff', name: CASTS[c].name,
       sub: slots(g.run.mods[c].length, SLOTS[c]), pipsHtml: have ? pips(have.level, RARITY[have.rarity].cap, r === 'level') : '', text: what,
       disabled: r === 'no' || r === 'capped',
@@ -171,14 +171,7 @@ function buildBuild() {
         const M = MODULES[m.id], Rr = RARITY[m.rarity];
         const t = el('div', 'tile', `${icon(m.id, modColor(m.id), 28)}<div class="tbody"><div><b>${M.name}</b> ${rar(m.rarity)}</div>${pips(m.level, Rr.cap)}<div class="ttext">${cardText(c, m.id, m.level)}</div></div>`);
         t.style.setProperty('--rc', Rr.color);
-        const moves = el('div', 'moves');
-        for (const to of CAST_ORDER) {
-          if (to === c || !allowed(to, m.id) || g.run.mods[to].length >= SLOTS[to] || g.run.mods[to].some(x => x.id === m.id)) continue;
-          const mv = el('button', 'mini', `${icon(to, '#c4cbe8', 12)} move to ${CASTS[to].name}`);
-          mv.onclick = () => { g.run.mods[c].splice(i, 1); g.run.mods[to].push(m); rebuild(g); buildBuild(); };
-          moves.appendChild(mv);
-        }
-        if (moves.children.length) t.querySelector('.tbody').appendChild(moves);
+        t.onpointerdown = (ev) => dragTile(ev, t, c, i, m);
         col.appendChild(t);
       });
       for (let k = g.run.mods[c].length; k < SLOTS[c]; k++) col.appendChild(el('div', 'tile empty', 'Empty slot'));
@@ -188,7 +181,7 @@ function buildBuild() {
     const vit = el('div', 'vitals');
     for (const [k, V] of Object.entries(VITALS)) vit.appendChild(el('span', 'chip' + (g.run.vitals[k] ? ' on' : ''), `${icon(k, '#e8f0ff', 14)} ${V.name} ${g.run.vitals[k]}`));
     grid.appendChild(vit);
-    $('buildText').innerHTML = 'Moving a module keeps its level and rarity.';
+    $('buildText').innerHTML = 'Drag a module onto another cast to move it. It keeps its level and rarity.';
     return;
   }
   const tbl = el('table', 'ptable'); grid.appendChild(tbl);
@@ -215,6 +208,26 @@ function buildBuild() {
   }
   $('buildText').innerHTML = lines.length ? lines.join('<br>') : 'Nothing yet. Any module goes on any cast.';
   g.practice = opts.build; rebuild(g);
+}
+// Drag a module onto another cast's column to move it (round 5: drag and drop, no "move to" buttons).
+function dragTile(ev, tile, from, idx, m) {
+  ev.preventDefault();
+  const ok = (to) => to !== from && allowed(to, m.id) && g.run.mods[to].length < SLOTS[to] && !g.run.mods[to].some(x => x.id === m.id);
+  const cols = [...document.querySelectorAll('.castcol')];
+  cols.forEach((col, k) => col.classList.toggle('canDrop', ok(CAST_ORDER[k])));
+  const r = tile.getBoundingClientRect(), ghost = tile.cloneNode(true), ox = ev.clientX - r.left, oy = ev.clientY - r.top;
+  ghost.classList.add('ghost'); ghost.style.width = r.width + 'px'; document.body.appendChild(ghost);
+  const place = (e) => { ghost.style.left = (e.clientX - ox) + 'px'; ghost.style.top = (e.clientY - oy) + 'px'; };
+  const over = (e) => cols.findIndex(col => { const b = col.getBoundingClientRect(); return e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top - 20 && e.clientY <= b.bottom + 200; });
+  place(ev); tile.classList.add('lifted');
+  const move = (e) => { place(e); const k = over(e); cols.forEach((col, j) => col.classList.toggle('hover', j === k && ok(CAST_ORDER[j]))); };
+  const up = (e) => {
+    removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+    ghost.remove(); const k = over(e), to = CAST_ORDER[k];
+    if (k >= 0 && ok(to)) { g.run.mods[from].splice(idx, 1); g.run.mods[to].push(m); rebuild(g); }
+    buildBuild();
+  };
+  addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
 }
 $('openbuild').onclick = () => { $('menu').classList.add('hidden'); $('build').classList.remove('hidden'); buildBuild(); };
 $('buildDone').onclick = () => { $('build').classList.add('hidden'); $('menu').classList.remove('hidden'); };
