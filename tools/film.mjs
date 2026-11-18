@@ -33,6 +33,20 @@ for (const cast of ['weapon', 'spawn', 'dash']) for (const mod of MODS) {
 SCENES['wave'] = { q: 'weapon=pistol&sight=remember', warm: 66, film: 14, run: true, bot: { fire: 'release', dash: true, spawn: true } };
 SCENES['spawns'] = { q: 'weapon=pistol&sight=remember', warm: 30, film: 10, small: true, build: { weapon: {}, spawn: { extra: 2 }, dash: {} },
   bot: { fire: 'none', spawn: true } };
+// Stage 4: a camp woken in its room; the three new enemies at once; a dash through spitter orbs.
+const NEAR_CAMP = `(() => { const g = SM.g, m = g.m, c = g.camps.find(c => c.tier === 1) || g.camps[0], f = new Uint16Array(m.G * m.G);
+  const n = SM.lib.pathField(m, c.x, c.y, 60, f), q = SM.lib.pathField.q; let best = q[0];
+  for (let i = 0; i < n; i++) if (f[q[i]] >= 22) { best = q[i]; break; }
+  g.p.x = (best % m.G) + 0.5; g.p.y = ((best / m.G) | 0) + 0.5; g.enemies = g.enemies.filter(e => e.camp); g.nextWave = 1e9; g.waveWarn = null;
+  BOT.gf = new Uint16Array(m.G * m.G); SM.lib.pathField(m, c.x, c.y, 4000, BOT.gf); })()`;
+const TRIO = `(() => { const g = SM.g, m = g.m, p = g.p, rays = [];
+  g.enemies = g.enemies.filter(e => e.camp && Math.hypot(e.x - p.x, e.y - p.y) > 45); g.nextWave = 1e9; g.waveWarn = null;
+  for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; let r = 0; while (r < 16 && SM.lib.lineClear(m, p.x, p.y, p.x + Math.cos(a) * (r + 1.5), p.y + Math.sin(a) * (r + 1.5))) r++; rays.push({ a, r }); }
+  rays.sort((x, y) => y.r - x.r); const used = [];
+  for (const t of ['dart', 'spitter', 'brute', 'dart']) { const o = rays.find(o => used.every(u => Math.abs(Math.atan2(Math.sin(o.a - u), Math.cos(o.a - u))) > 0.9)) || rays[0]; used.push(o.a);
+    const r = Math.min(13, o.r - 1); SM.lib.makeEnemy(g, t, p.x + Math.cos(o.a) * r, p.y + Math.sin(o.a) * r); } })()`;
+SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
+SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,
   build: { weapon: { burn: 2, bounce: 2, extra: 1 }, spawn: { burn: 2, home: 2, explode: 2 }, dash: { burn: 2, extra: 1, explode: 1 } },
   bot: { fire: 'hold', spawn: true, dash: true, dashAt: true } };
@@ -53,6 +67,7 @@ async function film(browser, name) {
   await page.evaluate((sc) => { BOT.cfg = sc.bot; SM.setOpt('build', sc.run ? null : sc.build || { weapon: {}, spawn: {}, dash: {} }); }, sc);
   // play unfilmed: 2 steps per bot thought, health kept up so the film has a crowd
   await page.evaluate((frames) => { for (let i = 0; i < frames; i++) { BOT.think(); SM.advance(2); SM.g.p.hp = Math.max(SM.g.p.hp, 60); } }, sc.warm * 30);
+  if (sc.setup) await page.evaluate(sc.setup);
   const dir = join(OUT, '_' + name); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
   const n = sc.film * 30;
   for (let i = 0; i < n; i++) {

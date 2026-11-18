@@ -1,4 +1,4 @@
-import { newGame, step, setWeapon } from './game.js';
+import { newGame, step, setWeapon, makeEnemy } from './game.js';
 import { makeInput } from './input.js';
 import { makeRenderer } from './render.js';
 import { WIDTHS, pathField, lineClear } from './maze.js';
@@ -223,7 +223,7 @@ $('buildClear').onclick = () => { opts.build = EMPTY_BUILD(); save(); buildBuild
 // Test hook (used to film clips): window.SM
 // manual: the page stops running by itself; advance(n) runs n steps and draws (frame-exact films).
 window.SM = { get g() { return g; }, inp, opts, restart, R, setPaused: (v) => { paused = v; },
-  setManual: (v) => { manual = v; }, lib: { pathField, lineClear },
+  setManual: (v) => { manual = v; }, lib: { pathField, lineClear, makeEnemy },
   advance: (n = 1) => { for (let i = 0; i < n && !g.over; i++) { step(g, DT, inp); inp.events.length = 0; } R.draw(g, inp, opts); if (g.over && $('over').classList.contains('hidden')) showOver(); },
   setOpt: (k, v) => { opts[k] = v; if (k === 'weapon') setWeapon(g, v); if (k === 'build') { g.practice = v; rebuild(g); } },
   showOffer: () => showOffer(),

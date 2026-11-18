@@ -9,9 +9,19 @@ export const SIGHT = 34;          // how far you can see, in cells
 const RAYS = 540;
 const FIELD_STEPS = 90;
 
+// Stage 4: the first three new enemies (design section 6). Each has its own colour and shape (render.js).
+//   dart: when it sees you, stops and aims (a line shows where), then charges straight until a wall.
+//   spitter: keeps its distance with you in sight and lobs slow orbs. A dash through an orb deletes it.
+//   brute: big, slow, tanky; hard to knock back, and shoves smaller enemies along.
 export const ENEMIES = {
-  mite: { r: 1, hp: 20, speed: 6.0, damage: 8, xp: 1 },
+  mite:    { r: 1, hp: 20, speed: 6.0, damage: 8, xp: 1, mass: 1 },
+  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, charge: 28, chargeDamage: 18, aim: 0.6 },
+  spitter: { r: 1, hp: 30, speed: 4.6, damage: 6, xp: 3, mass: 1, reload: 2.4, orb: { speed: 11, r: 0.55, damage: 10, life: 3 } },
+  brute:   { r: 1.7, hp: 170, speed: 3.4, damage: 20, xp: 8, mass: 5 },
 };
+
+// Camps (decisions: camps in rooms, guarding their shard; different tiers). Nearer rooms get the first tier.
+const CAMPS = [{ mite: 5, dart: 2 }, { brute: 1, mite: 4, spitter: 2 }, { brute: 2, spitter: 3, dart: 3 }];
 
 export function newGame(opts) {
   const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
@@ -21,7 +31,7 @@ export function newGame(opts) {
     p: { x: m.start.x, y: m.start.y, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9,
-    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [],
+    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [], shots: [], camps: [], nextId: 1,
     run: newRun(), practice: opts.practice ? opts.build : null, build: null, chests: [], spawnCool: 0, spawnAim: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0,
@@ -31,6 +41,7 @@ export function newGame(opts) {
   };
   rebuild(g);
   placeChests(g);
+  placeCamps(g);
   if (!g.practice) g.run.offers.push(startOffer(g));   // pick 1 of 3 to start (round 4)
   setWeapon(g, opts.weapon || 'pistol');
   refreshField(g);
@@ -44,6 +55,36 @@ function placeChests(g) {
   const m = g.m, s = m.start;
   for (const d of m.deadEnds) if (Math.hypot(d.x - s.x, d.y - s.y) > 16 && g.R() < 0.25) g.chests.push({ x: d.x, y: d.y });
   for (const h of m.halls) g.chests.push({ x: h.x, y: h.y, hall: true });
+}
+
+function placeCamps(g) {
+  const m = g.m, s = m.start;
+  const rooms = m.halls.map(r => ({ r, d: Math.hypot(r.x - s.x, r.y - s.y) })).filter(o => o.d > 24).sort((a, b) => a.d - b.d);
+  rooms.forEach(({ r }, k) => {
+    const tier = Math.min(2, Math.floor(k / rooms.length * 3)), camp = { tier, x: r.x, y: r.y };
+    g.camps.push(camp);
+    for (const [type, n] of Object.entries(CAMPS[tier])) for (let i = 0; i < n; i++) for (let t = 0; t < 40; t++) {
+      const a = g.R() * TAU, rad = 2.5 + g.R() * 5.5, x = Math.floor(r.x + Math.cos(a) * rad) + 0.5, y = Math.floor(r.y + Math.sin(a) * rad) + 0.5;
+      if (!m.clear[Math.floor(y) * m.G + Math.floor(x)] || x < r.box.x0 || x > r.box.x1 || y < r.box.y0 || y > r.box.y1) continue;
+      makeEnemy(g, type, x, y, { camp, sleep: true, home: { x, y } });
+      break;
+    }
+  });
+}
+function wakeCamp(g, camp) { for (const e of g.enemies) if (e.camp === camp) e.sleep = false; }
+
+export function makeEnemy(g, type, x, y, extra) {
+  const s = ENEMIES[type];
+  const e = { id: g.nextId++, type, x, y, r: s.r, hp: s.hp, maxHp: s.hp, speed: s.speed * (0.9 + g.R() * 0.2), vx: 0, vy: 0, flash: 0,
+    fx: 1, fy: 0, cd: 0.5 + g.R() * 1.5, st: null, t: 0, ...extra };
+  g.enemies.push(e);
+  return e;
+}
+
+function hurtPlayer(g, dmg) {
+  const p = g.p;
+  p.hp -= dmg; p.hurtT = 0.5;
+  if (p.hp <= 0) { p.hp = 0; g.over = true; burst(g, p.x, p.y, 'player', 30); }
 }
 
 const cdMul = (g) => Math.pow(0.9, g.run.vitals.cooldown);
@@ -276,6 +317,24 @@ function stepBalls(g, dt) {
   }
 }
 
+// ---------- enemy orbs ----------
+// A dash through an orb deletes it (decisions: the base Dash deletes enemy bullets). Spawns block them.
+function stepShots(g, dt) {
+  const m = g.m, p = g.p;
+  for (let i = g.shots.length - 1; i >= 0; i--) {
+    const s = g.shots[i];
+    s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
+    let dead = s.life <= 0 || m.cells[Math.floor(s.y) * m.G + Math.floor(s.x)];
+    if (!dead && Math.hypot(p.x - s.x, p.y - s.y) < p.r + s.r + (p.dashT > 0 ? 0.7 : 0)) {
+      dead = true;
+      if (p.dashT > 0) burst(g, s.x, s.y, 'dash', 8);
+      else if (p.safeT <= 0 && p.hurtT <= 0) hurtPlayer(g, s.dmg);
+    }
+    if (!dead) for (const b of g.balls) if (Math.hypot(b.x - s.x, b.y - s.y) < b.r + s.r) { b.hp -= s.dmg; dead = true; break; }
+    if (dead) { if (!(p.dashT > 0)) burst(g, s.x, s.y, 'orb', 4); g.shots.splice(i, 1); }
+  }
+}
+
 // ---------- the Dash cast ----------
 function startDash(g, dx, dy, chained) {
   const p = g.p;
@@ -341,8 +400,7 @@ function spawnEnemy(g, type, minD, maxD, angle) {
     const x = (c % G) + 0.5, y = ((c / G) | 0) + 0.5;
     if (angle != null) { let da = Math.atan2(y - g.p.y, x - g.p.x) - angle; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) > 0.6) continue; }
     if (canSee(g, x, y)) continue;
-    const s = ENEMIES[type];
-    g.enemies.push({ type, x, y, r: s.r, hp: s.hp, maxHp: s.hp, speed: s.speed * (0.9 + g.R() * 0.2), vx: 0, vy: 0, flash: 0, seen: false });
+    makeEnemy(g, type, x, y);
     return true;
   }
   return false;
@@ -355,6 +413,20 @@ const FIRST_WAVE = 30, WAVE_EVERY = 45;
 export const WARN = 10;
 function targetAlive(t) { const mn = t / 60; return Math.min(80, Math.round(5 + 2.5 * mn + 0.3 * mn * mn)); }
 const waveSize = (w) => 8 + (w - 1) * 6;
+// Wave 1 mites; 2 adds darts; 3 spitters; from 4 a brute or two leads it.
+function waveType(w, i) {
+  if (w >= 4 && i % 12 === 0) return 'brute';
+  if (w >= 2 && i % (w === 2 ? 3 : 5) === 1) return 'dart';
+  if (w >= 3 && i % (w === 3 ? 3 : 6) === 2) return 'spitter';
+  return 'mite';
+}
+function trickleType(g) {
+  const r = g.R(), mn = g.t / 60;
+  if (mn > 4 && r < 0.05) return 'brute';
+  if (mn > 3 && r < 0.15) return 'spitter';
+  if (mn > 1.5 && r < 0.3) return 'dart';
+  return 'mite';
+}
 
 // ---------- step ----------
 export function step(g, dt, inp) {
@@ -407,8 +479,9 @@ export function step(g, dt, inp) {
 
   // spawning: a few wanderers between waves; waves warned ahead, from a few sides
   const want = targetAlive(g.t);
-  g.spawnAcc += dt * (g.enemies.length < want ? 0.8 + g.t / 200 : 0);
-  while (g.spawnAcc >= 1) { g.spawnAcc -= 1; spawnEnemy(g, 'mite', 22, 40); }
+  let roam = 0; for (const e of g.enemies) if (!e.camp) roam++;   // camps don't count
+  g.spawnAcc += dt * (roam < want ? 0.8 + g.t / 200 : 0);
+  while (g.spawnAcc >= 1) { g.spawnAcc -= 1; spawnEnemy(g, trickleType(g), 22, 40); }
   if (!g.waveWarn && g.t >= g.nextWave - WARN) {
     const w = g.wave + 1, k = w === 1 ? 1 : w <= 3 ? 2 : 2 + (g.R() < 0.5 ? 1 : 0), a0 = g.R() * TAU, sides = [];
     for (let j = 0; j < k; j++) sides.push(a0 + j * TAU / k + (g.R() - 0.5) * 0.8);
@@ -416,30 +489,38 @@ export function step(g, dt, inp) {
   }
   if (g.t >= g.nextWave) {
     const w = g.waveWarn; g.wave++; g.nextWave += WAVE_EVERY; g.waveWarn = null;
-    g.incoming = { left: w.n, sides: w.sides, rate: Math.max(4, w.n / 3), acc: 0 };
+    g.incoming = { left: w.n, sides: w.sides, rate: Math.max(4, w.n / 3), acc: 0, wave: g.wave };
     g.pops.push({ text: `Wave ${g.wave}`, t: 0, big: true });
   }
   if (g.incoming) { // the wave arrives over about 3 seconds
     const w = g.incoming; w.acc += dt * w.rate;
-    while (w.acc >= 1 && w.left > 0) { w.acc -= 1; w.left--; spawnEnemy(g, 'mite', 18, 40, w.sides[w.left % w.sides.length] + (g.R() - 0.5) * 0.4); }
+    while (w.acc >= 1 && w.left > 0) { w.acc -= 1; w.left--; spawnEnemy(g, waveType(w.wave, w.left), 18, 40, w.sides[w.left % w.sides.length] + (g.R() - 0.5) * 0.4); }
     if (w.left <= 0) g.incoming = null;
   }
 
   // enemies
   const G = m.G, f = g.field;
   for (const e of g.enemies) {
+    const S = ENEMIES[e.type];
     if (e.burn > 0) { // burning: damage over time, stronger with more build-up; fades when not fed
       hurt(g, e, (2 + e.burn * 0.08) * dt, 0, 0, 0, true);
       e.burnIdle += dt; if (e.burnIdle > 2) e.burn = Math.max(0, e.burn - 12 * dt);
     }
+    e.flash = Math.max(0, e.flash - dt);
+    if (e.sleep) { // a camp at rest: the whole camp wakes when one sees you close, or is hurt
+      e.vx = e.vy = 0;
+      if ((g.frame + e.id) % 6 === 0 && Math.hypot(p.x - e.x, p.y - e.y) < 16 && lineClear(m, e.x, e.y, p.x, p.y)) wakeCamp(g, e.camp);
+      continue;
+    }
     let dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy), toBall = false;
-    let tx = 0, ty = 0;
+    let tx = 0, ty = 0, spd = e.speed;
     // a ball nearer than you, in sight: they go for it
     for (const b of g.balls) {
       const bx = b.x - e.x, by = b.y - e.y, bd = Math.hypot(bx, by);
       if (bd < 7 && bd < d && lineClear(m, e.x, e.y, b.x, b.y)) { dx = bx; dy = by; d = bd; toBall = true; }
     }
-    if (toBall || (d < 12 && lineClear(m, e.x, e.y, p.x, p.y))) { tx = dx / (d || 1); ty = dy / (d || 1); }
+    const sees = toBall || (d < 20 && (e.type !== 'mite' || d < 12) && lineClear(m, e.x, e.y, p.x, p.y));
+    if (sees && d < 12) { tx = dx / (d || 1); ty = dy / (d || 1); }
     else {
       const cx = Math.floor(e.x), cy = Math.floor(e.y), c = cy * G + cx;
       let best = f[c], bi = -1;
@@ -450,32 +531,53 @@ export function step(g, dt, inp) {
       if (bi >= 0) { const nx = (bi % G) + 0.5 - e.x, ny = ((bi / G) | 0) + 0.5 - e.y, nd = Math.hypot(nx, ny) || 1; tx = nx / nd; ty = ny / nd; }
       else if (f[c] === 65535) e.lost = (e.lost || 0) + dt;
     }
-    const k = Math.min(1, dt * 6);
-    e.vx += (tx * e.speed - e.vx) * k; e.vy += (ty * e.speed - e.vy) * k;
+    e.cd = Math.max(0, e.cd - dt);
+    if (e.type === 'dart') { // see you, stop and aim, charge straight to a wall, rest
+      if (e.st === 'aim') {
+        spd = 0; e.t -= dt;
+        if (e.t > 0.2 && d > 0.1) { e.ax = dx / d; e.ay = dy / d; }   // follows you, then locks for the last 0.2 s
+        if (e.t <= 0) { e.st = 'charge'; e.t = 1.1; }
+      } else if (e.st === 'charge') {
+        tx = e.ax; ty = e.ay; spd = S.charge; e.t -= dt;
+        if (e.t <= 0) { e.st = 'rest'; e.t = 0.6; }
+      } else if (e.st === 'rest') { spd = 0; e.t -= dt; if (e.t <= 0) { e.st = null; e.cd = 2; } }
+      else if (e.cd <= 0 && sees && d < 16) { e.st = 'aim'; e.t = S.aim; e.ax = dx / d; e.ay = dy / d; spd = 0; }
+    } else if (e.type === 'spitter' && sees && d < 20) { // keep a distance, and lob orbs
+      if (d < 9) { tx = -dx / d; ty = -dy / d; } else if (d < 15) spd = 0;
+      if (e.cd <= 0) {
+        e.cd = S.reload; e.fx = dx / d; e.fy = dy / d;
+        const o = S.orb; g.shots.push({ x: e.x + e.fx * 1.2, y: e.y + e.fy * 1.2, vx: e.fx * o.speed, vy: e.fy * o.speed, r: o.r, dmg: o.damage, life: o.life });
+      }
+    }
+    const k = Math.min(1, dt * (e.st === 'charge' ? 20 : 6));
+    e.vx += (tx * spd - e.vx) * k; e.vy += (ty * spd - e.vy) * k;
     e.x += e.vx * dt; e.y += e.vy * dt;
-    e.flash = Math.max(0, e.flash - dt);
+    const v = Math.hypot(e.vx, e.vy);
+    if (e.st === 'aim') { e.fx = e.ax; e.fy = e.ay; } else if (v > 0.5 && e.type !== 'spitter') { e.fx = e.vx / v; e.fy = e.vy / v; }
   }
   // enemies don't overlap each other, or you
   separate(g);
-  for (const e of g.enemies) pushOutOfWalls(m, e);
+  for (const e of g.enemies) if (pushOutOfWalls(m, e) && e.st === 'charge') { e.st = 'rest'; e.t = 0.7; burst(g, e.x + e.fx, e.y + e.fy, 'enemy', 5); }
   pushOutOfWalls(m, p);
   // far behind or lost: come back from somewhere nearer, out of sight
   for (let i = g.enemies.length - 1; i >= 0; i--) {
     const e = g.enemies[i], fd = g.field[Math.floor(e.y) * G + Math.floor(e.x)];
+    if (e.camp) { // a camp that lost you goes home and rests
+      if (!e.sleep && ((fd > 70 && fd !== 65535) || (e.lost || 0) > 3)) { e.x = e.home.x; e.y = e.home.y; e.sleep = true; e.lost = 0; e.st = null; }
+      continue;
+    }
     if ((fd > 60 && fd !== 65535) || (e.lost || 0) > 1.5) { g.enemies.splice(i, 1); spawnEnemy(g, e.type, 20, 36, Math.atan2(e.y - p.y, e.x - p.x)) || spawnEnemy(g, e.type, 20, 36); }
   }
 
   // touching you
   for (const e of g.enemies) {
     const d = Math.hypot(p.x - e.x, p.y - e.y);
-    if (d < p.r + e.r + 0.15 && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) {
-      p.hp -= ENEMIES[e.type].damage; p.hurtT = 0.5;
-      if (p.hp <= 0) { p.hp = 0; g.over = true; burst(g, p.x, p.y, 'player', 30); }
-    }
+    if (d < p.r + e.r + 0.15 && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) hurtPlayer(g, e.st === 'charge' ? ENEMIES[e.type].chargeDamage : ENEMIES[e.type].damage);
   }
 
   stepBolts(g, dt);
   stepBalls(g, dt);
+  stepShots(g, dt);
   for (const b of g.blasts) b.t += dt;
   g.blasts = g.blasts.filter(b => b.t < 0.35);
   for (let i = g.enemies.length - 1; i >= 0; i--) if (g.enemies[i].hp <= 0) g.enemies.splice(i, 1);
@@ -506,7 +608,8 @@ export const xpNeed = (level) => 2 + level * 3;
 function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
   if (e.hp <= 0) return;
   e.hp -= dmg * dmgMul(g); if (!silent) e.flash = 0.08;
-  const d = Math.hypot(vx, vy) || 1; e.x += vx / d * knock; e.y += vy / d * knock;
+  if (e.sleep) wakeCamp(g, e.camp);
+  const d = Math.hypot(vx, vy) || 1, kb = knock / ENEMIES[e.type].mass; e.x += vx / d * kb; e.y += vy / d * kb;
   if (e.hp <= 0) {
     g.kills++; burst(g, e.x, e.y, 'enemy', 8);
     g.gems.push({ x: e.x, y: e.y, v: ENEMIES[e.type].xp });
@@ -531,8 +634,9 @@ function separate(g) {
         if (j <= i) continue;
         const o = es[j], dx = o.x - e.x, dy = o.y - e.y, rr = e.r + o.r, d2 = dx * dx + dy * dy;
         if (d2 >= rr * rr) continue;
-        const d = Math.sqrt(d2) || 0.01, push = (rr - d) / 2 * 0.9, nx = d2 ? dx / d : 1, ny = d2 ? dy / d : 0;
-        e.x -= nx * push; e.y -= ny * push; o.x += nx * push; o.y += ny * push;
+        const d = Math.sqrt(d2) || 0.01, push = (rr - d) * 0.9, nx = d2 ? dx / d : 1, ny = d2 ? dy / d : 0;
+        const me = ENEMIES[e.type].mass, mo = ENEMIES[o.type].mass, ke = e.sleep && !o.sleep ? 0.1 : mo / (me + mo), ko = 1 - ke;
+        e.x -= nx * push * ke; e.y -= ny * push * ke; o.x += nx * push * ko; o.y += ny * push * ko;
       }
     }
   }
@@ -555,8 +659,9 @@ function separate(g) {
     if (p.dashT > 0) { // shove aside, perpendicular to the dash
       const side = Math.sign(dx * -p.dy + dy * p.dx) || 1;
       e.x += -p.dy * side * 0.6; e.y += p.dx * side * 0.6;
-    } else { // the crowd pushes back: you take a third of the shove, so a packed corridor holds you
-      const k = (rr - d) / (d || 0.01); e.x += dx * k * 0.67; e.y += dy * k * 0.67; p.x -= dx * k * 0.33; p.y -= dy * k * 0.33;
+    } else { // the crowd pushes back: you take a third of the shove (more from a brute), so a packed corridor holds you
+      const k = (rr - d) / (d || 0.01), yours = ENEMIES[e.type].mass > 1 ? 0.8 : 0.33;
+      e.x += dx * k * (1 - yours); e.y += dy * k * (1 - yours); p.x -= dx * k * yours; p.y -= dy * k * yours;
     }
   }
 }

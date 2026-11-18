@@ -3,6 +3,20 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-17 — stage 4 part 1 built (v0.6.0), my calls
+
+- **Camps** in every room more than 24 cells from the start, around the room's shard, resting (drawn dim) until one
+  sees you within 16 cells or is hit; then the whole camp wakes. A camp that loses you goes home and rests again.
+  Tiers by distance: near rooms 5 mites + 2 darts; middle 1 brute + 4 mites + 2 spitters; far 2 brutes + 3 spitters
+  + 3 darts. Camps don't count toward the wandering crowd.
+- **Dart** (magenta triangle): sees you within 16, stops 0.6 s with a line showing its aim (follows you, locks for the
+  last 0.2 s), charges at 28 cells/s until a wall, hits 18, rests. **Spitter** (acid-green diamond): with you in sight
+  keeps 9-15 cells away and lobs a slow orb every 2.4 s (10 damage); a dash through an orb deletes it, spawns block
+  them. **Brute** (amber square, 3.4 cells wide): 170 health, slow, hits 20, a fifth of the knockback, shoves smaller
+  enemies and you.
+- Waves: wave 2 adds darts, 3 spitters, from 4 a brute leads. Wanderers: darts from 1:30, spitters 3:00, brutes 4:00.
+- Next in stage 4: statuses, the Hulk at 5:00, breakable walls (as answered), keys and the door.
+
 ## 2026-11-17 — stage 3 answered (they played it); round 4 fixes built (v0.5.0)
 
 Answers: chests good, rarity good, Explode small start good; duplicates and level-ups decent. Level-ups "too few. Seemed

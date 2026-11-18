@@ -1,0 +1,49 @@
+{
+ "title": "Stage 4: camps and enemies",
+ "topic": "builds",
+ "order": 9,
+ "cards": [
+  {
+   "id": "camps",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Camps and three enemies",
+   "text": "Rooms now hold camps guarding their shard. Darts, Spitters and Brutes join the mites.",
+   "why": "First part of stage 4, as you said go: camps first, then enemies a few at a time. Mark any part that's off.",
+   "details": "Version 0.6.0, on top of the fixes deck. Close and reopen the app twice to get it.\n\nNext in stage 4: statuses, the first boss at 5:00, breakable walls, then keys and the door.",
+   "parts": [
+    {
+     "id": "camps",
+     "title": "Camps",
+     "text": "Every room away from the start has a camp around its shard, resting (dim) until one sees you close or gets hit; then they all wake. Near rooms are easy, far ones hold brutes.",
+     "videos": [
+      "../../../films/camp.mp4"
+     ]
+    },
+    {
+     "id": "dart",
+     "title": "Dart",
+     "text": "Magenta triangle. When it sees you it stops, shows its aim as a line, then charges straight until a wall. Hits hard. Dash sideways.",
+     "videos": [
+      "../../../films/enemies.mp4"
+     ]
+    },
+    {
+     "id": "spitter",
+     "title": "Spitter",
+     "text": "Green diamond. Keeps its distance with you in sight and lobs slow orbs. A dash through an orb deletes it; your spawns block them."
+    },
+    {
+     "id": "brute",
+     "title": "Brute",
+     "text": "Amber square, wider than you. Slow and tough, barely knocked back, shoves smaller enemies and you along."
+    },
+    {
+     "id": "waves",
+     "title": "Who comes when",
+     "text": "Wave 2 brings darts, wave 3 spitters, from wave 4 a brute leads. Between waves the new ones start wandering in from 1:30."
+    }
+   ]
+  }
+ ]
+}

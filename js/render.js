@@ -105,18 +105,32 @@ export function makeRenderer(canvas) {
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.38, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, b.hp / b.maxHp)); ctx.stroke();
     }
 
-    // enemies
+    // enemy orbs
+    for (const o of g.shots) {
+      if (mode !== 'all' && !canSee(g, o.x, o.y)) continue;
+      circle(o.x, o.y, o.r, ECOL.spitter[0]); circle(o.x, o.y, o.r * 0.45, ECOL.spitter[1]);
+    }
+    // enemies: each type its own colour and shape (stage 4). A camp at rest is drawn dim.
     const hidden = [];
     for (const e of g.enemies) {
       const vis = mode === 'all' || canSee(g, e.x, e.y);
       if (!vis) { hidden.push(e); continue; }
-      circle(e.x, e.y, e.r, e.flash > 0 ? '#ffffff' : COL.enemyDark);
-      if (e.flash <= 0) circle(e.x, e.y, e.r * 0.72, COL.enemy);
+      const [lite, dark] = ECOL[e.type] || ECOL.mite;
+      if (e.sleep) ctx.globalAlpha = 0.5;
+      if (e.st === 'aim') { // a dart about to charge: where it will go
+        const L = rayDist(m, e.x, e.y, e.ax, e.ay, 40);
+        ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(g.t * 20));
+        strip(e.x, e.y, e.x + e.ax * L, e.y + e.ay * L, 0.5, lite);
+        ctx.globalAlpha = 1;
+      }
+      enemyShape(e, e.r, e.flash > 0 ? '#ffffff' : dark);
+      if (e.flash <= 0) enemyShape(e, e.r * 0.7, lite);
+      ctx.globalAlpha = 1;
       if (e.burn > 0) { // burning: an orange ring, thicker with more build-up
         ctx.strokeStyle = COL.burn; ctx.lineWidth = 0.12 + 0.3 * Math.min(1, e.burn / 100);
         ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.86, 0, TAU); ctx.stroke();
       }
-      if (e.hp < e.maxHp) { ctx.fillStyle = COL.enemy; ctx.fillRect(e.x - 0.9, e.y - e.r - 0.55, 1.8 * e.hp / e.maxHp, 0.22); }
+      if (e.hp < e.maxHp) { ctx.fillStyle = lite; ctx.fillRect(e.x - 0.9, e.y - e.r - 0.55, 1.8 * e.hp / e.maxHp, 0.22); }
     }
 
     // bolts
@@ -156,7 +170,7 @@ export function makeRenderer(canvas) {
     // bits
     for (const q of g.parts) {
       ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.col === 'dash' ? 0.5 : 1);
-      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : COL.shot;
+      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : COL.shot;
       ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s);
     }
     ctx.globalAlpha = 1;
@@ -196,6 +210,23 @@ export function makeRenderer(canvas) {
   }
 
   function canSeeCached(g, q) { return canSee(g, q.x, q.y); }
+
+  // [light, dark] per enemy (decisions: more enemy colours than red and magenta; poison purple stays free)
+  const ECOL = { mite: [COL.enemy, COL.enemyDark], dart: ['#ff4fd8', '#7d1c6c'], spitter: ['#c8ff3d', '#4d6b0c'], brute: ['#ffae3d', '#7a4a0c'] };
+  // mite a circle, dart a triangle pointing where it's going, spitter a diamond, brute a square
+  function enemyShape(e, r, col) {
+    ctx.fillStyle = col; ctx.beginPath();
+    if (e.type === 'dart') {
+      const fx = e.fx, fy = e.fy;
+      ctx.moveTo(e.x + fx * r * 1.35, e.y + fy * r * 1.35);
+      ctx.lineTo(e.x - fx * r * 0.9 - fy * r * 0.85, e.y - fy * r * 0.9 + fx * r * 0.85);
+      ctx.lineTo(e.x - fx * r * 0.9 + fy * r * 0.85, e.y - fy * r * 0.9 - fx * r * 0.85);
+    } else if (e.type === 'spitter') {
+      const k = r * 1.2; ctx.moveTo(e.x, e.y - k); ctx.lineTo(e.x + k, e.y); ctx.lineTo(e.x, e.y + k); ctx.lineTo(e.x - k, e.y);
+    } else if (e.type === 'brute') { ctx.rect(e.x - r * 0.92, e.y - r * 0.92, r * 1.84, r * 1.84); }
+    else ctx.arc(e.x, e.y, r, 0, TAU);
+    ctx.closePath(); ctx.fill();
+  }
 
   function circle(x, y, r, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
   function strip(x0, y0, x1, y1, w, col, round) {
