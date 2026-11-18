@@ -82,6 +82,15 @@ SCENES['hulk'] = { q: 'weapon=smg&sight=remember', warm: 2, film: 14, small: tru
       const mm = Math.hypot(mx, my) || 1; I.move.x = mx / mm; I.move.y = my / mm;
       if (SM.lib.lineClear(m, p.x, p.y, b.x, b.y)) { I.fire.engaged = I.fire.down = true; I.fire.x = ux; I.fire.y = uy; }
       if (d < 7 && dashT-- <= 0 && p.charges >= 1) { I.events.push({ type: 'dashRelease', x: -uy, y: ux }); dashT = 20; } }; })()`, bot: { fire: 'hold', dash: true } };
+// Stage 5 batch 1: new modules and weapons.
+const R9 = { 'm5-pierce': ['rail', { weapon: { pierce: 2 } }], 'm5-split': ['pistol', { weapon: { split: 3 } }], 'm5-knock': ['smg', { weapon: { knock: 3 } }],
+  'm5-grow': ['pistol', { spawn: { grow: 3 } }, true], 'm5-dashsplit': ['pistol', { dash: { split: 3, knock: 2 } }, false, true],
+  'shotgun': ['shotgun', {}], 'rail': ['rail', {}] };
+for (const [k, [w, b, spawn, dash]] of Object.entries(R9)) SCENES[k] = { q: `weapon=${w}&sight=remember`, warm: 40, film: 8, small: true,
+  build: { weapon: {}, spawn: {}, dash: {}, ...b }, bot: { fire: dash ? 'none' : 'release', spawn: !!spawn, dash: true, dashAt: !!dash, approach: !!dash } };
+SCENES['shard'] = { q: 'weapon=pistol&sight=remember', warm: 1, film: 4, setup: `(() => { const g = SM.g, m = g.m; g.nextWave = 1e9; g.spawnAcc = -1e9; g.enemies = g.enemies.filter(e => e.camp);
+  const c = g.chests.filter(c => !c.open).sort((a, b) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(b.x - g.p.x, b.y - g.p.y));
+  for (const s of c) for (const [dx, dy] of [[0, 6], [0, -6], [6, 0], [-6, 0]]) { const x = s.x + dx, y = s.y + dy; if (m.clear[Math.floor(y) * m.G + Math.floor(x)] && SM.lib.lineClear(m, x, y, s.x, s.y)) { g.p.x = x; g.p.y = y; BOT.think = () => {}; return; } } })()`, bot: {} };
 SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,

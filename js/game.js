@@ -1,7 +1,7 @@
 // The simulation: fixed steps, no drawing. Units are maze cells; the player is a 2x2 body (radius 1).
 import { makeMaze, rayStamp, lineClear, pathField, breakTile } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
-import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUILD } from './modules.js';
+import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUILD, knockOf } from './modules.js';
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
@@ -20,7 +20,7 @@ export const ENEMIES = {
   brute:   { r: 1.7, hp: 170, speed: 3.4, damage: 20, xp: 8, mass: 5, breaks: 35 },
   // The first boss (design: Hulk at 5:00): as wide as a corridor, rolls through the maze shoving everything, armoured
   // in front (a quarter damage), so you route round and hit it from behind. Drops an epic shard.
-  hulk:    { r: 3.4, hp: 2400, speed: 3.8, damage: 35, xp: 60, mass: 60, breaks: 120, armor: 0.25, boss: true },
+  hulk:    { r: 3.4, hp: 2400, speed: 11, damage: 35, xp: 60, mass: 60, breaks: 120, armor: 0.25, boss: true },
 };
 
 // Camps (decisions: camps in rooms, guarding their shard; different tiers). Nearer rooms get the first tier.
@@ -48,7 +48,7 @@ export function newGame(opts) {
 function buildFloor(g, seed) {
   const m = g.m = makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
   Object.assign(g, {
-    enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], tileFlash: new Map(), clouds: [], arcs: [],
+    enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], echoes: [], tileFlash: new Map(), clouds: [], arcs: [],
     chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0, field: new Uint16Array(m.G * m.G), fieldT: 0,
@@ -131,7 +131,7 @@ function hurtPlayer(g, dmg) {
 const cdMul = (g, k) => Math.pow(0.88, g.run.vitals[k] || 0);
 export const pickupRange = (g) => 3.5 + 1.5 * g.run.vitals.pickup;
 const dmgMul = (g) => 1 + 0.15 * g.run.vitals.damage;
-export const dashLen = (g, a = g.p) => (a === g.p ? DASH.length : ENEMIES[a.type].dashLength || DASH.length) * durOf(dashMods(g, a).duration || 0);
+export const dashLen = (g, a = g.p) => (a === g.p || a.mine ? DASH.length : ENEMIES[a.type].dashLength || DASH.length) * durOf(dashMods(g, a).duration || 0) * (1 + 0.1 * (dashMods(g, a).haste || 0));
 
 export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
@@ -294,6 +294,8 @@ function stepStatuses(g, dt) {
     const c = g.clouds[i]; c.t += dt;
     if (c.boom || c.t > c.life) { g.clouds.splice(i, 1); continue; }
     for (const e of g.enemies) if (Math.hypot(e.x - c.x, e.y - c.y) < c.r) { e.poison = (e.poison || 0) + 15 * dt; e.poisonIdle = 0; }
+    if (g.R() < dt * 14) { const a = g.R() * TAU, rr = Math.sqrt(g.R()) * c.r; // lingering motes (round 9)
+      g.parts.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, vx: (g.R() - 0.5) * 0.6, vy: -0.4 - g.R() * 0.5, life: 1.4, max: 1.4, col: 'poison', s: 0.28 }); }
   }
   for (let i = g.arcs.length - 1; i >= 0; i--) { g.arcs[i].t += dt; if (g.arcs[i].t > 0.15) g.arcs.splice(i, 1); }
 }
@@ -330,18 +332,27 @@ function fire(g, ax, ay) {
   if (g.ammo < 1 || g.cool > 0) return false;
   g.reloadT = 0;
   g.ammo -= 1; g.cool = w.cooldown; g.sinceShot = 0;
-  const n = 1 + L(g, 'weapon', 'extra'), base = Math.atan2(ay, ax) + (g.R() - 0.5) * 2 * w.spread;
+  const n = (w.pellets || 1) + L(g, 'weapon', 'extra'), base = Math.atan2(ay, ax) + (g.R() - 0.5) * 2 * w.spread;
   const pay = payload(g, 'weapon'), bounces = L(g, 'weapon', 'bounce'), home = L(g, 'weapon', 'home'), ex = L(g, 'weapon', 'explode');
+  const grow = L(g, 'weapon', 'grow'), speed = w.speed * (1 + 0.15 * L(g, 'weapon', 'haste'));
   for (let i = 0; i < n; i++) {
-    const a = base + (i - (n - 1) / 2) * 0.16, dx = Math.cos(a), dy = Math.sin(a);
-    g.bolts.push({ x: g.p.x + dx * 0.9, y: g.p.y + dy * 0.9, vx: dx * w.speed, vy: dy * w.speed, r: w.radius,
-      dmg: w.damage, left: w.range * durOf(L(g, 'weapon', 'duration')), bounces, home, pay, ex });
+    const a = base + (i - (n - 1) / 2) * (w.fan || 0.16), dx = Math.cos(a), dy = Math.sin(a);
+    g.bolts.push({ x: g.p.x + dx * 0.9, y: g.p.y + dy * 0.9, vx: dx * speed, vy: dy * speed, r: w.radius * (1 + 0.3 * grow),
+      dmg: w.damage * (1 + 0.1 * grow), left: w.range * durOf(L(g, 'weapon', 'duration')), bounces, home, pay, ex,
+      pierce: (w.pierce || 0) + L(g, 'weapon', 'pierce'), split: L(g, 'weapon', 'split'), knock: L(g, 'weapon', 'knock'), hit: null });
   }
   g.p.fx = Math.cos(base); g.p.fy = Math.sin(base);
   return true;
 }
 
-function boltEnd(g, b, x, y) { if (b.ex) blast(g, x, y, blastR(b.ex), blastDmg(b.ex), b.pay); }
+function boltEnd(g, b, x, y) {
+  if (b.ex) blast(g, x, y, blastR(b.ex), blastDmg(b.ex), b.pay);
+  if (b.split && !b.child) { // Split: two weaker bolts fork off, 0.5 rad either side
+    const sp = Math.hypot(b.vx, b.vy) || 1, a0 = Math.atan2(b.vy, b.vx), k = 0.3 + 0.1 * b.split;
+    for (const s of [-0.5, 0.5]) { const a = a0 + s; g.bolts.push({ ...b, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: b.dmg * k, r: b.r * 0.8,
+      left: 6, child: true, split: 0, ex: 0, bounces: 0, hit: b.hit ? new Set(b.hit) : null }); }
+  }
+}
 
 function stepBolts(g, dt) {
   const m = g.m, G = m.G;
@@ -377,7 +388,9 @@ function stepBolts(g, dt) {
         if (e.hp <= 0) continue;
         const dx = e.x - b.x, dy = e.y - b.y;
         if (dx * dx + dy * dy < (e.r + b.r) ** 2) {
-          hurt(g, e, b.dmg, b.vx, b.vy); applyPayload(g, e, b.pay);
+          if (b.hit && b.hit.has(e)) continue;
+          hurt(g, e, b.dmg, b.vx, b.vy, b.knock ? knockOf(b.knock) : 0.25); applyPayload(g, e, b.pay);
+          if (b.pierce > 0) { b.pierce--; (b.hit = b.hit || new Set()).add(e); continue; }   // Pierce: on through
           dead = true; boltEnd(g, b, b.x, b.y); break;
         }
       }
@@ -390,13 +403,15 @@ function stepBolts(g, dt) {
 // ---------- the Spawn cast: balls ----------
 function throwBall(g, ax, ay) {
   if (g.spawnCool > 0) return;
-  g.spawnCool = SPAWN.cooldown * cdMul(g, 'spawnCd');
-  const n = 1 + L(g, 'spawn', 'extra'), base = Math.atan2(ay, ax);
+  const haste = L(g, 'spawn', 'haste'), grow = L(g, 'spawn', 'grow');
+  g.spawnCool = SPAWN.cooldown * cdMul(g, 'spawnCd') * Math.max(0.3, 1 - 0.08 * haste);
+  const n = 1 + L(g, 'spawn', 'extra'), base = Math.atan2(ay, ax), speed = SPAWN.speed * (1 + 0.2 * haste) * (1 - 0.06 * grow);
   for (let i = 0; i < n; i++) {
-    const a = base + (i - (n - 1) / 2) * 0.35, dx = Math.cos(a), dy = Math.sin(a);
-    g.balls.push({ x: g.p.x + dx * 1.2, y: g.p.y + dy * 1.2, vx: dx * SPAWN.speed, vy: dy * SPAWN.speed, r: SPAWN.r,
-      hp: SPAWN.hp, maxHp: SPAWN.hp, decay: SPAWN.hp / (SPAWN.life * durOf(L(g, 'spawn', 'duration'))), hurtT: 0, cd: new Map(),
-      bounces: L(g, 'spawn', 'bounce'), home: L(g, 'spawn', 'home'), pay: payload(g, 'spawn'), ex: L(g, 'spawn', 'explode') });
+    const a = base + (i - (n - 1) / 2) * 0.35, dx = Math.cos(a), dy = Math.sin(a), hp = SPAWN.hp * (1 + 0.25 * grow);
+    g.balls.push({ x: g.p.x + dx * 1.2, y: g.p.y + dy * 1.2, vx: dx * speed, vy: dy * speed, r: SPAWN.r * (1 + 0.15 * grow),
+      hp, maxHp: hp, decay: hp / (SPAWN.life * durOf(L(g, 'spawn', 'duration'))), hurtT: 0, cd: new Map(),
+      bounces: L(g, 'spawn', 'bounce'), home: L(g, 'spawn', 'home'), pay: payload(g, 'spawn'), ex: L(g, 'spawn', 'explode'),
+      pierce: L(g, 'spawn', 'pierce'), split: L(g, 'spawn', 'split'), knock: L(g, 'spawn', 'knock') });
   }
 }
 
@@ -435,14 +450,19 @@ function stepBalls(g, dt) {
       if (d > b.r + e.r + 0.1) continue;
       if (g.t >= (b.cd.get(e) || 0)) {
         b.cd.set(e, g.t + 0.35);
-        hurt(g, e, SPAWN.contact + speed * SPAWN.speedDamage, dx, dy, speed > 6 ? 1.2 : 0.3); applyPayload(g, e, b.pay);
+        hurt(g, e, SPAWN.contact + 2 * (b.pierce || 0) + speed * SPAWN.speedDamage, dx, dy, b.knock ? knockOf(b.knock) : speed > 6 ? 1.2 : 0.3); applyPayload(g, e, b.pay);
       }
-      if (b.hurtT <= 0) { b.hp -= ENEMIES[e.type].damage; b.hurtT = 0.4; }
+      if (b.hurtT <= 0 && !b.pierce) { b.hp -= ENEMIES[e.type].damage; b.hurtT = 0.4; }
     }
     if (b.hp <= 0) {
       burst(g, b.x, b.y, 'player', 10);
       if (b.ex) blast(g, b.x, b.y, blastR(b.ex) + 1, blastDmg(b.ex) * 2, b.pay);
       g.balls.splice(i, 1);
+      if (b.split && !b.child) for (const s of [-1, 1]) { // Split: two small balls
+        const hp = b.maxHp * (0.3 + 0.1 * b.split), a = g.R() * TAU;
+        g.balls.push({ ...b, x: b.x + Math.cos(a) * s, y: b.y + Math.sin(a) * s, vx: Math.cos(a) * 8 * s, vy: Math.sin(a) * 8 * s, r: b.r * 0.7,
+          hp, maxHp: hp, child: true, split: 0, ex: 0, cd: new Map(), tg: null });
+      }
     }
   }
 }
@@ -486,11 +506,12 @@ function stepShots(g, dt) {
 }
 
 // ---------- the Dash cast ----------
-// One Dash for everyone (round 6: "use the same dash as the player so it can use upgrade modules later; reuse, not
-// reinvent"). A dasher is the player or an enemy (the dart); its Dash modules come from your build, or the enemy's own
-// `dash` list in ENEMIES (empty for now). It hits the other side as it passes.
+// One Dash for everyone (round 6: "reuse, not reinvent"). A dasher is you, an echo of your dash (Split), or an enemy
+// (the dart). Yours and your echoes hit enemies; an enemy's hits you. Modules come from your build, the echo's own
+// copy, or the enemy's `dash` list in ENEMIES.
 export const GHOST = 0.22;   // how long an afterimage lasts (round 6: afterimage trails, not lines)
-function dashMods(g, a) { return a === g.p ? (g.build.dash || {}) : (a.dash || ENEMIES[a.type].dash || {}); }
+const mine = (g, a) => a === g.p || a.mine;
+function dashMods(g, a) { return a === g.p ? (g.build.dash || {}) : a.mine ? a.mods : (a.dash || ENEMIES[a.type].dash || {}); }
 
 function startDash(g, a, dx, dy, chained) {
   const isP = a === g.p, mods = dashMods(g, a);
@@ -498,23 +519,30 @@ function startDash(g, a, dx, dy, chained) {
   const d = Math.hypot(dx, dy); if (d < 1e-6) { dx = a.fx; dy = a.fy; } else { dx /= d; dy /= d; }
   if (mods.home) { // lunge: turn toward a foe ahead
     const lr = lunge(mods.home);
-    if (isP) { const e = nearestEnemy(g, a.x, a.y, lr, dx, dy, 0.5); if (e) { const ex = e.x - a.x, ey = e.y - a.y, ed = Math.hypot(ex, ey) || 1; dx = ex / ed; dy = ey / ed; } }
+    if (mine(g, a)) { const e = nearestEnemy(g, a.x, a.y, lr, dx, dy, 0.5); if (e) { const ex = e.x - a.x, ey = e.y - a.y, ed = Math.hypot(ex, ey) || 1; dx = ex / ed; dy = ey / ed; } }
     else { const p = g.p, px = p.x - a.x, py = p.y - a.y, pd = Math.hypot(px, py) || 1; if (pd < lr && (px * dx + py * dy) / pd > 0.5) { dx = px / pd; dy = py / pd; } }
   }
   if (!chained) {
-    if (isP) { a.charges -= 1; if (a.recharge <= 0) a.recharge = DASH.recharge * cdMul(g, 'dashCd'); }
+    if (isP) { a.charges -= 1; if (a.recharge <= 0) a.recharge = DASH.recharge * cdMul(g, 'dashCd') * (1 - 0.1 * (mods.haste || 0)); }
     a.chain = mods.extra || 0;
   }
   a.dashT = DASH.time; a.dashLen = dashLen(g, a); a.dx = dx; a.dy = dy; a.fx = dx; a.fy = dy;
   a.dashBounces = mods.bounce || 0; a.dashHit = new Set(); a.dashPay = payloadOf(mods);
+  if (isP && !chained && mods.split) // Split: two echo dashes at +-35 degrees, carrying the dash's contact effects
+    for (const s of [-1, 1]) {
+      const c = Math.cos(0.61 * s), sn = Math.sin(0.61 * s);
+      const echo = { x: a.x, y: a.y, r: a.r, fx: dx, fy: dy, mine: true, scale: 0.3 + 0.1 * mods.split, mods: { ...mods, split: 0, extra: 0, explode: 0 } };
+      startDash(g, echo, dx * c - dy * sn, dx * sn + dy * c, true); g.echoes.push(echo);
+    }
 }
 
 // steer: where the next dash in a row goes (the move stick for you; toward you for an enemy)
 function stepDash(g, a, dt, steer) {
-  const isP = a === g.p, m = g.m, sp = a.dashLen / DASH.time, p = g.p;
+  const isP = a === g.p, m = g.m, sp = a.dashLen / DASH.time, p = g.p, mods = dashMods(g, a), sc = a.scale || 1;
   const r = moveBodyN(m, a, a.dx * sp * dt, a.dy * sp * dt);
   a.dashT -= dt;
-  for (const i of tilesNear(g, a.x, a.y, a.r + 0.5)) if (!a.dashHit.has(i)) { a.dashHit.add(i); hitTile(g, i, DASH.block * (isP ? dmgMul(g) : 1)); }
+  const reach = a.r + 0.5 + 0.4 * (mods.grow || 0);   // Grow: a wider dash
+  for (const i of tilesNear(g, a.x, a.y, reach)) if (!a.dashHit.has(i)) { a.dashHit.add(i); hitTile(g, i, DASH.block * sc * (mine(g, a) ? dmgMul(g) : 1)); }
   if (r.hit) {
     const nl = Math.hypot(r.nx, r.ny);
     if (a.dashBounces > 0 && nl > 1e-6) {
@@ -522,25 +550,27 @@ function stepDash(g, a, dt, steer) {
       if (vn < 0) { a.dashBounces--; a.dx -= 2 * vn * nx; a.dy -= 2 * vn * ny; a.dashT = DASH.time; }
     } else a.dashT = Math.min(a.dashT, 0.02);
   }
-  if (isP) { // everyone you pass: small damage and your payloads (decisions: payloads on the Dash, small damage)
+  if (mine(g, a)) { // everyone passed: small damage (Pierce adds more) and the payloads; Knock makes it a shockwave
+    const dmg = (3 + (mods.pierce ? 3 + 5 * mods.pierce : 0)) * sc, kb = mods.knock ? knockOf(mods.knock) : 0;
     for (const e of g.enemies) {
       if (e.hp <= 0 || a.dashHit.has(e)) continue;
-      if (Math.hypot(e.x - a.x, e.y - a.y) < a.r + e.r + 0.6) { a.dashHit.add(e); hurt(g, e, 3, 0, 0); applyPayload(g, e, a.dashPay); }
+      const ex = e.x - a.x, ey = e.y - a.y;
+      if (Math.hypot(ex, ey) < reach + e.r + 0.1) { a.dashHit.add(e); hurt(g, e, dmg, kb ? ex : 0, kb ? ey : 0, kb); applyPayload(g, e, a.dashPay, sc); }
     }
   } else if (!a.dashHit.has(p) && !(p.dashT > 0) && p.safeT <= 0 && Math.hypot(p.x - a.x, p.y - a.y) < a.r + p.r + 0.3) {
     a.dashHit.add(p);
     if (p.hurtT <= 0) hurtPlayer(g, ENEMIES[a.type].dashDamage || ENEMIES[a.type].damage);
   }
-  if ((g.frame & 1) === 0) g.ghosts.push({ x: a.x, y: a.y, r: a.r, fx: a.fx, fy: a.fy, type: isP ? 'player' : a.type, t: 0 });
+  if ((g.frame & 1) === 0) g.ghosts.push({ x: a.x, y: a.y, r: a.r, fx: a.fx, fy: a.fy, type: mine(g, a) ? 'player' : a.type, t: 0 });
   if (a.dashT <= 0) {
     a.dashT = 0;
-    if (isP) a.safeT = DASH.safe;
-    if (isP && L(g, 'dash', 'explode')) blast(g, a.x, a.y, blastR(L(g, 'dash', 'explode')), blastDmg(L(g, 'dash', 'explode')), a.dashPay);
+    if (isP) a.safeT = DASH.safe + 0.1 * (mods.grow || 0);
+    if (isP && mods.explode) blast(g, a.x, a.y, blastR(mods.explode), blastDmg(mods.explode), a.dashPay);
     if (a.chain > 0) { // Extra on the Dash: the next dash in a row
       a.chain--;
       let sx = a.dx, sy = a.dy;
       if (steer && Math.hypot(steer.x, steer.y) > 0.2) { sx = steer.x; sy = steer.y; }
-      else if (!isP) { sx = p.x - a.x; sy = p.y - a.y; }
+      else if (!mine(g, a)) { sx = p.x - a.x; sy = p.y - a.y; }
       startDash(g, a, sx, sy, true);
     }
   }
@@ -629,15 +659,16 @@ export function step(g, dt, inp) {
   // rounds come back
   g.cool = Math.max(0, g.cool - dt); g.sinceShot += dt;
   if (w.refill === 'full') {
-    if (g.reloadT > 0) { g.reloadT -= dt / cdMul(g, 'reload'); if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
+    if (g.reloadT > 0) { g.reloadT -= dt / cdMul(g, 'reload') * (1 + 0.08 * L(g, 'weapon', 'haste')); if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
     else if (g.ammo < 1 || (g.ammo < w.rounds && g.sinceShot >= w.refillDelay)) g.reloadT = w.reloadTime;
-  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt / cdMul(g, 'reload'));
+  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt / cdMul(g, 'reload') * (1 + 0.08 * L(g, 'weapon', 'haste')));
 
   // dash charges
   if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge * cdMul(g, 'dashCd') : 0; } }
 
   // player movement
   const SPEED = 8.5 * (1 + 0.08 * g.run.vitals.speed);
+  for (let i = g.echoes.length - 1; i >= 0; i--) { stepDash(g, g.echoes[i], dt, null); if (g.echoes[i].dashT <= 0) g.echoes.splice(i, 1); }
   if (p.dashT > 0) stepDash(g, p, dt, inp.move);
   else {
     const mx = inp.move.x, my = inp.move.y, mm = Math.min(1, Math.hypot(mx, my));
@@ -723,13 +754,13 @@ export function step(g, dt, inp) {
         const o = S.orb; g.shots.push({ x: e.x + e.fx * 1.2, y: e.y + e.fy * 1.2, vx: e.fx * o.speed, vy: e.fy * o.speed, r: o.r, dmg: o.damage, life: o.life });
       }
     }
-    if (e.type === 'hulk') { // round 8: rolls only along the axis lines, turning 90 degrees at a time, on a cooldown
+    if (e.type === 'hulk') { // axis lines only (round 8); very fast, commits to a direction for a while (round 9)
       e.turnCd = (e.turnCd || 0) - dt;
       const want = Math.abs(tx) >= Math.abs(ty) ? [Math.sign(tx) || 1, 0] : [0, Math.sign(ty) || 1];
-      const stuck = Math.hypot(e.vx, e.vy) < spd * 0.25;
-      if (!e.dir || ((want[0] !== e.dir[0] || want[1] !== e.dir[1]) && (e.turnCd <= 0 || (stuck && e.turnCd < 0.9)))) {
-        if (e.dir && want[0] === -e.dir[0] && want[1] === -e.dir[1] && !stuck) { /* never a U-turn while rolling freely */ }
-        else { e.dir = want; e.turnCd = 1.5; }
+      const stuck = e.dir && Math.hypot(e.vx, e.vy) < spd * 0.2 && e.turnCd < 1.0;
+      if (!e.dir || (e.turnCd <= 0 && (want[0] !== e.dir[0] || want[1] !== e.dir[1])) || stuck) {
+        e.dir = stuck && want[0] === e.dir[0] && want[1] === e.dir[1] ? [e.dir[1], -e.dir[0]] : want;
+        e.turnCd = 1.2 + g.R() * 1.3;
       }
       tx = e.dir[0]; ty = e.dir[1];
       const kk = Math.min(1, dt * 4);   // straight along its axis: the other speed dies off
@@ -739,7 +770,12 @@ export function step(g, dt, inp) {
     e.vx += (tx * spd - e.vx) * k; e.vy += (ty * spd - e.vy) * k;
     e.x += e.vx * dt; e.y += e.vy * dt;
     const v = Math.hypot(e.vx, e.vy);
-    if (e.dir) { e.fx = e.dir[0]; e.fy = e.dir[1]; }
+    if (e.dir) {
+      e.fx = e.dir[0]; e.fy = e.dir[1];
+      const want = Math.atan2(e.dir[1], e.dir[0]); if (e.ang == null) e.ang = want;
+      let df = want - e.ang; df = Math.atan2(Math.sin(df), Math.cos(df));
+      e.angV = ((e.angV || 0) + df * 90 * dt) * Math.exp(-9 * dt); e.ang += e.angV * dt;
+    }
     if (e.st === 'aim') { e.fx = e.ax; e.fy = e.ay; } else if (v > 0.5 && e.type !== 'spitter' && !e.dir) { e.fx = e.vx / v; e.fy = e.vy / v; }
   }
   // enemies don't overlap each other, or you
@@ -868,7 +904,8 @@ function separate(g) {
     const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
     if (rel < 0) { a.vx += rel * nx; a.vy += rel * ny; b.vx -= rel * nx; b.vy -= rel * ny; }
   }
-  for (const b of g.balls) for (const e of es) { // balls are solid to enemies
+  for (const b of g.balls) for (const e of es) { // balls are solid to enemies (not with Pierce)
+    if (b.pierce) continue;
     const dx = e.x - b.x, dy = e.y - b.y, rr = e.r + b.r, d = Math.hypot(dx, dy);
     if (d < rr) { const k = (rr - d) / (d || 0.01); e.x += dx * k; e.y += dy * k; }
   }

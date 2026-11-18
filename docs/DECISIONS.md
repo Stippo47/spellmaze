@@ -3,6 +3,25 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-18 — round 8 answered; round 9 + stage 5 batch 1 built (v0.12.0)
+
+Answers: keys, statuses good. Hulk: **"I don't see a smooth turn. Lerp, with some overshoot. Boss should be very fast but
+commits to a direction for a bit (random variation), can always be seen."** Clouds good, "could show some particle
+lingering effects". Shard: **PROBLEM, "Uh huh. Sure..."** (asked what's wrong). **Stage 5: more modules, and weapons
+and casts.** Bosses don't lock you in: go.
+
+Built:
+- Hulk: speed 11 (you're 8.5), keeps a direction 1.2-2.5 s before turning to you, turns at once when blocked; drawn
+  turning with a spring (a little overshoot); always drawn, even out of sight.
+- Gas clouds give off slow purple motes.
+- Stage 5 batch 1, modules from design section 4 on all three casts: **Pierce** (bolt passes enemies; ball rolls
+  through at full speed and isn't blocked; dash +3+5/level contact), **Grow** (bigger, stronger; ball more health,
+  slower; dash wider and longer safe), **Haste** (bolt speed and reload; ball throw and cooldown; dash length and
+  recharge), **Split** (bolt forks in two on hit or end; ball splits in two when it dies; dash sends two echo dashes
+  at +-35 degrees), **Knock** (hits push far; dash shoves become a shockwave).
+- Weapons: **Shotgun** (5 pellets, 2 shots, full reload) and **Rail** (one slow hard shot, 45 damage, through 4).
+- A fourth cast (Beam or Burst from the design) next, once they've seen these.
+
 ## 2026-11-18 — round 7 answered; round 8 built (v0.11.0)
 
 Answers: keys good, but **"doesn't need to be furthest. No door, just collect 4 keys."** Fixes good; "the boss fight is

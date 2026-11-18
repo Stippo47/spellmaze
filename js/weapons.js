@@ -13,8 +13,13 @@ export const WEAPONS = {
     damage: 4, speed: 44, range: 13, radius: 0.25, spread: 0.08, tapNearest: false },
   auto: { name: 'Auto', trigger: 'auto', refill: 'trickle', rounds: 8, refillDelay: 0.35, refillRate: 2.4, cooldown: 0.32,
     damage: 7, speed: 36, range: 13, radius: 0.3, spread: 0.02, tapNearest: false },
+  // Stage 5: a short spray of pellets, and a slow, hard shot that goes through enemies.
+  shotgun: { name: 'Shotgun', trigger: 'release', refill: 'full', rounds: 2, refillDelay: 0.8, reloadTime: 1.1, cooldown: 0.28,
+    damage: 6, speed: 40, range: 9, radius: 0.3, spread: 0.02, tapNearest: true, pellets: 5, fan: 0.11 },
+  rail: { name: 'Rail', trigger: 'release', refill: 'trickle', rounds: 1, refillDelay: 0.2, refillRate: 0.8, cooldown: 0.3,
+    damage: 45, speed: 90, range: 32, radius: 0.32, spread: 0, tapNearest: true, pierce: 4 },
 };
-export const WEAPON_ORDER = ['pistol', 'smg', 'auto'];
+export const WEAPON_ORDER = ['pistol', 'smg', 'auto', 'shotgun', 'rail'];
 
 export const DASH = { length: 5, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6, safe: 0.35, block: 45 };   // block: damage to each breakable tile it hits   // safe: untouchable after a dash (round 4)
 

@@ -21,6 +21,21 @@ export const MODULES = {
   home: { name: 'Home', family: 'path', on: {
     bolt: (l) => `curves to enemies ahead (turn ${turn(l).toFixed(0)})`, ball: (l) => `hunts enemies (speed ${hunt(l)})`,
     dash: (l) => `lunges at an enemy ahead (${lunge(l)} cells)` } },
+  pierce: { name: 'Pierce', family: 'path', on: {
+    bolt: (l) => `passes through ${l} enem${l > 1 ? 'ies' : 'y'}`, ball: (l) => `rolls through enemies at full speed, +${2 * l} contact`,
+    dash: (l) => `goes through enemies, +${3 + 5 * l} contact damage` } },
+  grow: { name: 'Grow', family: 'form', on: {
+    bolt: (l) => `${30 * l}% bigger, +${10 * l}% damage`, ball: (l) => `${15 * l}% bigger, +${25 * l}% health, a bit slower`,
+    dash: (l) => `${(0.4 * l).toFixed(1)} cells wider, safe ${(0.1 * l).toFixed(1)} s longer` } },
+  haste: { name: 'Haste', family: 'form', on: {
+    bolt: (l) => `bolts ${15 * l}% faster, rounds back ${8 * l}% sooner`, ball: (l) => `thrown ${20 * l}% harder, back ${8 * l}% sooner`,
+    dash: (l) => `${10 * l}% longer, recharges ${10 * l}% sooner` } },
+  split: { name: 'Split', family: 'form', on: {
+    bolt: (l) => `splits in two on a hit or at its end (${30 + 10 * l}% strength)`, ball: (l) => `splits into two small balls when it dies (${30 + 10 * l}%)`,
+    dash: (l) => `two echo dashes at ±35° (${30 + 10 * l}% strength)` } },
+  knock: { name: 'Knock', family: 'payload', color: '#c4cbe8', on: {
+    bolt: (l) => `hits push enemies ${knockOf(l).toFixed(1)} cells`, ball: (l) => `hits hurl enemies ${knockOf(l).toFixed(1)} cells`,
+    dash: (l) => `shoves become a shockwave (${knockOf(l).toFixed(1)} cells)` } },
   burn: { name: 'Burn', family: 'payload', color: '#ff8a1f', on: {
     bolt: (l) => `+${burn(l)} burn a hit`, ball: (l) => `+${burn(l)} burn a hit`, dash: (l) => `+${burn(l)} burn to all you pass` } },
   chill: { name: 'Chill', family: 'payload', color: '#7fdcff', on: {
@@ -40,7 +55,7 @@ export const MODULES = {
     ball: (l) => `blast when it dies (${(blastR(l) + 1).toFixed(1)} wide, ${blastDmg(l) * 2})`,
     dash: (l) => `blast where the dash ends (${blastR(l).toFixed(1)} wide, ${blastDmg(l)})` } },
 };
-export const MODULE_ORDER = ['extra', 'bounce', 'home', 'burn', 'chill', 'shock', 'poison', 'mark', 'explode', 'duration'];
+export const MODULE_ORDER = ['extra', 'bounce', 'home', 'pierce', 'grow', 'haste', 'split', 'burn', 'chill', 'shock', 'poison', 'mark', 'knock', 'explode', 'duration'];
 export const MAX_LEVEL = 9;   // the practice build goes to legendary's cap
 
 // Numbers by level, in one place.
@@ -56,6 +71,7 @@ export const STATUSES = ['burn', 'chill', 'shock', 'poison', 'mark'];
 export const BUILD = { burn, chill, shock, poison, mark };
 export const blastR = (l) => 1.2 + 0.45 * l;     // blast radius in cells: starts small (round 3: 'very weak/small')
 export const blastDmg = (l) => 3 + 5 * l;
+export const knockOf = (l) => 1.5 + 0.8 * l;   // Knock: cells pushed
 export const pct = (l) => 20 * l;                 // Duration: +20% a level
 export const durOf = (l) => 1 + pct(l) / 100;
 

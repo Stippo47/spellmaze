@@ -142,7 +142,7 @@ export function makeRenderer(canvas) {
     // enemies: each type its own colour and shape (stage 4). A camp at rest is drawn dim.
     const hidden = [];
     for (const e of g.enemies) {
-      const vis = mode === 'all' || canSee(g, e.x, e.y);
+      const vis = mode === 'all' || canSee(g, e.x, e.y) || ENEMIES[e.type].boss;   // a boss can always be seen (round 9)
       if (!vis) { hidden.push(e); continue; }
       const [lite, dark] = ECOL[e.type] || ECOL.mite;
       if (e.sleep) ctx.globalAlpha = 0.5;
@@ -278,7 +278,7 @@ export function makeRenderer(canvas) {
       const k = r * 1.2; ctx.moveTo(e.x, e.y - k); ctx.lineTo(e.x + k, e.y); ctx.lineTo(e.x, e.y + k); ctx.lineTo(e.x - k, e.y);
     } else if (e.type === 'brute') { ctx.rect(e.x - r * 0.92, e.y - r * 0.92, r * 1.84, r * 1.84); }
     else if (e.type === 'hulk') { // a square turned to where it rolls, with its armoured front a lighter bar
-      const fx = e.fx, fy = e.fy, k = r * 0.92;
+      const fx = e.ang != null ? Math.cos(e.ang) : e.fx, fy = e.ang != null ? Math.sin(e.ang) : e.fy, k = r * 0.92;
       ctx.moveTo(e.x + (fx - fy) * k, e.y + (fy + fx) * k); ctx.lineTo(e.x + (fx + fy) * k, e.y + (fy - fx) * k);
       ctx.lineTo(e.x + (-fx + fy) * k, e.y + (-fy - fx) * k); ctx.lineTo(e.x + (-fx - fy) * k, e.y + (-fy + fx) * k);
       ctx.closePath(); ctx.fill();

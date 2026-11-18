@@ -1,0 +1,108 @@
+{
+ "title": "Five modules, two weapons",
+ "topic": "builds",
+ "order": 17,
+ "cards": [
+  {
+   "id": "fixes",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Hulk and clouds",
+   "text": "The Hulk is fast, commits to a direction, turns smoothly, and is always drawn. Clouds give off motes.",
+   "why": "Your round 8 notes. Mark any part that's off.",
+   "details": "Version 0.12.0. Close and reopen the app twice to get it. In Settings, Weapon has Shotgun and Rail.",
+   "parts": [
+    {
+     "id": "hulk",
+     "title": "Hulk",
+     "text": "Faster than you (11 vs 8.5). Keeps a direction for 1 to 2.5 s, then turns toward you; turns at once if blocked. The turn swings over a little and settles. Seen through walls.",
+     "videos": [
+      "../../../films/hulk.mp4"
+     ]
+    },
+    {
+     "id": "clouds",
+     "title": "Cloud motes",
+     "text": "Slow purple specks drift up out of gas clouds.",
+     "videos": [
+      "../../../films/poison.mp4"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "modules",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Five new modules",
+   "text": "Pierce, Grow, Haste, Split and Knock, each on all three casts. They come in shards and level-ups.",
+   "why": "Stage 5, first batch, from the design list. Numbers are first guesses.",
+   "parts": [
+    {
+     "id": "pierce",
+     "title": "Pierce",
+     "text": "Bolts pass through enemies. A ball rolls through them at full speed. A dash hits harder going through.",
+     "videos": [
+      "../../../films/m5-pierce.mp4"
+     ]
+    },
+    {
+     "id": "grow",
+     "title": "Grow",
+     "text": "Bigger and stronger. A ball gets more health but is slower. A dash is wider and keeps you safe longer.",
+     "videos": [
+      "../../../films/m5-grow.mp4"
+     ]
+    },
+    {
+     "id": "haste",
+     "title": "Haste",
+     "text": "Faster bolts and reload; a ball thrown harder and back sooner; a dash longer and back sooner."
+    },
+    {
+     "id": "split",
+     "title": "Split",
+     "text": "A bolt forks in two when it hits or ends. A ball splits in two when it dies. A dash sends two echo dashes out at an angle.",
+     "videos": [
+      "../../../films/m5-split.mp4",
+      "../../../films/m5-dashsplit.mp4"
+     ]
+    },
+    {
+     "id": "knock",
+     "title": "Knock",
+     "text": "Hits push enemies far. On a dash, its shoves become a shockwave.",
+     "videos": [
+      "../../../films/m5-knock.mp4"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "weapons",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Shotgun and Rail",
+   "text": "Shotgun: 5 pellets, 2 shots then a reload. Rail: one slow, hard shot that goes through 4 enemies.",
+   "why": "More weapons, as you picked. Choose them in Settings for now.",
+   "parts": [
+    {
+     "id": "shotgun",
+     "title": "Shotgun",
+     "text": "Short range, 5 pellets fanned, 2 shots, then a full reload.",
+     "videos": [
+      "../../../films/shotgun.mp4"
+     ]
+    },
+    {
+     "id": "rail",
+     "title": "Rail",
+     "text": "One round, 45 damage, very fast and long, through 4 enemies. Slow to come back.",
+     "videos": [
+      "../../../films/rail.mp4"
+     ]
+    }
+   ]
+  }
+ ]
+}
