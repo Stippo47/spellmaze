@@ -1,5 +1,5 @@
 // Keeps the whole game on the phone so it opens with no signal. Bump VERSION on every release.
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const CACHE = `spellmaze-${VERSION}`;
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/main.js', 'js/util.js', 'js/maze.js', 'js/game.js', 'js/input.js', 'js/render.js', 'js/weapons.js'];

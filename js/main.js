@@ -21,10 +21,12 @@ let paused = false, manual = false;
 
 const $ = (id) => document.getElementById(id);
 const DT = 1 / 60;
-let acc = 0, last = performance.now(), fpsT = 0, frames = 0;
+let acc = 0, last = performance.now(), fpsT = 0, frames = 0, sizeW = 0, sizeH = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   frames++; fpsT += dt; if (fpsT > 0.5) { R.fps = frames / fpsT; frames = 0; fpsT = 0; }
+  // iOS home-screen apps don't always send a resize when the phone turns: check the size every frame.
+  if (canvas.clientWidth !== sizeW || canvas.clientHeight !== sizeH) { sizeW = canvas.clientWidth; sizeH = canvas.clientHeight; R.resize(); inp.relayout(); }
   if (manual) { requestAnimationFrame(frame); return; }
   if (!paused && !g.over) {
     acc += dt; let n = 0;
