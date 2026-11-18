@@ -2,3 +2,5 @@ art/kit/_profile/
 art/kit/_page-*.html
 art/sheets/
 __pycache__/
+node_modules/
+films/

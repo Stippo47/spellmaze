@@ -4,7 +4,10 @@ Working title. A landscape phone game (PWA, like Delve) where you build your own
 surviving endless waves in a dark square maze. Plain names throughout: fire is Burn, not anything fancier.
 The neon look is there to keep the art simple, not as a theme.
 
-Status: **design only.** Nothing is built. Every call below is my pick until the Riffle pack comes back.
+Status: **stage 1 built (2026-11-17)**: maze, three sight modes, movement, fire stick with three test weapons, dash,
+Mites and waves (`index.html`, `js/`). The first Riffle pack is answered; its rulings are in `docs/DECISIONS.md` and
+**override this draft where they differ** (endless runs, no minimap, rounds ring, flat look, white player, no fallbacks,
+more). Films: `node tools/film.mjs all` with the repo served on :8737.
 
 Sources: the designer's brief (2026-11-16 chat) and the maze roguelike design doc
 (`Dev/MazeRoguelike/docs/design-doc.md`): Wings, Lightning arena, the 21 pressure tests, the building-blocks spec

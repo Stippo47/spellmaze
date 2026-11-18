@@ -1,0 +1,111 @@
+{
+ "title": "Stage 1: playable",
+ "topic": "builds",
+ "order": 1,
+ "cards": [
+  {
+   "id": "what",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Stage 1 runs",
+   "text": "Maze, sight, moving, three test weapons, the dash, Mites and waves. Films of a bot playing it.",
+   "why": "This is the feel test before any spell system. Mark any part that's off.",
+   "details": "A bot plays these films through the real touch controls, so the yellow dots are its thumbs.\n\nNo level-up choices, chests, modules, summon or other enemies yet: those are stages 2 to 4. Levels count up but give nothing.\n\nThe pause button (top middle) holds every setting below, so you can try them on the phone once it's online.",
+   "parts": [
+    {
+     "id": "pistol",
+     "title": "Pistol",
+     "text": "Drag to aim, let go to fire one. A quick tap fires at the nearest enemy you can see. 6 rounds round the fire stick, refilling one by one after a short pause.",
+     "videos": [
+      "../../../films/pistol.mp4"
+     ]
+    },
+    {
+     "id": "smg",
+     "title": "SMG",
+     "text": "Hold and drag: keeps firing. Taps do nothing. 40 rounds, so the ring is one smooth bar instead of segments.",
+     "videos": [
+      "../../../films/smg.mp4"
+     ]
+    },
+    {
+     "id": "auto",
+     "title": "Auto",
+     "text": "Fires at the nearest enemy you can see by itself. Drag to take over and aim.",
+     "videos": [
+      "../../../films/auto.mp4"
+     ]
+    },
+    {
+     "id": "dash",
+     "title": "Dash",
+     "text": "Tap: dash where you're walking. Drag: aim it, let go. 2 charges. Can't be hit while dashing, and it shoves enemies aside.",
+     "videos": [
+      "../../../films/dash.mp4"
+     ]
+    },
+    {
+     "id": "crowd",
+     "title": "Crowds hold you",
+     "text": "Enemies never overlap, and they push back on you a little, so a packed corridor holds you until you dash or shoot through.",
+     "videos": [
+      "../../../films/dash.mp4"
+     ]
+    },
+    {
+     "id": "waves",
+     "title": "Mites and waves",
+     "text": "Mites come from out of sight along the paths, more each minute. On every minute a wave comes from all sides. Easy on purpose, since there are no upgrades yet."
+    },
+    {
+     "id": "look",
+     "title": "Flat and solid",
+     "text": "Your pick: flat fills, no glow. You are white, enemies red, XP green, the rounds gold.",
+     "images": [
+      "../../../films/pistol.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sight",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Three kinds of sight",
+   "text": "The three you asked to try, all in settings: remembered, see all, and dark.",
+   "why": "Same moment, three settings. Mark the one you'd keep, or comment.",
+   "parts": [
+    {
+     "id": "remember",
+     "title": "Remembered",
+     "text": "What you've seen stays faint. Enemies out of sight are hidden; close ones show as a small red arrow beside you (you can turn the arrows off).",
+     "images": [
+      "../../../films/sight-remember.png"
+     ]
+    },
+    {
+     "id": "all",
+     "title": "See all",
+     "text": "The whole maze and every enemy, always.",
+     "images": [
+      "../../../films/sight-all.png"
+     ],
+     "videos": [
+      "../../../films/seeall.mp4"
+     ]
+    },
+    {
+     "id": "dark",
+     "title": "Dark",
+     "text": "Nothing outside your sight, not even walls you've passed.",
+     "images": [
+      "../../../films/sight-dark.png"
+     ],
+     "videos": [
+      "../../../films/dark.mp4"
+     ]
+    }
+   ]
+  }
+ ]
+}

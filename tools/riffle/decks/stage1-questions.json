@@ -1,0 +1,163 @@
+{
+ "title": "Stage 1: questions",
+ "topic": "builds",
+ "order": 2,
+ "cards": [
+  {
+   "id": "sizes",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "Which size was off?",
+   "text": "You marked the maze sizes as a problem with no comment. Which one?",
+   "why": "I can't tell which number bothered you. Each is now a setting, so whichever it was can be tried both ways.",
+   "pick": "c",
+   "options": [
+    {
+     "id": "a",
+     "label": "Corridor width",
+     "text": "How wide the corridors are."
+    },
+    {
+     "id": "b",
+     "label": "Wall thickness",
+     "text": "Walls 2 cells thick (one of you)."
+    },
+    {
+     "id": "c",
+     "label": "The whole maze",
+     "text": "24×24 squares: a long way to walk."
+    },
+    {
+     "id": "d",
+     "label": "Camera distance",
+     "text": "How much of the maze fits on screen."
+    }
+   ],
+   "details": "My guess is the whole maze: 24×24 squares is about 240 cells across, and with endless runs you'd rarely see most of it. Settings now have Small (16), Medium (24) and Large (32)."
+  },
+  {
+   "id": "corridors",
+   "kind": "board",
+   "rarity": "uncommon",
+   "title": "Corridor sets",
+   "text": "The four corridor sets, from above with see-all on. Tick the ones to keep.",
+   "why": "Width decides whether a horde is a wall or something you run round.",
+   "pick": [
+    "mixed"
+   ],
+   "items": [
+    {
+     "id": "mixed",
+     "label": "Mixed",
+     "text": "Mostly 3 wide, 4-wide roads to the corners, 2-wide tunnels into dead ends. Your pick last time.",
+     "image": "../../../films/widths-mixed.png"
+    },
+    {
+     "id": "standard",
+     "label": "All 3 wide",
+     "text": "Every corridor three of you wide.",
+     "image": "../../../films/widths-standard.png"
+    },
+    {
+     "id": "narrow",
+     "label": "All 2 wide",
+     "text": "Tight. A crowd fills a corridor.",
+     "image": "../../../films/widths-narrow.png"
+    },
+    {
+     "id": "wide",
+     "label": "All 4 wide",
+     "text": "Room to kite.",
+     "image": "../../../films/widths-wide.png"
+    }
+   ]
+  },
+  {
+   "id": "camera",
+   "kind": "board",
+   "rarity": "uncommon",
+   "title": "Camera distance",
+   "text": "How far out the camera sits. Tick the ones to keep.",
+   "why": "Closer looks bigger and reads better on a phone; farther shows what's coming.",
+   "pick": [
+    "22"
+   ],
+   "items": [
+    {
+     "id": "16",
+     "label": "Close",
+     "text": "16 cells top to bottom.",
+     "image": "../../../films/view-16.png"
+    },
+    {
+     "id": "22",
+     "label": "Normal",
+     "text": "22 cells top to bottom.",
+     "image": "../../../films/view-22.png"
+    },
+    {
+     "id": "28",
+     "label": "Far",
+     "text": "28 cells top to bottom.",
+     "image": "../../../films/view-28.png"
+    },
+    {
+     "id": "36",
+     "label": "Farther",
+     "text": "36 cells top to bottom.",
+     "image": "../../../films/view-36.png"
+    }
+   ]
+  },
+  {
+   "id": "rounds",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "How rounds come back",
+   "text": "How should a weapon get its rounds back?",
+   "why": "You wanted rounds that differ per weapon. Trickle-back means you never quite run dry; a full reload means a gap to plan for.",
+   "pick": "c",
+   "options": [
+    {
+     "id": "a",
+     "label": "One by one",
+     "text": "Rounds trickle back after a short pause (all three now)."
+    },
+    {
+     "id": "b",
+     "label": "Full reload",
+     "text": "Empty the magazine, then a reload refills it all."
+    },
+    {
+     "id": "c",
+     "label": "Each weapon picks",
+     "text": "Pistol trickles, SMG reloads all at once, and so on."
+    },
+    {
+     "id": "d",
+     "label": "Something else",
+     "text": "Add a comment."
+    }
+   ]
+  },
+  {
+   "id": "trigger",
+   "kind": "question",
+   "rarity": "epic",
+   "title": "Where firing lives",
+   "text": "Is how a weapon fires (let go, hold, auto) part of the weapon, so modules can change it?",
+   "why": "If it's part of the weapon, a pistol and an SMG are different weapons with the same Bolt shape. If it's a module, any cast could be made hold-to-fire, which is more freedom but one more slot spent.",
+   "pick": "Part of the weapon. Some modules change it: Charge turns let-go into hold-to-charge.",
+   "details": "Same goes for the summon (cooldown) and the dash (charges): each cast has a trigger and its own way of getting uses back, and modules can bend both. This decides how the next stage's Spawn and Dash casts are built."
+  },
+  {
+   "id": "crowd",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Crowds hold you",
+   "text": "Enemies push back on you, so a packed corridor holds you until you dash or shoot through?",
+   "why": "Without it you walk through any crowd and the maze isn't dangerous. With it, dead ends are real traps.",
+   "pick": "Yes. Dash shoves through."
+  }
+ ]
+}

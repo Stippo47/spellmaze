@@ -1,0 +1,92 @@
+{
+ "title": "What I took from your answers",
+ "topic": "start",
+ "order": 3,
+ "cards": [
+  {
+   "id": "run",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Runs, maze and look",
+   "text": "Your answers to the first pack, as I understood them. Mark anything I've got wrong.",
+   "why": "These now steer the build. Better to catch a misreading here than in code.",
+   "parts": [
+    {
+     "id": "endless",
+     "title": "Endless",
+     "text": "No exit. The run ends when you die. How shards are kept on death is open again."
+    },
+    {
+     "id": "camps",
+     "title": "Camps and waves",
+     "text": "Camps of different enemy tiers spread through the maze. About every minute a wave of one tier comes from every side."
+    },
+    {
+     "id": "chests",
+     "title": "Chests random",
+     "text": "Chests anywhere, not better in deeper dead ends. Maybe better as time goes on."
+    },
+    {
+     "id": "size",
+     "title": "2×2 enemies",
+     "text": "Most enemies the same size as you, and they don't overlap."
+    },
+    {
+     "id": "hud",
+     "title": "Screen",
+     "text": "No minimap. Rounds as a ring round the fire stick. Summon on a cooldown. Dash deletes bullets you dash through."
+    },
+    {
+     "id": "look",
+     "title": "Look",
+     "text": "Flat and solid. You white, Poison purple, Uncommon green as a new rarity. Enemies need more colours than red and magenta."
+    }
+   ]
+  },
+  {
+   "id": "spells",
+   "kind": "report",
+   "rarity": "epic",
+   "title": "Spells, as I read them",
+   "text": "Your notes on how modules combine. Mark anything I've got wrong before I design the formula.",
+   "why": "The next design deck turns this into the rules for what combines with what.",
+   "parts": [
+    {
+     "id": "terms",
+     "title": "Generic terms",
+     "text": "A few shared terms that mean something on anything: Capacity is more bullets on a gun, more bounces on Bounce, longer on Burn. Speed is fire rate, faster after bounce, faster ticks."
+    },
+    {
+     "id": "events",
+     "title": "Events, not fallbacks",
+     "text": "A module that has nothing to do on a shape isn't allowed there, instead of getting a weak stand-in. Modules hook into events (hit, bounce, end...) and only combine where an event fits."
+    },
+    {
+     "id": "augments",
+     "title": "Augments",
+     "text": "Change how one module works by hooking its event: Bounce that retargets, speeds up each bounce but shrinks, or explodes, splits or spawns on each bounce. Often with a drawback."
+    },
+    {
+     "id": "depth",
+     "title": "Depth by count",
+     "text": "No fixed nesting limit: how deep a spell goes is capped by how many modules it holds. Link can feed a Split."
+    },
+    {
+     "id": "player",
+     "title": "Player upgrades",
+     "text": "Upgrades for you too: health, speed, cooldowns, resistances, and reactive ones (3 spawns when you're badly hurt)."
+    },
+    {
+     "id": "casts",
+     "title": "More casts",
+     "text": "More than three casts is allowed. The Summon starts as a plain Spawn."
+    },
+    {
+     "id": "elites",
+     "title": "My call: elites",
+     "text": "You weren't sure if elites drop modules. I've said yes, they drop the one they carry, so it's one system both ways."
+    }
+   ]
+  }
+ ]
+}

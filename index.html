@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spellmaze">
+<meta name="theme-color" content="#04060c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Spellmaze</title>
+<style>
+  :root { --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #04060c; color: #e8f0ff; overflow: hidden; overscroll-behavior: none;
+    font: 700 14px/1.2 system-ui, -apple-system, sans-serif; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hidden { display: none !important; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  #pause { position: fixed; top: calc(8px + var(--st)); left: 50%; transform: translateX(-50%); width: 44px; height: 34px; border-radius: 10px;
+    background: rgba(255,255,255,0.08); color: #e8f0ff; font-size: 15px; letter-spacing: 2px; }
+  .screen { position: fixed; inset: 0; background: rgba(4,6,12,0.86); display: flex; align-items: center; justify-content: center;
+    padding: calc(10px + var(--st)) calc(14px + var(--sr)) calc(10px + var(--sb)) calc(14px + var(--sl)); }
+  .panel { background: #0e1428; border: 2px solid #2a3360; border-radius: 14px; padding: 12px 16px; max-height: 100%; overflow: auto; min-width: 320px; }
+  h1 { margin: 0 0 8px; font-size: 20px; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+  .row > span { width: 96px; color: #8b94bb; font-size: 13px; flex: none; }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .seg button { background: #182040; color: #c4cbe8; border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .seg button.on { background: #e8f0ff; color: #04060c; }
+  .btns { display: flex; gap: 8px; margin-top: 10px; }
+  .big { background: #e8f0ff; color: #04060c; border-radius: 10px; padding: 9px 16px; font-size: 15px; }
+  .big.alt { background: #182040; color: #e8f0ff; }
+  .note { color: #6b7499; font-size: 11px; font-weight: 600; margin-top: 6px; }
+  #turn { display: none; }
+  @media (orientation: portrait) { #turn { display: flex; position: fixed; inset: 0; background: #04060c; z-index: 9; align-items: center; justify-content: center; font-size: 18px; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button id="pause" aria-label="Pause">II</button>
+
+<div id="menu" class="screen hidden">
+  <div class="panel">
+    <h1>Paused</h1>
+    <div class="row" data-opt="sight"><span>Sight</span><div class="seg"></div></div>
+    <div class="row" data-opt="ticks"><span>Hidden-foe ticks</span><div class="seg"></div></div>
+    <div class="row" data-opt="weapon"><span>Weapon</span><div class="seg"></div></div>
+    <div class="row" data-opt="widths"><span>Corridors</span><div class="seg"></div></div>
+    <div class="row" data-opt="nodes"><span>Maze size</span><div class="seg"></div></div>
+    <div class="row" data-opt="view"><span>Camera</span><div class="seg"></div></div>
+    <div class="row" data-opt="fps"><span>Frame rate</span><div class="seg"></div></div>
+    <div class="note">Corridors and maze size start a new run on the same seed. Settings are kept on this phone.</div>
+    <div class="btns"><button id="resume" class="big">Resume</button><button id="newmaze" class="big alt">New run</button></div>
+  </div>
+</div>
+
+<div id="over" class="screen hidden">
+  <div class="panel" style="text-align:center">
+    <h1>You fell</h1>
+    <div id="overStats" style="color:#8b94bb;margin-bottom:6px"></div>
+    <button id="again" class="big">Again</button>
+  </div>
+</div>
+<div id="turn">Turn your phone sideways</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
