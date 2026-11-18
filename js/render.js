@@ -1,6 +1,6 @@
 // Drawing. Flat, solid shapes, no glow (docs/DECISIONS.md: "solid and flat"). Canvas 2D.
 import { COL, TAU, fmtTime } from './util.js';
-import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST, ENEMIES } from './game.js';
+import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST, ENEMIES, KEYS } from './game.js';
 import { rayDist } from './maze.js';
 import { DASH, SPAWN } from './weapons.js';
 
@@ -51,6 +51,24 @@ export function makeRenderer(canvas) {
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * G + x; if (c[i] === 2 && (mode === 'all' || st[i] === now || st[i - 1] === now || st[i + 1] === now || st[i - G] === now || st[i + G] === now)) ctx.fillRect(x, y, 1, 1); }
       ctx.fillStyle = '#ffffff';
       for (const i of g.tileFlash.keys()) ctx.fillRect(i % G, (i / G) | 0, 1, 1);
+    }
+
+    // the door: a flat gold frame with a slot per key, filled as you find them; keys on the floor: small gold keys
+    if (g.door) {
+      const d = g.door, vis = mode === 'all' || canSee(g, d.x, d.y);
+      if (vis || (mode === 'remember' && g.seen[Math.floor(d.y) * G + Math.floor(d.x)])) {
+        ctx.globalAlpha = vis ? 1 : 0.4;
+        ctx.fillStyle = '#1a1030'; ctx.fillRect(d.x - 2.5, d.y - 3, 5, 6);
+        ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.35; ctx.strokeRect(d.x - 2.5, d.y - 3, 5, 6);
+        for (let k = 0; k < KEYS; k++) { const x = d.x - 1.4 + k * 1.4; ctx.fillStyle = k < g.keys ? COL.gold : '#3a2a50'; ctx.fillRect(x - 0.4, d.y - 0.4, 0.8, 0.8); }
+        ctx.globalAlpha = 1;
+      }
+    }
+    for (const k of g.keysOnFloor) {
+      if (mode !== 'all' && !canSee(g, k.x, k.y)) continue;
+      ctx.save(); ctx.translate(k.x, k.y); ctx.rotate(Math.sin(g.t * 2) * 0.3); ctx.fillStyle = COL.gold;
+      ctx.beginPath(); ctx.arc(-0.5, 0, 0.45, 0, TAU); ctx.fill(); ctx.fillRect(-0.2, -0.13, 1.2, 0.26); ctx.fillRect(0.6, 0, 0.18, 0.4); ctx.fillRect(0.9, 0, 0.18, 0.3);
+      ctx.fillStyle = '#1a2240'; ctx.beginPath(); ctx.arc(-0.5, 0, 0.18, 0, TAU); ctx.fill(); ctx.restore();
     }
 
     // shards (round 6: the crystal's depth was the problem; the spinning star was closest): a flat gold four-point
@@ -139,6 +157,7 @@ export function makeRenderer(canvas) {
       if (!vis) { hidden.push(e); continue; }
       const [lite, dark] = ECOL[e.type] || ECOL.mite;
       if (e.sleep) ctx.globalAlpha = 0.5;
+      if (e.key) { ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.3; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 0.7, 0, TAU); ctx.stroke(); }   // a keeper
       if (e.st === 'aim') { // a dart about to charge: where it will go
         const L = Math.min(rayDist(m, e.x, e.y, e.ax, e.ay, 40), dashLen(g, e) + 1);
         ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(g.t * 20));
@@ -370,6 +389,8 @@ export function makeRenderer(canvas) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x, y + 18, 160, 7);
     ctx.fillStyle = COL.xp; ctx.fillRect(x + 1.5, y + 19.5, 157 * Math.min(1, g.xp / need), 4);
     ctx.fillStyle = COL.ui; ctx.fillText(`Lv ${g.level}`, x + 166, y + 21);
+    ctx.fillStyle = g.keys ? COL.gold : COL.uiDim; ctx.fillText(`Keys ${g.keys}/${KEYS}${g.depth ? ` · Floor ${g.depth + 1}` : ''}`, x, y + 36);
+    ctx.fillStyle = COL.ui;
     // time and kills, right of the pause button
     ctx.textAlign = 'right'; ctx.font = '800 16px system-ui, -apple-system, sans-serif';
     ctx.fillText(fmtTime(g.t), W - sr - 16, y + 8);

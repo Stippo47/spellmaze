@@ -28,28 +28,65 @@ const CAMPS = [{ mite: 5, dart: 2 }, { brute: 1, mite: 4, spitter: 2 }, { brute:
 
 export function newGame(opts) {
   const seed = opts.seed ?? ((Math.random() * 1e9) | 0);
-  const m = makeMaze({ nodes: opts.nodes, widths: opts.widths, seed });
   const g = {
-    opts, seed, m, R: rng(seed ^ 0x9e3779b9), t: 0, over: false, kills: 0, xp: 0, level: 1,
-    p: { x: m.start.x, y: m.start.y, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
+    opts, seed, R: rng(seed ^ 0x9e3779b9), t: 0, over: false, kills: 0, xp: 0, level: 1, depth: 0,
+    p: { x: 0, y: 0, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
-    weapon: null, ammo: 0, cool: 0, sinceShot: 9,
-    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [], shots: [], camps: [], nextId: 1, ghosts: [], tileFlash: new Map(), clouds: [], arcs: [], boss: null, nextBoss: BOSS_AT,
-    run: newRun(), practice: opts.practice ? opts.build : null, build: null, chests: [], spawnCool: 0, spawnAim: null,
-    seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
-    visStamp: new Uint32Array(m.G * m.G), visNow: 0,
-    vis: new Float32Array(RAYS * 2), field: new Uint16Array(m.G * m.G), fieldT: 0,
-    spawnAcc: 0, nextWave: FIRST_WAVE, wave: 0, waveWarn: null, incoming: null, aim: null, dashAim: null,
-    ring: [],
+    weapon: null, ammo: 0, cool: 0, sinceShot: 9, nextId: 1, parts: [], pops: [], boss: null, nextBoss: BOSS_AT,
+    run: newRun(), practice: opts.practice ? opts.build : null, build: null, spawnCool: 0, spawnAim: null,
+    vis: new Float32Array(RAYS * 2), spawnAcc: 0, wave: 0, aim: null, dashAim: null,
   };
   rebuild(g);
-  placeChests(g);
-  placeCamps(g);
+  buildFloor(g, seed);
+  g.nextWave = FIRST_WAVE;
   if (!g.practice) g.run.offers.push(startOffer(g));   // pick 1 of 3 to start (round 4)
   setWeapon(g, opts.weapon || 'pistol');
+  return g;
+}
+
+// A floor: a maze and everything in it. The run (build, level, health, time, boss timer) carries over the door.
+function buildFloor(g, seed) {
+  const m = g.m = makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
+  Object.assign(g, {
+    enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], tileFlash: new Map(), clouds: [], arcs: [],
+    chests: [], keys: 0, keysOnFloor: [], door: null, boss: null,
+    seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
+    visStamp: new Uint32Array(m.G * m.G), visNow: 0, field: new Uint16Array(m.G * m.G), fieldT: 0,
+    waveWarn: null, incoming: null, ring: [],
+  });
+  g.p.x = m.start.x; g.p.y = m.start.y; g.p.vx = g.p.vy = 0; g.p.dashT = 0;
+  placeChests(g);
+  placeCamps(g);
+  placeDoor(g);
   refreshField(g);
   updateSight(g);
-  return g;
+}
+
+// The door and its keys (decisions: a door to the next level, needs keys spread through the maze; my pick: 3 keys,
+// each held by a camp's keeper). The door sits at the far end of the maze from where you start; the keepers are the
+// toughest enemy in the three farthest camps, ringed gold, and drop their key when they die.
+export const KEYS = 3;
+function placeDoor(g) {
+  const m = g.m, f = new Uint16Array(m.G * m.G), n = pathField(m, m.start.x, m.start.y, 60000, f), q = pathField.q;
+  const far = q[n - 1];
+  let best = null, bd = -1;   // the room or dead end nearest the farthest cell
+  for (const d of m.deadEnds) { const k = f[Math.floor(d.y) * m.G + Math.floor(d.x)]; if (k !== 65535 && k > bd) { bd = k; best = d; } }
+  g.door = best ? { x: best.x, y: best.y } : { x: (far % m.G) + 0.5, y: ((far / m.G) | 0) + 0.5 };
+  g.chests = g.chests.filter(c => Math.hypot(c.x - g.door.x, c.y - g.door.y) > 4);
+  const camps = g.camps.slice().sort((a, b) => Math.hypot(b.x - m.start.x, b.y - m.start.y) - Math.hypot(a.x - m.start.x, a.y - m.start.y));
+  for (const c of camps.slice(0, KEYS)) {
+    let keeper = null;
+    for (const e of g.enemies) if (e.camp === c && (!keeper || e.maxHp > keeper.maxHp)) keeper = e;
+    if (keeper) { keeper.key = true; keeper.maxHp = keeper.hp = keeper.maxHp * 1.5; }
+  }
+}
+
+// Through the door: a new maze, harder, the wave timer starts again.
+function nextFloor(g) {
+  g.depth++;
+  buildFloor(g, (g.seed + g.depth * 7919) | 0);
+  g.nextWave = g.t + FIRST_WAVE; g.wave = 0;
+  g.pops.push({ text: `Floor ${g.depth + 1}`, t: 0, big: true });
 }
 
 // Shards (round 3 answer, as chests): one in four dead ends, and one in each room. None in practice.
@@ -78,7 +115,8 @@ function wakeCamp(g, camp) { for (const e of g.enemies) if (e.camp === camp) e.s
 
 export function makeEnemy(g, type, x, y, extra) {
   const s = ENEMIES[type];
-  const e = { id: g.nextId++, type, x, y, r: s.r, hp: s.hp, maxHp: s.hp, speed: s.speed * (0.9 + g.R() * 0.2), vx: 0, vy: 0, flash: 0,
+  const hp = s.hp * (1 + 0.25 * (g.depth || 0));   // each floor through the door: +25% health
+  const e = { id: g.nextId++, type, x, y, r: s.r, hp, maxHp: hp, speed: s.speed * (0.9 + g.R() * 0.2), vx: 0, vy: 0, flash: 0,
     fx: 1, fy: 0, cd: 0.5 + g.R() * 1.5, st: null, t: 0, ...extra };
   g.enemies.push(e);
   return e;
@@ -714,6 +752,16 @@ export function step(g, dt, inp) {
   g.blasts = g.blasts.filter(b => b.t < 0.35);
   for (let i = g.enemies.length - 1; i >= 0; i--) if (g.enemies[i].hp <= 0) g.enemies.splice(i, 1);
 
+  // keys and the door
+  for (let i = g.keysOnFloor.length - 1; i >= 0; i--) {
+    const k = g.keysOnFloor[i];
+    if (Math.hypot(k.x - p.x, k.y - p.y) < p.r + 1.2) { g.keysOnFloor.splice(i, 1); g.keys++; g.pops.push({ text: `Key ${g.keys} of ${KEYS}`, t: 0 }); }
+  }
+  if (g.door && Math.hypot(g.door.x - p.x, g.door.y - p.y) < p.r + 2.2) {
+    if (g.keys >= KEYS) { nextFloor(g); return; }
+    if (!g.doorPop || g.t - g.doorPop > 3) { g.doorPop = g.t; g.pops.push({ text: `The door needs ${KEYS} keys`, t: 0 }); }
+  }
+
   // chests: walk into one to open it
   for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; g.run.offers.push(chestOffer(g, c.rarity)); }
 
@@ -756,6 +804,7 @@ function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
     g.kills++; burst(g, e.x, e.y, 'enemy', 8);
     g.gems.push({ x: e.x, y: e.y, v: S.xp });
     if (e.poison > 0) g.clouds.push({ x: e.x, y: e.y, r: 3, t: 0, life: 4 });   // Rot's gas: poisons those inside
+    if (e.key) { e.key = false; g.keysOnFloor.push({ x: e.x, y: e.y }); g.pops.push({ text: 'A key dropped', t: 0 }); }
     if (S.boss) { g.boss = null; g.chests.push({ x: e.x, y: e.y, rarity: 'epic' }); g.pops.push({ text: 'Hulk down', t: 0, big: true }); }
   }
 }

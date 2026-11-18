@@ -25,7 +25,7 @@ deck("round7-build", "Statuses and the Hulk", "builds", 14, [
     {"id": "fixes", "kind": "report", "rarity": "uncommon", "title": "Your round 6 notes",
      "text": "Dart dash 9, walls drawn whole in view, a double-star shard, one trait per stat card.",
      "why": "Small fixes from the last deck. Mark any part that's off.",
-     "details": "Version 0.9.0. Close and reopen the app twice to get it.",
+     "details": "Version 0.10.0. Close and reopen the app twice to get it.",
      "parts": [
          part("dart", "Dart dash 9", "Darts dash 9 cells; yours stays 5. Same Dash, different base length.",
               videos=["hulk.mp4"]),
@@ -55,5 +55,12 @@ deck("round7-build", "Statuses and the Hulk", "builds", 14, [
      "details": "2400 health, comes back every 5 minutes half as tough again. Its front (the light bar) takes a "
                 "quarter damage. A health bar shows at the top while it's alive.",
      "videos": [F + "hulk.mp4"]},
+    {"id": "door", "kind": "report", "rarity": "rare", "title": "Keys and the door",
+     "text": "Three keepers in the farthest camps hold keys. Bring all 3 to the door for the next, harder floor.",
+     "why": "The door idea you said go to. Last piece of stage 4.",
+     "details": "Keepers are their camp's toughest enemy with +50% health and a gold ring. The door sits in the dead "
+                "end farthest from the start. Through it: a new maze, enemies +25% health per floor, the wave timer "
+                "starts again. Your build, level, health, time and boss timer carry over.",
+     "images": [F + "keeper.png", F + "door.png"]},
 ])
 print("decks written")

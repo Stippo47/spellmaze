@@ -3,6 +3,14 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-18 — stage 4 part 3: keys and the door (v0.10.0), my calls inside the approved idea
+
+- 3 keys. The three camps farthest from the start each have a **keeper** (their toughest, +50% health, ringed gold)
+  who drops a key. Walk over a key to take it; the HUD shows Keys n/3.
+- The **door** is a gold frame with a slot per key, in the dead end farthest (by path) from the start. Touch it with
+  3 keys: the next floor, a new maze, enemies +25% health per floor, the wave timer starts again (first wave 30 s
+  in). Your build, level, health, time and the boss timer carry over. Without the keys it says so.
+
 ## 2026-11-18 — round 6 answered; round 7 + stage 4 part 2 built (v0.9.0)
 
 Answers: all good (pockets, tiles, dash 5, darts using the Dash, afterimages, Duration module). Dart: **"longer base
