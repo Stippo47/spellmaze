@@ -1,0 +1,212 @@
+{
+ "title": "Stage 2: modules",
+ "topic": "builds",
+ "order": 3,
+ "cards": [
+  {
+   "id": "how",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Any module, any cast",
+   "text": "Five modules (Extra, Bounce, Home, Burn, Explode) work on all three casts. Build them on the phone.",
+   "why": "This is the first test of the module system you said you wanted to try rather than read about.",
+   "details": "Pause → Build: a level for each module on each cast, free for now. Chests and level-ups (stage 3) will hand these out instead.\n\nEach module acts at a shared moment: touching an enemy (Burn), hitting a wall (Bounce), the end (Explode). That's why one module works on a bolt, a thrown ball and a dash without a stand-in. A module that has nothing to do on a cast won't be allowed there; all five fit all three so far.\n\nLevels are 0 to 5 here. Numbers show on the build screen.",
+   "parts": [
+    {
+     "id": "screen",
+     "title": "Build screen",
+     "text": "Pause, then Build. Levels per cast, and what each one does in numbers.",
+     "images": [
+      "../../../films/build-screen.png"
+     ]
+    },
+    {
+     "id": "combo",
+     "title": "All together",
+     "text": "SMG with Burn, Bounce and Extra; Spawn with Burn, Home and Explode; Dash with Burn, Extra and Explode.",
+     "videos": [
+      "../../../films/combo-fire.mp4"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "spawncast",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "The Spawn cast",
+   "text": "A new stick above the fire stick: throws a ball on a 7 second cooldown.",
+   "why": "Your answer: charges over time, a cooldown, reads as a spawn. Mark what's off.",
+   "parts": [
+    {
+     "id": "throw",
+     "title": "Throw",
+     "text": "Drag to aim (a faint path shows where it lands), let go. A quick tap throws at the nearest enemy you can see.",
+     "videos": [
+      "../../../films/m-spawn-extra.mp4"
+     ]
+    },
+    {
+     "id": "ball",
+     "title": "The ball",
+     "text": "Hits by touch, harder the faster it goes. Slows to a stop, sits for 15 seconds or until it's broken. Enemies can't walk through it."
+    },
+    {
+     "id": "bait",
+     "title": "Bait",
+     "text": "Enemies near it go for the ball instead of you, so it buys you room."
+    }
+   ]
+  },
+  {
+   "id": "on-weapon",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Modules on the Weapon",
+   "text": "The same five modules on the Weapon (Bolt), each at level 3, alone.",
+   "why": "Mark any part that doesn't feel like that module, or comment.",
+   "parts": [
+    {
+     "id": "extra",
+     "title": "Extra",
+     "text": "+1 bolt a level, fanned out.",
+     "videos": [
+      "../../../films/m-weapon-extra.mp4"
+     ]
+    },
+    {
+     "id": "bounce",
+     "title": "Bounce",
+     "text": "Bounces off walls, once a level.",
+     "videos": [
+      "../../../films/m-weapon-bounce.mp4"
+     ]
+    },
+    {
+     "id": "home",
+     "title": "Home",
+     "text": "Curves toward enemies ahead. Turns harder each level.",
+     "videos": [
+      "../../../films/m-weapon-home.mp4"
+     ]
+    },
+    {
+     "id": "burn",
+     "title": "Burn",
+     "text": "Each hit adds burn. Burning enemies take damage over time; at full build-up they Flare: a big hit and a small fire blast.",
+     "videos": [
+      "../../../films/m-weapon-burn.mp4"
+     ]
+    },
+    {
+     "id": "explode",
+     "title": "Explode",
+     "text": "A blast where the bolt hits or runs out. Walls block it.",
+     "videos": [
+      "../../../films/m-weapon-explode.mp4"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "on-spawn",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Modules on the Spawn",
+   "text": "The same five modules on the Spawn (Ball), each at level 3, alone.",
+   "why": "Mark any part that doesn't feel like that module, or comment.",
+   "parts": [
+    {
+     "id": "extra",
+     "title": "Extra",
+     "text": "+1 ball a level, fanned out.",
+     "videos": [
+      "../../../films/m-spawn-extra.mp4"
+     ]
+    },
+    {
+     "id": "bounce",
+     "title": "Bounce",
+     "text": "Rebounds off walls at full speed instead of thudding to a stop, once a level.",
+     "videos": [
+      "../../../films/m-spawn-bounce.mp4"
+     ]
+    },
+    {
+     "id": "home",
+     "title": "Home",
+     "text": "Hunts enemies: keeps moving and goes for the nearest one, all its life.",
+     "videos": [
+      "../../../films/m-spawn-home.mp4"
+     ]
+    },
+    {
+     "id": "burn",
+     "title": "Burn",
+     "text": "Every enemy it hits gets burn.",
+     "videos": [
+      "../../../films/m-spawn-burn.mp4"
+     ]
+    },
+    {
+     "id": "explode",
+     "title": "Explode",
+     "text": "A big blast when it dies or runs out.",
+     "videos": [
+      "../../../films/m-spawn-explode.mp4"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "on-dash",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Modules on the Dash",
+   "text": "The same five modules on the Dash, each at level 3, alone.",
+   "why": "Mark any part that doesn't feel like that module, or comment.",
+   "parts": [
+    {
+     "id": "extra",
+     "title": "Extra",
+     "text": "Dashes again right after, once a level, steered by the move stick (your answer: dashes in a row, not charges).",
+     "videos": [
+      "../../../films/m-dash-extra.mp4"
+     ]
+    },
+    {
+     "id": "bounce",
+     "title": "Bounce",
+     "text": "Rebounds off walls and keeps going, once a level.",
+     "videos": [
+      "../../../films/m-dash-bounce.mp4"
+     ]
+    },
+    {
+     "id": "home",
+     "title": "Home",
+     "text": "Lunges at an enemy ahead instead of going straight.",
+     "videos": [
+      "../../../films/m-dash-home.mp4"
+     ]
+    },
+    {
+     "id": "burn",
+     "title": "Burn",
+     "text": "Everyone you pass gets burn, plus the small hit every dash now does.",
+     "videos": [
+      "../../../films/m-dash-burn.mp4"
+     ]
+    },
+    {
+     "id": "explode",
+     "title": "Explode",
+     "text": "A blast where the dash ends.",
+     "videos": [
+      "../../../films/m-dash-explode.mp4"
+     ]
+    }
+   ]
+  }
+ ]
+}

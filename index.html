@@ -34,6 +34,16 @@
   .big { background: #e8f0ff; color: #04060c; border-radius: 10px; padding: 9px 16px; font-size: 15px; }
   .big.alt { background: #182040; color: #e8f0ff; }
   .note { color: #6b7499; font-size: 11px; font-weight: 600; margin-top: 6px; }
+  #buildGrid { border-collapse: collapse; margin-top: 4px; }
+  #buildGrid th { color: #8b94bb; font-size: 12px; font-weight: 700; padding: 2px 8px; text-align: center; }
+  #buildGrid td { padding: 3px 6px; text-align: center; }
+  #buildGrid td.name { text-align: left; font-size: 13px; padding-right: 10px; }
+  .step { display: inline-flex; align-items: center; gap: 2px; }
+  .step button { width: 30px; height: 28px; border-radius: 7px; background: #182040; color: #c4cbe8; font-size: 16px; }
+  .step b { width: 20px; display: inline-block; font-size: 14px; }
+  .step.on b { color: #ffc23a; }
+  #buildText { max-width: 560px; line-height: 1.35; }
+  .fam-path { color: #38e8ff; } .fam-form { color: #e8f0ff; } .fam-payload { color: #ff8a1f; } .fam-spawn { color: #ffd23f; }
   #turn { display: none; }
   @media (orientation: portrait) { #turn { display: flex; position: fixed; inset: 0; background: #04060c; z-index: 9; align-items: center; justify-content: center; font-size: 18px; } }
 </style>
@@ -53,7 +63,16 @@
     <div class="row" data-opt="view"><span>Camera</span><div class="seg"></div></div>
     <div class="row" data-opt="fps"><span>Frame rate</span><div class="seg"></div></div>
     <div class="note">Corridors and maze size start a new run on the same seed. Settings are kept on this phone.</div>
-    <div class="btns"><button id="resume" class="big">Resume</button><button id="newmaze" class="big alt">New run</button></div>
+    <div class="btns"><button id="resume" class="big">Resume</button><button id="openbuild" class="big alt">Build</button><button id="newmaze" class="big alt">New run</button></div>
+  </div>
+</div>
+
+<div id="build" class="screen hidden">
+  <div class="panel">
+    <h1>Build <span style="font-size:12px;color:#6b7499;font-weight:600">· free for testing until chests and level-ups come</span></h1>
+    <table id="buildGrid"></table>
+    <div id="buildText" class="note"></div>
+    <div class="btns"><button id="buildDone" class="big">Back</button><button id="buildClear" class="big alt">Clear all</button></div>
   </div>
 </div>
 

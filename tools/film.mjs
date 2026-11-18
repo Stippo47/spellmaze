@@ -13,6 +13,7 @@ const OUT = process.argv[3] || 'films';
 mkdirSync(OUT, { recursive: true });
 
 // Each scene: url options, seconds to play unfilmed first, seconds to film, and what the bot does.
+const MODS = ['extra', 'bounce', 'home', 'burn', 'explode'];
 const SCENES = {
   pistol:   { q: 'weapon=pistol&sight=remember', warm: 50, film: 14, bot: { fire: 'release', dash: true } },
   smg:      { q: 'weapon=smg&sight=remember', warm: 70, film: 9, bot: { fire: 'hold', dash: true } },
@@ -21,6 +22,16 @@ const SCENES = {
   seeall:   { q: 'weapon=pistol&sight=all', warm: 50, film: 8, bot: { fire: 'release', dash: true } },
   dark:     { q: 'weapon=pistol&sight=dark', warm: 50, film: 8, bot: { fire: 'release', dash: true } },
 };
+// Stage 2: every module on every cast at level 3, a few seconds each.
+for (const cast of ['weapon', 'spawn', 'dash']) for (const mod of MODS) {
+  SCENES[`m-${cast}-${mod}`] = { q: 'weapon=pistol&sight=remember', warm: 35, film: 6, small: true,
+    build: { weapon: {}, spawn: {}, dash: {}, [cast]: { [mod]: 3 } },
+    bot: { fire: cast === 'weapon' ? 'release' : 'none', spawn: cast === 'spawn', dash: cast === 'dash', dashAt: cast === 'dash', approach: cast === 'dash' } };
+  if (cast === 'dash') SCENES[`m-${cast}-${mod}`].film = 8;
+}
+SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,
+  build: { weapon: { burn: 2, bounce: 2, extra: 1 }, spawn: { burn: 2, home: 2, explode: 2 }, dash: { burn: 2, extra: 1, explode: 1 } },
+  bot: { fire: 'hold', spawn: true, dash: true, dashAt: true } };
 
 const BOT = () => {
   const SM = window.SM, cv = document.getElementById('game');
@@ -54,7 +65,12 @@ const BOT = () => {
       if (d < 8 && d > 0.3) { ax += dx / (d * d); ay += dy / (d * d); }
       if (d < g.weapon.range - 1 && d < nd && SM.lib.lineClear(m, p.x, p.y, e.x, e.y)) { nd = d; near = e; }
     }
-    if (!B.stuck) { mx += ax * 3; my += ay * 3; } const mm = Math.hypot(mx, my) || 1; mx /= mm; my /= mm;
+    if (B.cfg.approach) { // close in on the nearest enemy you can see (dash films)
+      let tg = null, td = 30;
+      for (const e of g.enemies) { const d = Math.hypot(e.x - p.x, e.y - p.y); if (d < td && SM.lib.lineClear(m, p.x, p.y, e.x, e.y)) { td = d; tg = e; } }
+      if (tg && td > 4) { mx = (tg.x - p.x) / td; my = (tg.y - p.y) / td; }
+      else if (tg) { mx = -(tg.x - p.x) / td; my = -(tg.y - p.y) / td; }
+    } else if (!B.stuck) { mx += ax * 3; my += ay * 3; } const mm = Math.hypot(mx, my) || 1; mx /= mm; my /= mm;
     const base = { x: L.w * 0.17, y: L.h * 0.7 };
     if (!B.move) { ev('pointerdown', 11, base.x, base.y); B.move = base; }
     ev('pointermove', 11, base.x + mx * L.moveR * 0.95, base.y + my * L.moveR * 0.95);
@@ -74,21 +90,36 @@ const BOT = () => {
         ev('pointermove', 12, F.x + dx / d * F.r * 0.85, F.y + dy / d * F.r * 0.85);
       } else if (B.fire) { ev('pointerup', 12, F.x, F.y); B.fire = null; }
     }
-    // dash away through the crowd now and then
+    // dash: away through the crowd now and then, or (dashAt) into the nearest enemy
     if (B.cfg.dash) {
       const D = L.dash;
-      if (!B.dash && p.charges >= 1 && (Math.hypot(ax, ay) > 0.25 || B.stuck) && B.f % 6 === 0) { ev('pointerdown', 13, D.x, D.y); B.dash = { f: B.f }; }
-      else if (B.dash) {
+      const want = B.cfg.dashAt ? (near && nd < 10 && B.f - (B.lastDash || -99) > 18) : ((Math.hypot(ax, ay) > 0.25 || B.stuck) && B.f % 6 === 0);
+      if (want && !B.dash && p.charges >= 1) B.lastDash = B.f;
+      if (!B.dash && p.charges >= 1 && want) {
+        let dx = mx, dy = my;
+        if (B.cfg.dashAt && near) { const ex = near.x - p.x, ey = near.y - p.y, ed = Math.hypot(ex, ey) || 1; dx = ex / ed; dy = ey / ed; }
+        ev('pointerdown', 13, D.x, D.y); B.dash = { f: B.f, dx, dy };
+      } else if (B.dash) {
         const k = Math.min(1, (B.f - B.dash.f) / 2) * 0.8;
-        ev('pointermove', 13, D.x + mx * F.r * k, D.y + my * F.r * k);
-        if (B.f - B.dash.f >= 3) { ev('pointerup', 13, D.x + mx * F.r * k, D.y + my * F.r * k); B.dash = null; }
+        ev('pointermove', 13, D.x + B.dash.dx * F.r * k, D.y + B.dash.dy * F.r * k);
+        if (B.f - B.dash.f >= 3) { ev('pointerup', 13, D.x + B.dash.dx * F.r * k, D.y + B.dash.dy * F.r * k); B.dash = null; }
+      }
+    }
+    // spawn: throw a ball at the nearest enemy when it's ready
+    if (B.cfg.spawn) {
+      const S = L.spawn;
+      if (!B.spawn && g.spawnCool <= 0 && near && nd < 12) { const ex = near.x - p.x, ey = near.y - p.y, ed = Math.hypot(ex, ey) || 1; ev('pointerdown', 14, S.x, S.y); B.spawn = { f: B.f, dx: ex / ed, dy: ey / ed }; }
+      else if (B.spawn) {
+        const k = Math.min(1, (B.f - B.spawn.f) / 2) * 0.8;
+        ev('pointermove', 14, S.x + B.spawn.dx * F.r * k, S.y + B.spawn.dy * F.r * k);
+        if (B.f - B.spawn.f >= 3) { ev('pointerup', 14, S.x + B.spawn.dx * F.r * k, S.y + B.spawn.dy * F.r * k); B.spawn = null; }
       }
     }
   };
 };
 
-async function open(browser, q) {
-  const page = await browser.newPage({ viewport: { width: 896, height: 414 }, deviceScaleFactor: 2, hasTouch: true });
+async function open(browser, q, small) {
+  const page = await browser.newPage({ viewport: { width: 896, height: 414 }, deviceScaleFactor: small ? 1.25 : 2, hasTouch: true });
   page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
   await page.goto(`${BASE}?seed=7&fingers=1&${q}`);
   await page.waitForFunction(() => window.SM);
@@ -99,8 +130,8 @@ async function open(browser, q) {
 
 async function film(browser, name) {
   const sc = SCENES[name];
-  const page = await open(browser, sc.q);
-  await page.evaluate((cfg) => { BOT.cfg = cfg; }, sc.bot);
+  const page = await open(browser, sc.q, sc.small);
+  await page.evaluate((sc) => { BOT.cfg = sc.bot; SM.setOpt('build', sc.build || { weapon: {}, spawn: {}, dash: {} }); }, sc);
   // play unfilmed: 2 steps per bot thought, health kept up so the film has a crowd
   await page.evaluate((frames) => { for (let i = 0; i < frames; i++) { BOT.think(); SM.advance(2); SM.g.p.hp = Math.max(SM.g.p.hp, 60); } }, sc.warm * 30);
   const dir = join(OUT, '_' + name); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
@@ -110,7 +141,7 @@ async function film(browser, name) {
     writeFileSync(join(dir, `f${String(i).padStart(4, '0')}.jpg`), Buffer.from(data.split(',')[1], 'base64'));
   }
   const info = await page.evaluate(() => ({ t: SM.g.t, foes: SM.g.enemies.length, kills: SM.g.kills }));
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '30', '-i', join(dir, 'f%04d.jpg'), '-vf', 'scale=1280:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-movflags', '+faststart', join(OUT, name + '.mp4')]);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '30', '-i', join(dir, 'f%04d.jpg'), '-vf', `scale=${sc.small ? 1120 : 1280}:-2`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-movflags', '+faststart', join(OUT, name + '.mp4')]);
   writeFileSync(join(OUT, name + '.jpg'), Buffer.from((await page.evaluate(() => document.getElementById('game').toDataURL('image/jpeg', 0.92))).split(',')[1], 'base64'));
   rmSync(dir, { recursive: true, force: true });
   console.log(name, info);
@@ -156,5 +187,8 @@ const browser = await chromium.launch({ executablePath: EDGE, headless: true });
 const what = process.argv[2] || 'all';
 if (what === 'perf') await perf(browser);
 else if (what === 'stills') await stills(browser);
-else for (const s of what === 'all' ? Object.keys(SCENES) : what.split(',')) await film(browser, s);
+else {
+  const names = what === 'all' ? Object.keys(SCENES) : what === 'modules' ? Object.keys(SCENES).filter(k => k.startsWith('m-') || k.startsWith('combo')) : what.split(',');
+  for (const s of names) await film(browser, s);
+}
 await browser.close();

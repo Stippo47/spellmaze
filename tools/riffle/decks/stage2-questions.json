@@ -1,0 +1,58 @@
+{
+ "title": "Stage 2: what's next",
+ "topic": "builds",
+ "order": 4,
+ "cards": [
+  {
+   "id": "chests",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "Where chests go",
+   "text": "You said too many chests sat in dead ends. Where should they be?",
+   "why": "Chests are what make you explore. Too many and every dead end is a detour you have to take.",
+   "pick": "b",
+   "options": [
+    {
+     "id": "a",
+     "label": "1 in 3 dead ends",
+     "text": "And none in halls."
+    },
+    {
+     "id": "b",
+     "label": "1 in 4, plus halls",
+     "text": "A quarter of dead ends, and one in each hall, guarded."
+    },
+    {
+     "id": "c",
+     "label": "Halls only",
+     "text": "Dead ends stay empty."
+    },
+    {
+     "id": "d",
+     "label": "From camps",
+     "text": "Clearing a camp drops its chest."
+    }
+   ]
+  },
+  {
+   "id": "door",
+   "kind": "question",
+   "rarity": "epic",
+   "title": "A door to the next maze",
+   "text": "Your idea: keys spread through the maze open a door to a harder maze, and the wave timer resets.",
+   "why": "It gives an endless run chapters and a reason to cross the map, without an exit that ends the run.",
+   "pick": "Yes: 3 keys, each held by a camp's strongest enemy. The door shows once you hold them. Next maze is harder.",
+   "details": "Dying still ends the run. Your build goes with you through the door. Each maze could add a new enemy kind, so the door is also how the roster grows during a run."
+  },
+  {
+   "id": "levelups",
+   "kind": "question",
+   "rarity": "rare",
+   "title": "Level-ups next",
+   "text": "Stage 3 next: chests give modules, level-ups offer 4 upgrades for modules you have, rarity caps levels.",
+   "why": "That turns the build screen into the real game: you earn your build in the run instead of picking it.",
+   "pick": "Yes. The build screen stays as a practice room you can switch on.",
+   "details": "Rarity caps levels as you picked (3 / 5 / 7 / 9), with your green Uncommon fitted in at 4. Player upgrades (health, speed, cooldowns) join the level-up cards, as you asked."
+  }
+ ]
+}

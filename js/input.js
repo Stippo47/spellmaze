@@ -7,6 +7,7 @@ export function makeInput(canvas, getPlayerScreen) {
   const S = {
     move: { x: 0, y: 0 }, fire: { down: false, engaged: false, x: 0, y: 0, mag: 0 },
     dash: { down: false, engaged: false, x: 0, y: 0, mag: 0 },
+    spawn: { down: false, engaged: false, x: 0, y: 0, mag: 0 },
     events: [], layout: null, touches: new Map(), keys: new Set(), mouse: null, moveBase: null, showFingers: false,
   };
 
@@ -17,7 +18,8 @@ export function makeInput(canvas, getPlayerScreen) {
     const R = Math.min(60, h * 0.15);
     const fire = { x: w - sr - R * 1.9, y: h - sb - R * 1.65, r: R };
     const dash = { x: fire.x - R * 2.35, y: fire.y + R * 0.45, r: R * 0.58 };
-    S.layout = { w, h, fire, dash, moveR: R };
+    const spawn = { x: fire.x - R * 1.25, y: fire.y - R * 2.05, r: R * 0.5 };   // above-left of fire
+    S.layout = { w, h, fire, dash, spawn, moveR: R };
     return S.layout;
   }
   layout();
@@ -38,8 +40,10 @@ export function makeInput(canvas, getPlayerScreen) {
     const L = S.layout, x = e.clientX, y = e.clientY;
     const inF = Math.hypot(x - L.fire.x, y - L.fire.y) < L.fire.r * 1.7;
     const inD = Math.hypot(x - L.dash.x, y - L.dash.y) < L.dash.r * 1.8;
+    const inS = Math.hypot(x - L.spawn.x, y - L.spawn.y) < L.spawn.r * 1.9;
     let role = null;
-    if (inD && !S.dash.down) role = 'dash';
+    if (inS && !S.spawn.down) role = 'spawn';
+    else if (inD && !S.dash.down) role = 'dash';
     else if (inF && !S.fire.down) role = 'fire';
     else if (x < L.w * 0.5 && !S.moveBase) role = 'move';
     if (!role) return;
@@ -48,6 +52,7 @@ export function makeInput(canvas, getPlayerScreen) {
     if (role === 'move') { S.moveBase = { x, y }; S.move.x = S.move.y = 0; }
     if (role === 'fire') Object.assign(S.fire, { down: true, engaged: false, x: 0, y: 0, mag: 0 });
     if (role === 'dash') Object.assign(S.dash, { down: true, engaged: false, x: 0, y: 0, mag: 0 });
+    if (role === 'spawn') Object.assign(S.spawn, { down: true, engaged: false, x: 0, y: 0, mag: 0 });
   }, { passive: false });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -62,6 +67,7 @@ export function makeInput(canvas, getPlayerScreen) {
     }
     if (t.role === 'fire') stick(S.fire, L.fire, t.x, t.y, L.fire.r);
     if (t.role === 'dash') stick(S.dash, { x: t.x0, y: t.y0 }, t.x, t.y, L.fire.r);
+    if (t.role === 'spawn') stick(S.spawn, { x: t.x0, y: t.y0 }, t.x, t.y, L.fire.r);
   });
 
   function end(e) {
@@ -85,6 +91,11 @@ export function makeInput(canvas, getPlayerScreen) {
       else if (!S.dash.engaged) S.events.push({ type: 'dashTap' });
       Object.assign(S.dash, { down: false, engaged: false, mag: 0 });
     }
+    if (t.role === 'spawn') {
+      if (S.spawn.engaged === true) S.events.push({ type: 'spawnRelease', x: S.spawn.x, y: S.spawn.y });
+      else if (!S.spawn.engaged) S.events.push({ type: 'spawnTap' });
+      Object.assign(S.spawn, { down: false, engaged: false, mag: 0 });
+    }
   }
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
@@ -105,6 +116,7 @@ export function makeInput(canvas, getPlayerScreen) {
     if (e.repeat) return;
     if (e.code === 'Space') { S.events.push({ type: 'dashTap' }); e.preventDefault(); return; }
     if (e.code === 'KeyE') { S.events.push({ type: 'fireTap' }); return; }
+    if (e.code === 'KeyQ') { S.events.push({ type: 'spawnTap' }); return; }
     if (KEYS[e.code]) { S.keys.add(e.code); keyMove(); }
   });
   addEventListener('keyup', (e) => { S.keys.delete(e.code); keyMove(); });

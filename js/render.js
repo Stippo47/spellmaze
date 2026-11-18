@@ -2,7 +2,7 @@
 import { COL, TAU, fmtTime } from './util.js';
 import { canSee, SIGHT } from './game.js';
 import { rayDist } from './maze.js';
-import { DASH } from './weapons.js';
+import { DASH, SPAWN } from './weapons.js';
 
 export function makeRenderer(canvas) {
   const ctx = canvas.getContext('2d', { alpha: false });
@@ -31,14 +31,7 @@ export function makeRenderer(canvas) {
     const y0 = Math.max(0, Math.floor(cy - H / 2 / s) - 1), y1 = Math.min(G, Math.ceil(cy + H / 2 / s) + 1);
     const mode = opts.sight;
 
-    if (mode === 'remember') { // what you've seen fades out slowly, over FADE seconds
-      const seen = g.seen, now = g.t + 1, FADE = 120, K = 5;
-      for (let k = 1; k <= K; k++) {
-        ctx.globalAlpha = k / K;
-        drawCells(m, x0, y0, x1, y1, (i) => seen[i] > 0 && Math.ceil((1 - (now - seen[i]) / FADE) * K) === k, false, MEM);
-      }
-      ctx.globalAlpha = 1;
-    }
+    if (mode === 'remember') drawMemory(g, x0, y0, x1, y1);
     if (mode === 'all') drawCells(m, x0, y0, x1, y1, null, true, LIT);
     else {
       ctx.save();
@@ -71,6 +64,28 @@ export function makeRenderer(canvas) {
       circle(p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 1, 'rgba(159,233,255,0.35)');
     }
 
+    // blasts
+    for (const b of g.blasts) {
+      const k = b.t / 0.35;
+      ctx.globalAlpha = 0.55 * (1 - k);
+      circle(b.x, b.y, b.r * (0.6 + 0.4 * Math.min(1, k * 3)), b.fire ? COL.burn : '#ffffff');
+    }
+    ctx.globalAlpha = 1;
+    if (g.spawnAim) {
+      const d = Math.hypot(g.spawnAim.x, g.spawnAim.y) || 1, ax = g.spawnAim.x / d, ay = g.spawnAim.y / d;
+      const L = rayDist(m, p.x, p.y, ax, ay, SPAWN.speed / SPAWN.drag);
+      strip(p.x + ax * 1.3, p.y + ay * 1.3, p.x + ax * L, p.y + ay * L, 2.2, 'rgba(255,255,255,0.14)');
+      circle(p.x + ax * Math.max(1.3, L - SPAWN.r), p.y + ay * Math.max(1.3, L - SPAWN.r), SPAWN.r, 'rgba(255,255,255,0.25)');
+    }
+    // balls (your spawns)
+    for (const b of g.balls) {
+      if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
+      circle(b.x, b.y, b.r, b.pay && b.pay.burn ? COL.burn : COL.ball);
+      circle(b.x, b.y, b.r * 0.62, '#1a2240');
+      ctx.strokeStyle = COL.ball; ctx.lineWidth = 0.22;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.38, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, b.hp / b.maxHp)); ctx.stroke();
+    }
+
     // enemies
     const hidden = [];
     for (const e of g.enemies) {
@@ -78,15 +93,18 @@ export function makeRenderer(canvas) {
       if (!vis) { hidden.push(e); continue; }
       circle(e.x, e.y, e.r, e.flash > 0 ? '#ffffff' : COL.enemyDark);
       if (e.flash <= 0) circle(e.x, e.y, e.r * 0.72, COL.enemy);
+      if (e.burn > 0) { // burning: an orange ring, thicker with more build-up
+        ctx.strokeStyle = COL.burn; ctx.lineWidth = 0.12 + 0.3 * Math.min(1, e.burn / 100);
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.86, 0, TAU); ctx.stroke();
+      }
       if (e.hp < e.maxHp) { ctx.fillStyle = COL.enemy; ctx.fillRect(e.x - 0.9, e.y - e.r - 0.55, 1.8 * e.hp / e.maxHp, 0.22); }
     }
 
     // bolts
-    ctx.fillStyle = COL.shot;
     for (const b of g.bolts) {
       if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
       const sp = Math.hypot(b.vx, b.vy) || 1, tx = b.vx / sp, ty = b.vy / sp;
-      strip(b.x - tx * 0.9, b.y - ty * 0.9, b.x, b.y, b.r * 2, COL.shot, true);
+      strip(b.x - tx * 0.9, b.y - ty * 0.9, b.x, b.y, b.r * 2, b.pay && b.pay.burn ? COL.burn : COL.shot, true);
     }
 
     // player
@@ -136,6 +154,25 @@ export function makeRenderer(canvas) {
     ctx.globalAlpha = 1;
     if (inp.showFingers) for (const t of inp.touches.values()) { circle(t.x, t.y, 22, 'rgba(255,230,120,0.35)'); }
   };
+
+  // What you've seen, fading out over FADE seconds. One pass: each row is cut into runs of the same kind (floor or
+  // wall) and the same fade step, so a whole run is one rectangle.
+  const FADE = 120, STEPS = 5;
+  function drawMemory(g, x0, y0, x1, y1) {
+    const m = g.m, G = m.G, c = m.cells, seen = g.seen, now = g.t + 1;
+    const key = (i) => { const t = seen[i]; if (!t) return 0; const k = Math.ceil((1 - (now - t) / FADE) * STEPS); return k <= 0 ? 0 : (c[i] ? 16 : 0) + k; };
+    for (let y = y0; y < y1; y++) {
+      let run = -1, rk = 0;
+      for (let x = x0; x <= x1; x++) {
+        const k = x < x1 ? key(y * G + x) : 0;
+        if (k !== rk) {
+          if (rk) { ctx.globalAlpha = (rk & 15) / STEPS; ctx.fillStyle = rk & 16 ? COL.memEdge : COL.memFloor; ctx.fillRect(run, y, x - run, 1.02); }
+          run = x; rk = k;
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
 
   function canSeeCached(g, q) { return canSee(g, q.x, q.y); }
 
@@ -255,6 +292,16 @@ export function makeRenderer(canvas) {
       ctx.fillStyle = COL.dash; ctx.fillRect(bx - 7, by, 14 * (full ? 1 : part), 4);
     }
     ctx.fillStyle = COL.ui; ctx.fillText('DASH', d.x, d.y + 4);
+    // spawn stick: a cooldown sweep
+    const S = L.spawn, sready = g.spawnCool <= 0;
+    const sx = S.x + (inp.spawn.down ? inp.spawn.x * S.r * 0.8 : 0), sy = S.y + (inp.spawn.down ? inp.spawn.y * S.r * 0.8 : 0);
+    ringAt(S.x, S.y, S.r, sready ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)', sready ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.15)');
+    if (!sready) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(S.x, S.y, S.r + 5, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - g.spawnCool / SPAWN.cooldown)); ctx.stroke();
+    }
+    if (inp.spawn.down) circle(sx, sy, S.r * 0.5, 'rgba(255,255,255,0.6)');
+    ctx.fillStyle = COL.ui; ctx.fillText('SPAWN', S.x, S.y + 4);
   }
   function ringAt(x, y, r, fill, stroke) {
     ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();

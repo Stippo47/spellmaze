@@ -3,6 +3,17 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-17 — stage 2 built (my calls, to be reviewed in the stage 2 decks)
+
+- Five modules (Extra, Bounce, Home, Burn, Explode) on all three casts, levels 0-5, numbers in `js/modules.js`.
+  Modules act at shared moments (contact, wall, end); a module with nothing to do on a shape won't be allowed there.
+- Spawn cast: a thrown Ball on a 7 s cooldown, stick above-left of fire; enemies near it go for it; solid to enemies.
+- Every dash now does a small hit (3) to everyone passed, so payloads have something to ride on.
+- Burn: build-up per hit, damage over time grows with build-up, fades 2 s after the last hit; at 100 it Flares (25 and a
+  small fire blast that burns others).
+- Build screen in the pause menu: free levels for testing until chests and level-ups (stage 3).
+- Waves now come from 2 or 3 sides.
+
 ## 2026-11-17 (later) — stage 1 decks and read-back answered
 
 - Stage 1 build: good on every part (pistol, SMG, auto, dash, crowds hold you, waves, flat look).

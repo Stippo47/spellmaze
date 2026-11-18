@@ -17,3 +17,7 @@ export const WEAPONS = {
 export const WEAPON_ORDER = ['pistol', 'smg', 'auto'];
 
 export const DASH = { length: 6, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6 };
+
+// The Spawn cast (decisions: on a cooldown, reads as "spawn" not "summon"). A thrown Ball: hits by contact, harder
+// the faster it goes; slows to a stop, sits, and enemies near it go for it instead of you.
+export const SPAWN = { cooldown: 7, hp: 40, life: 15, speed: 22, r: 1.1, drag: 3, contact: 4, speedDamage: 0.7 };

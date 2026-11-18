@@ -4,12 +4,15 @@ import { makeRenderer } from './render.js';
 import { WIDTHS, pathField, lineClear } from './maze.js';
 import { WEAPONS, WEAPON_ORDER } from './weapons.js';
 import { fmtTime } from './util.js';
+import { MODULES, MODULE_ORDER, CASTS, CAST_ORDER, MAX_LEVEL, allowed } from './modules.js';
 
 const canvas = document.getElementById('game');
 const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false };
+const EMPTY_BUILD = () => ({ weapon: {}, spawn: {}, dash: {} });
 let opts = { ...DEFAULTS };
 try { const sv = JSON.parse(localStorage.getItem('spellmaze-opts') || '{}'); if (sv.v === 2) Object.assign(opts, sv); } catch {}
 opts.v = 2; // new defaults (round 2): saved settings from before are dropped
+if (!opts.build) opts.build = EMPTY_BUILD();
 const q = new URLSearchParams(location.search);
 for (const k of Object.keys(DEFAULTS)) if (q.has(k)) { const v = q.get(k); opts[k] = typeof DEFAULTS[k] === 'number' ? +v : typeof DEFAULTS[k] === 'boolean' ? v === '1' : v; }
 const save = () => { try { localStorage.setItem('spellmaze-opts', JSON.stringify(opts)); } catch {} };
@@ -80,11 +83,46 @@ $('pause').onclick = () => { paused = true; $('menu').classList.remove('hidden')
 $('resume').onclick = () => { paused = false; $('menu').classList.add('hidden'); last = performance.now(); };
 $('newmaze').onclick = () => { restart(false); paused = false; $('menu').classList.add('hidden'); };
 
+// ---------- build screen (free while testing) ----------
+function buildBuild() {
+  const grid = $('buildGrid'); grid.innerHTML = '';
+  const head = document.createElement('tr'); head.innerHTML = '<th></th>' + CAST_ORDER.map(c => `<th>${CASTS[c].name}</th>`).join('');
+  grid.appendChild(head);
+  for (const id of MODULE_ORDER) {
+    const M = MODULES[id], tr = document.createElement('tr');
+    tr.innerHTML = `<td class="name fam-${M.family}">${M.name}</td>`;
+    for (const c of CAST_ORDER) {
+      const td = document.createElement('td');
+      if (allowed(c, id)) {
+        const lv = opts.build[c][id] || 0, st = document.createElement('span'); st.className = 'step' + (lv ? ' on' : '');
+        const minus = document.createElement('button'); minus.textContent = '−';
+        const plus = document.createElement('button'); plus.textContent = '+';
+        const b = document.createElement('b'); b.textContent = lv;
+        minus.onclick = () => { opts.build[c][id] = Math.max(0, lv - 1); if (!opts.build[c][id]) delete opts.build[c][id]; save(); buildBuild(); };
+        plus.onclick = () => { opts.build[c][id] = Math.min(MAX_LEVEL, lv + 1); save(); buildBuild(); };
+        st.append(minus, b, plus); td.appendChild(st);
+      } else td.textContent = '·';
+      tr.appendChild(td);
+    }
+    grid.appendChild(tr);
+  }
+  const lines = [];
+  for (const c of CAST_ORDER) for (const id of MODULE_ORDER) {
+    const lv = opts.build[c][id]; if (!lv) continue;
+    lines.push(`<b>${CASTS[c].name}</b> ${MODULES[id].name} ${lv}: ${MODULES[id].on[CASTS[c].shape](lv)}`);
+  }
+  $('buildText').innerHTML = lines.length ? lines.join('<br>') : 'Nothing yet. Any module goes on any cast.';
+  g.build = opts.build;
+}
+$('openbuild').onclick = () => { $('menu').classList.add('hidden'); $('build').classList.remove('hidden'); buildBuild(); };
+$('buildDone').onclick = () => { $('build').classList.add('hidden'); $('menu').classList.remove('hidden'); };
+$('buildClear').onclick = () => { opts.build = EMPTY_BUILD(); save(); buildBuild(); };
+
 // Test hook (used to film clips): window.SM
 // manual: the page stops running by itself; advance(n) runs n steps and draws (frame-exact films).
 window.SM = { get g() { return g; }, inp, opts, restart, R, setPaused: (v) => { paused = v; },
   setManual: (v) => { manual = v; }, lib: { pathField, lineClear },
   advance: (n = 1) => { for (let i = 0; i < n && !g.over; i++) { step(g, DT, inp); inp.events.length = 0; } R.draw(g, inp, opts); if (g.over && $('over').classList.contains('hidden')) showOver(); },
-  setOpt: (k, v) => { opts[k] = v; if (k === 'weapon') setWeapon(g, v); } };
+  setOpt: (k, v) => { opts[k] = v; if (k === 'weapon') setWeapon(g, v); if (k === 'build') g.build = v; } };
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
