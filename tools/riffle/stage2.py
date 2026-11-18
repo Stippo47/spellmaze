@@ -60,9 +60,7 @@ deck("stage2-build", "Stage 2: modules", "builds", 3, [
     {"id": "how", "kind": "report", "rarity": "rare", "title": "Any module, any cast",
      "text": "Five modules (Extra, Bounce, Home, Burn, Explode) work on all three casts. Build them on the phone.",
      "why": "This is the first test of the module system you said you wanted to try rather than read about.",
-     "details": "The films are a simple bot playing, and it plays badly: trying builds yourself shows far more.
-
-Pause → Build: a level for each module on each cast, free for now. Chests and level-ups (stage 3) "
+     "details": "The films are a simple bot playing, and it plays badly: trying builds yourself shows far more.\n\nPause → Build: a level for each module on each cast, free for now. Chests and level-ups (stage 3) "
                 "will hand these out instead.\n\nEach module acts at a shared moment: touching an enemy (Burn), "
                 "hitting a wall (Bounce), the end (Explode). That's why one module works on a bolt, a thrown ball "
                 "and a dash without a stand-in. A module that has nothing to do on a cast won't be allowed there; "
