@@ -321,7 +321,16 @@ export function rayStamp(m, x, y, dx, dy, max, now, stamp, seen, seenAt = 1) {
     if (cx < 0 || cy < 0 || cx >= G || cy >= G) return Math.min(t, max);
     const i = cy * G + cx;
     if (t < max) { stamp[i] = now; seen[i] = seenAt; }
-    if (cells[i]) return Math.min(t, max);
+    if (cells[i]) { // round 7: light the wall's whole thickness (up to 3 more wall cells along the ray), not just its face
+      const hit = Math.min(t, max);
+      for (let k = 0; k < 3; k++) {
+        if (tx < ty) { tx += tdx; cx += sx; } else { ty += tdy; cy += sy; }
+        if (cx < 0 || cy < 0 || cx >= G || cy >= G) break;
+        const j = cy * G + cx; if (!cells[j]) break;
+        stamp[j] = now; seen[j] = seenAt;
+      }
+      return hit;
+    }
   }
   return max;
 }

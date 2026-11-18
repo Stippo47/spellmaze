@@ -14,5 +14,5 @@ export const COL = {
   memFloor: '#080b17', memWall: '#141833', memEdge: '#2b3270',
   player: '#ffffff', playerCore: '#9fe9ff', shot: '#ffffff', enemy: '#ff3355', enemyDark: '#8a1027',
   xp: '#35f0a0', gold: '#ffc23a', ui: '#e8f0ff', uiDim: '#6b7499', hp: '#ff3355', aim: 'rgba(255,255,255,0.35)',
-  dash: '#9fe9ff', burn: '#ff8a1f', ball: '#ffffff',
+  dash: '#9fe9ff', burn: '#ff8a1f', chill: '#7fdcff', shock: '#ffe14d', poison: '#c06bff', mark: '#ff7ab8', ball: '#ffffff',
 };

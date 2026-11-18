@@ -3,6 +3,31 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-18 — round 6 answered; round 7 + stage 4 part 2 built (v0.9.0)
+
+Answers: all good (pockets, tiles, dash 5, darts using the Dash, afterimages, Duration module). Dart: **"longer base
+dash distance, maybe 9"**. Afterimage clips: **"weird visual artifacts on the walls"**. Shard: **"could be a bit more
+interesting; maybe another star layered underneath spinning the opposite direction"**. "Upgrade will show 1 option":
+**a level-up card affected 3 traits (Cooldowns); each card should change 1 trait, and you don't choose which.**
+
+Built:
+- Dart's Dash base 9 (an enemy's base length lives in ENEMIES; yours stays 5). It now sees you from 13.
+- Wall artifacts: sight lit only a wall's first cell (walls are 4 thick now) and missed cells along walls seen at a
+  shallow angle. Now each ray lights up to 3 more wall cells behind the face, and a wall cell touching floor in view
+  is lit too.
+- Shard: a second, darker star underneath, bigger, turning the other way and pulsing a little.
+- Cooldowns split into three stat cards, one trait each: Spawn cooldown, Dash recharge, Reload (12% each). Power stays
+  one card (damage).
+- Stage 4, part 2 (my numbers, from design section 5): **Chill, Shock, Poison, Mark** join Burn as payload modules on
+  any cast. Chill slows up to 60%, at 100 Freezes for 2 s (then 4 s immune), a hard hit (12+) on a frozen enemy
+  Shatters it for +20 and chills those near. Shock jumps to one more enemy each hit, at 100 Overloads (stun 0.6 s,
+  jumps to 3). Poison is slow damage, at 100 Rots (15% max health, 3% on bosses), and a poisoned enemy dies into a gas
+  cloud. Mark makes them take +25%, at 100 Detonates for 45. Mixes: Thaw (burn on chill clears both for 25), Ignite
+  (fire in gas explodes it), Conduct (shock prefers marked enemies, twice as far).
+- **The Hulk** at 5:00 and every 5 minutes after (+50% health each time): a rose square 7 cells wide, 2400 health,
+  rolls toward you shoving everything and grinding tiles, a quarter damage from the front (the light bar), drops an
+  epic shard. A health bar shows at the top.
+
 ## 2026-11-18 — round 5 answered; round 6 built (v0.8.0)
 
 Answers: maze 2x decent, "I don't see any short dead ends at all now; destructible tiles aren't 1 cell big". Short

@@ -90,7 +90,7 @@ $('newmaze').onclick = () => { restart(false); paused = false; $('menu').classLi
 // ---------- shard, start and level-up cards (round 4: new look) ----------
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const FAMC = { path: '#38e8ff', form: '#e8f0ff', payload: '#ff8a1f', spawn: '#ffd23f' };
-const modColor = (id) => FAMC[MODULES[id].family];
+const modColor = (id) => MODULES[id].color || FAMC[MODULES[id].family];
 const rar = (r) => `<span style="color:${RARITY[r].color}">${RARITY[r].name}</span>`;
 function closeOffer() { g.run.offers.shift(); $('offer').classList.add('hidden'); last = performance.now(); }
 
@@ -117,7 +117,7 @@ function levelCard(c) {
       sub: `${Rr.name} · ${icon(c.cast, '#8b94bb', 14)} ${CASTS[c.cast].name}`, pipsHtml: pips(m.level, Rr.cap, true), text: cardText(c.cast, c.id, m.level + 1), onClick: take });
   }
   const V = VITALS[c.id], n = g.run.vitals[c.id];
-  return card({ color: '#8b94bb', band: 'Stat', ic: c.id, icColor: '#e8f0ff', name: V.name, sub: `${n} → ${n + 1}`, text: V.text(n), onClick: take });
+  return card({ color: '#8b94bb', band: 'Stat', ic: V.icon || c.id, icColor: '#e8f0ff', name: V.name, sub: `${n} → ${n + 1}`, text: V.text(n), onClick: take });
 }
 
 function showOffer() {
@@ -179,7 +179,7 @@ function buildBuild() {
     }
     grid.appendChild(row);
     const vit = el('div', 'vitals');
-    for (const [k, V] of Object.entries(VITALS)) vit.appendChild(el('span', 'chip' + (g.run.vitals[k] ? ' on' : ''), `${icon(k, '#e8f0ff', 14)} ${V.name} ${g.run.vitals[k]}`));
+    for (const [k, V] of Object.entries(VITALS)) vit.appendChild(el('span', 'chip' + (g.run.vitals[k] ? ' on' : ''), `${icon(V.icon || k, '#e8f0ff', 14)} ${V.name} ${g.run.vitals[k]}`));
     grid.appendChild(vit);
     $('buildText').innerHTML = 'Drag a module onto another cast to move it. It keeps its level and rarity.';
     return;

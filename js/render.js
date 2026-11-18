@@ -1,6 +1,6 @@
 // Drawing. Flat, solid shapes, no glow (docs/DECISIONS.md: "solid and flat"). Canvas 2D.
 import { COL, TAU, fmtTime } from './util.js';
-import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST } from './game.js';
+import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST, ENEMIES } from './game.js';
 import { rayDist } from './maze.js';
 import { DASH, SPAWN } from './weapons.js';
 
@@ -48,7 +48,7 @@ export function makeRenderer(canvas) {
     {
       const c = m.cells, now = g.visNow, st = g.visStamp;
       ctx.fillStyle = 'rgba(0,0,0,0.42)';
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * G + x; if (c[i] === 2 && (mode === 'all' || st[i] === now)) ctx.fillRect(x, y, 1, 1); }
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * G + x; if (c[i] === 2 && (mode === 'all' || st[i] === now || st[i - 1] === now || st[i + 1] === now || st[i - G] === now || st[i + G] === now)) ctx.fillRect(x, y, 1, 1); }
       ctx.fillStyle = '#ffffff';
       for (const i of g.tileFlash.keys()) ctx.fillRect(i % G, (i / G) | 0, 1, 1);
     }
@@ -59,6 +59,11 @@ export function makeRenderer(canvas) {
       const vis = mode === 'all' || canSee(g, c.x, c.y);
       if (!vis && !(mode === 'remember' && g.seen[Math.floor(c.y) * G + Math.floor(c.x)])) continue;
       ctx.globalAlpha = vis ? 1 : 0.35;
+      const star = (rr0, rr1) => { ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? rr1 : rr0; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); };
+      if (!c.open) { // round 7: a second, darker star underneath, turning the other way
+        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-g.t * 0.8 - c.x + Math.PI / 4);
+        const pulse = 1 + 0.08 * Math.sin(g.t * 3 + c.y); star(1.75 * pulse, 0.5); ctx.fillStyle = '#c98a00'; ctx.fill(); ctx.restore();
+      }
       ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.open ? 0.4 : g.t * 1.2 + c.x);
       ctx.beginPath();
       for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? 0.42 : 1.5; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
@@ -93,7 +98,7 @@ export function makeRenderer(canvas) {
     for (const b of g.blasts) {
       const k = b.t / 0.35;
       ctx.globalAlpha = 0.55 * (1 - k);
-      circle(b.x, b.y, b.r * (0.6 + 0.4 * Math.min(1, k * 3)), b.fire ? COL.burn : '#ffffff');
+      circle(b.x, b.y, b.r * (0.6 + 0.4 * Math.min(1, k * 3)), b.col ? COL[b.col] : '#ffffff');
     }
     ctx.globalAlpha = 1;
     if (g.spawnAim) {
@@ -105,10 +110,21 @@ export function makeRenderer(canvas) {
     // balls (your spawns)
     for (const b of g.balls) {
       if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
-      circle(b.x, b.y, b.r, b.pay && b.pay.burn ? COL.burn : COL.ball);
+      circle(b.x, b.y, b.r, payCol(b.pay) || COL.ball);
       circle(b.x, b.y, b.r * 0.62, '#1a2240');
       ctx.strokeStyle = COL.ball; ctx.lineWidth = 0.22;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.38, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, b.hp / b.maxHp)); ctx.stroke();
+    }
+
+    // gas clouds (Rot) and shock arcs
+    for (const c of g.clouds) { if (mode !== 'all' && !canSee(g, c.x, c.y)) continue; ctx.globalAlpha = 0.22 * (1 - c.t / c.life) + 0.08; circle(c.x, c.y, c.r, COL.poison); }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = COL.shock; ctx.lineWidth = 0.18; ctx.lineCap = 'round';
+    for (const a of g.arcs) { // a zigzag
+      ctx.beginPath(); ctx.moveTo(a.x0, a.y0);
+      const dx = a.x1 - a.x0, dy = a.y1 - a.y0, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+      for (let k = 1; k < 5; k++) { const o = (k % 2 ? 0.5 : -0.5); ctx.lineTo(a.x0 + dx * k / 5 + nx * o, a.y0 + dy * k / 5 + ny * o); }
+      ctx.lineTo(a.x1, a.y1); ctx.stroke();
     }
 
     // enemy orbs
@@ -124,7 +140,7 @@ export function makeRenderer(canvas) {
       const [lite, dark] = ECOL[e.type] || ECOL.mite;
       if (e.sleep) ctx.globalAlpha = 0.5;
       if (e.st === 'aim') { // a dart about to charge: where it will go
-        const L = Math.min(rayDist(m, e.x, e.y, e.ax, e.ay, 40), DASH.length + 1);
+        const L = Math.min(rayDist(m, e.x, e.y, e.ax, e.ay, 40), dashLen(g, e) + 1);
         ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(g.t * 20));
         strip(e.x, e.y, e.x + e.ax * L, e.y + e.ay * L, 0.5, lite);
         ctx.globalAlpha = 1;
@@ -132,18 +148,23 @@ export function makeRenderer(canvas) {
       enemyShape(e, e.r, e.flash > 0 ? '#ffffff' : dark);
       if (e.flash <= 0) enemyShape(e, e.r * 0.7, lite);
       ctx.globalAlpha = 1;
-      if (e.burn > 0) { // burning: an orange ring, thicker with more build-up
-        ctx.strokeStyle = COL.burn; ctx.lineWidth = 0.12 + 0.3 * Math.min(1, e.burn / 100);
-        ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.86, 0, TAU); ctx.stroke();
+      // statuses: a ring each in its colour (thicker with more build-up), outside the body
+      let ring = e.r + 0.15;
+      for (const k of ['burn', 'chill', 'shock', 'poison']) if (e[k] > 0) {
+        ctx.strokeStyle = COL[k]; ctx.lineWidth = 0.1 + 0.22 * Math.min(1, e[k] / 100);
+        ctx.beginPath(); ctx.arc(e.x, e.y, ring, 0, TAU); ctx.stroke(); ring += 0.3;
       }
-      if (e.hp < e.maxHp) { ctx.fillStyle = lite; ctx.fillRect(e.x - 0.9, e.y - e.r - 0.55, 1.8 * e.hp / e.maxHp, 0.22); }
+      if (e.frozen > 0) { ctx.globalAlpha = 0.55; ctx.fillStyle = COL.chill; ctx.fillRect(e.x - e.r * 1.1, e.y - e.r * 1.1, e.r * 2.2, e.r * 2.2); ctx.globalAlpha = 1; }
+      if (e.stun > 0) { ctx.strokeStyle = COL.shock; ctx.lineWidth = 0.15; ctx.beginPath(); ctx.moveTo(e.x - 0.6, e.y - e.r - 0.9); ctx.lineTo(e.x - 0.2, e.y - e.r - 0.6); ctx.lineTo(e.x + 0.2, e.y - e.r - 0.9); ctx.lineTo(e.x + 0.6, e.y - e.r - 0.6); ctx.stroke(); }
+      if (e.mark > 0) { ctx.fillStyle = COL.mark; const n = Math.max(1, Math.floor(e.mark / 20)); for (let i = 0; i < n; i++) ctx.fillRect(e.x - 1 + i * 0.42, e.y + e.r + 0.35, 0.3, 0.3); }
+      if (!ENEMIES[e.type].boss && e.hp < e.maxHp) { ctx.fillStyle = lite; ctx.fillRect(e.x - 0.9, e.y - e.r - 0.55, 1.8 * e.hp / e.maxHp, 0.22); }
     }
 
     // bolts
     for (const b of g.bolts) {
       if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
       const sp = Math.hypot(b.vx, b.vy) || 1, tx = b.vx / sp, ty = b.vy / sp;
-      strip(b.x - tx * 0.9, b.y - ty * 0.9, b.x, b.y, b.r * 2, b.pay && b.pay.burn ? COL.burn : COL.shot, true);
+      strip(b.x - tx * 0.9, b.y - ty * 0.9, b.x, b.y, b.r * 2, payCol(b.pay) || COL.shot, true);
     }
 
     // player
@@ -184,7 +205,7 @@ export function makeRenderer(canvas) {
     // bits
     for (const q of g.parts) {
       ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.col === 'dash' ? 0.5 : 1);
-      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'tile' ? COL.wallEdge : COL.shot;
+      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'tile' ? COL.wallEdge : COL[q.col] || COL.shot;
       ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s);
     }
     ctx.globalAlpha = 1;
@@ -192,6 +213,7 @@ export function makeRenderer(canvas) {
     // ---------- screen space ----------
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawWaveWarn(g);
+    drawBoss(g);
     drawHud(g, opts);
     drawControls(g, inp);
     for (const pop of g.pops) {
@@ -226,7 +248,8 @@ export function makeRenderer(canvas) {
   function canSeeCached(g, q) { return canSee(g, q.x, q.y); }
 
   // [light, dark] per enemy (decisions: more enemy colours than red and magenta; poison purple stays free)
-  const ECOL = { mite: [COL.enemy, COL.enemyDark], dart: ['#ff4fd8', '#7d1c6c'], spitter: ['#c8ff3d', '#4d6b0c'], brute: ['#ffae3d', '#7a4a0c'] };
+  const payCol = (pay) => { if (!pay) return null; for (const k of ['burn', 'chill', 'shock', 'poison', 'mark']) if (pay[k]) return COL[k]; return null; };
+  const ECOL = { hulk: ['#ff3d7f', '#6b1030'], mite: [COL.enemy, COL.enemyDark], dart: ['#ff4fd8', '#7d1c6c'], spitter: ['#c8ff3d', '#4d6b0c'], brute: ['#ffae3d', '#7a4a0c'] };
   // mite a circle, dart a triangle pointing where it's going, spitter a diamond, brute a square
   function enemyShape(e, r, col) {
     ctx.fillStyle = col; ctx.beginPath();
@@ -238,6 +261,15 @@ export function makeRenderer(canvas) {
     } else if (e.type === 'spitter') {
       const k = r * 1.2; ctx.moveTo(e.x, e.y - k); ctx.lineTo(e.x + k, e.y); ctx.lineTo(e.x, e.y + k); ctx.lineTo(e.x - k, e.y);
     } else if (e.type === 'brute') { ctx.rect(e.x - r * 0.92, e.y - r * 0.92, r * 1.84, r * 1.84); }
+    else if (e.type === 'hulk') { // a square turned to where it rolls, with its armoured front a lighter bar
+      const fx = e.fx, fy = e.fy, k = r * 0.92;
+      ctx.moveTo(e.x + (fx - fy) * k, e.y + (fy + fx) * k); ctx.lineTo(e.x + (fx + fy) * k, e.y + (fy - fx) * k);
+      ctx.lineTo(e.x + (-fx + fy) * k, e.y + (-fy - fx) * k); ctx.lineTo(e.x + (-fx - fy) * k, e.y + (-fy + fx) * k);
+      ctx.closePath(); ctx.fill();
+      if (r === e.r) { ctx.strokeStyle = e.clang > 0 ? '#ffffff' : '#ffd0e0'; ctx.lineWidth = 0.55; ctx.beginPath();
+        ctx.moveTo(e.x + (fx - fy) * k * 1.02, e.y + (fy + fx) * k * 1.02); ctx.lineTo(e.x + (fx + fy) * k * 1.02, e.y + (fy - fx) * k * 1.02); ctx.stroke(); }
+      return;
+    }
     else ctx.arc(e.x, e.y, r, 0, TAU);
     ctx.closePath(); ctx.fill();
   }
@@ -254,7 +286,10 @@ export function makeRenderer(canvas) {
   // only: 'floor' or 'walls' to draw one layer. stamp/now: walls only where in view right now.
   function drawCells(m, x0, y0, x1, y1, seen, lit, pal, only, stamp, now) {
     const G = m.G, c = m.cells;
-    const show = (i) => (!seen || seen(i)) && (!stamp || stamp[i] === now);
+    // a wall cell in view now: stamped by a ray, or touching floor that's in view (round 7: walls seen at a shallow
+    // angle had gaps where no ray landed)
+    const show = (i) => (!seen || seen(i)) && (!stamp || stamp[i] === now ||
+      (c[i] && ((!c[i - 1] && stamp[i - 1] === now) || (!c[i + 1] && stamp[i + 1] === now) || (!c[i - G] && stamp[i - G] === now) || (!c[i + G] && stamp[i + G] === now))));
     if (only !== 'walls') {
     ctx.fillStyle = pal.floor;
     for (let y = y0; y < y1; y++) {
@@ -310,6 +345,15 @@ export function makeRenderer(canvas) {
     const st = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
     ctx.font = '800 15px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`Wave ${w.wave} in ${Math.ceil(left)}`, W / 2, st + 58);
+  }
+
+  function drawBoss(g) {
+    const b = g.boss; if (!b) return;
+    const st = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0, w = Math.min(360, W * 0.4), y = st + 78;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(W / 2 - w / 2, y, w, 12);
+    ctx.fillStyle = '#ff3d7f'; ctx.fillRect(W / 2 - w / 2 + 2, y + 2, (w - 4) * Math.max(0, b.hp / b.maxHp), 8);
+    ctx.fillStyle = COL.ui; ctx.font = '800 12px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('THE HULK', W / 2, y - 2); ctx.textBaseline = 'middle';
   }
 
   function drawHud(g, opts) {

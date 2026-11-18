@@ -1,7 +1,7 @@
 // The simulation: fixed steps, no drawing. Units are maze cells; the player is a 2x2 body (radius 1).
 import { makeMaze, rayStamp, lineClear, pathField, breakTile } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
-import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf } from './modules.js';
+import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUILD } from './modules.js';
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
@@ -15,9 +15,12 @@ const FIELD_STEPS = 90;
 //   brute: big, slow, tanky; hard to knock back, and shoves smaller enemies along.
 export const ENEMIES = {
   mite:    { r: 1, hp: 20, speed: 6.0, damage: 8, xp: 1, mass: 1 },
-  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, sight: 11, dashDamage: 18, aim: 0.6, dash: {} },   // round 6: its charge is the Dash
+  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, sight: 13, dashDamage: 18, aim: 0.6, dash: {}, dashLength: 9 },   // its charge is the Dash; base 9 (round 7)
   spitter: { r: 1, hp: 30, speed: 4.6, damage: 6, xp: 3, mass: 1, reload: 2.4, orb: { speed: 11, r: 0.55, damage: 10, life: 3 } },
-  brute:   { r: 1.7, hp: 170, speed: 3.4, damage: 20, xp: 8, mass: 5 },
+  brute:   { r: 1.7, hp: 170, speed: 3.4, damage: 20, xp: 8, mass: 5, breaks: 35 },
+  // The first boss (design: Hulk at 5:00): as wide as a corridor, rolls through the maze shoving everything, armoured
+  // in front (a quarter damage), so you route round and hit it from behind. Drops an epic shard.
+  hulk:    { r: 3.4, hp: 2400, speed: 3.8, damage: 35, xp: 60, mass: 60, breaks: 120, armor: 0.25, boss: true },
 };
 
 // Camps (decisions: camps in rooms, guarding their shard; different tiers). Nearer rooms get the first tier.
@@ -31,7 +34,7 @@ export function newGame(opts) {
     p: { x: m.start.x, y: m.start.y, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9,
-    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [], shots: [], camps: [], nextId: 1, ghosts: [], tileFlash: new Map(),
+    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [], shots: [], camps: [], nextId: 1, ghosts: [], tileFlash: new Map(), clouds: [], arcs: [], boss: null, nextBoss: BOSS_AT,
     run: newRun(), practice: opts.practice ? opts.build : null, build: null, chests: [], spawnCool: 0, spawnAim: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0,
@@ -87,10 +90,11 @@ function hurtPlayer(g, dmg) {
   if (p.hp <= 0) { p.hp = 0; g.over = true; burst(g, p.x, p.y, 'player', 30); }
 }
 
-const cdMul = (g) => Math.pow(0.9, g.run.vitals.cooldown);
+// round 7: each stat card changes one trait. Cooldowns are three: spawn, dash recharge, reload.
+const cdMul = (g, k) => Math.pow(0.88, g.run.vitals[k] || 0);
 export const pickupRange = (g) => 3.5 + 1.5 * g.run.vitals.pickup;
 const dmgMul = (g) => 1 + 0.15 * g.run.vitals.damage;
-export const dashLen = (g, a = g.p) => DASH.length * durOf(dashMods(g, a).duration || 0);
+export const dashLen = (g, a = g.p) => (a === g.p ? DASH.length : ENEMIES[a.type].dashLength || DASH.length) * durOf(dashMods(g, a).duration || 0);
 
 export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
@@ -159,21 +163,98 @@ function nearestVisible(g, range) {
 
 // ---------- modules ----------
 const L = (g, cast, id) => level(g.build, cast, id);
-function payload(g, cast) { const b = L(g, cast, 'burn'); return b ? { burn: burn(b) } : null; }
-function applyPayload(g, e, pay, scale = 1) { if (pay && pay.burn) addBurn(g, e, pay.burn * scale); }
+
+// ---------- statuses (stage 4: design section 5; poison is purple) ----------
+// Each hit adds build-up; at 100 something bigger happens. Payload modules carry them, on any cast.
+// Mixes: Thaw (burn on a chilled or frozen enemy clears both for a burst), Ignite (fire in a gas cloud explodes it),
+// Conduct (shock arcs prefer marked enemies and reach twice as far to them).
+const payloadOf = (mods) => { let pay = null; for (const s of STATUSES) if (mods[s]) (pay = pay || {})[s] = BUILD[s](mods[s]); return pay; };
+function payload(g, cast) { return payloadOf(g.build[cast] || {}); }
+function applyPayload(g, e, pay, scale = 1) {
+  if (!pay || e.hp <= 0) return;
+  if (pay.mark) addMark(g, e, pay.mark * scale);
+  if (pay.burn) addBurn(g, e, pay.burn * scale);
+  if (pay.chill) addChill(g, e, pay.chill * scale);
+  if (pay.poison) addPoison(g, e, pay.poison * scale);
+  if (pay.shock) addShock(g, e, pay.shock * scale);
+}
 
 function addBurn(g, e, amt) {
   if (e.hp <= 0) return;
+  if ((e.chill || 0) > 30 || e.frozen > 0) { // Thaw
+    e.chill = 0; e.frozen = 0; hurt(g, e, 25, 0, 0); burst(g, e.x, e.y, 'chill', 8); return;
+  }
   e.burn = (e.burn || 0) + amt; e.burnIdle = 0;
+  for (const c of g.clouds) if (!c.boom && Math.hypot(e.x - c.x, e.y - c.y) < c.r) { // Ignite
+    c.boom = true; blast(g, c.x, c.y, c.r + 1.5, 30, { burn: 25 });
+  }
   if (e.burn >= 100) { // Flare: a big hit and a small fire blast
     e.burn = 20; hurt(g, e, 25, 0, 0);
     blast(g, e.x, e.y, 2.5, 6, { burn: 30 });
   }
 }
+function addChill(g, e, amt) {
+  if (e.hp <= 0 || e.frozen > 0) return;
+  e.chill = (e.chill || 0) + amt; e.chillIdle = 0;
+  if (e.chill >= 100 && !(e.iceImm > 0)) { e.frozen = 2; e.chill = 0; e.iceImm = 4; e.dashT = 0; }   // Freeze
+}
+function addPoison(g, e, amt) {
+  if (e.hp <= 0) return;
+  e.poison = (e.poison || 0) + amt; e.poisonIdle = 0;
+  if (e.poison >= 100) { e.poison = 30; hurt(g, e, e.maxHp * (ENEMIES[e.type].boss ? 0.03 : 0.15) / dmgMul(g), 0, 0); burst(g, e.x, e.y, 'poison', 8); }   // Rot
+}
+function addMark(g, e, amt) {
+  if (e.hp <= 0) return;
+  e.mark = (e.mark || 0) + amt; e.markIdle = 0;
+  if (e.mark >= 100) { e.mark = 0; hurt(g, e, 45, 0, 0); g.blasts.push({ x: e.x, y: e.y, r: 2.2, t: 0, col: 'mark' }); }   // Detonate
+}
+function addShock(g, e, amt) {
+  if (e.hp <= 0) return;
+  e.shock = (e.shock || 0) + amt; e.shockIdle = 0;
+  if (e.shock >= 100) { e.shock = 0; e.stun = 0.6; arc(g, e, 3, 6, 6); }   // Overload
+  else arc(g, e, 1, 5, 3);
+}
+// Shock jumps: to the n nearest others in sight (marked ones count as half as far: Conduct).
+function arc(g, from, n, range, dmg) {
+  const c = [];
+  for (const o of g.enemies) {
+    if (o === from || o.hp <= 0 || o.sleep) continue;
+    let d = Math.hypot(o.x - from.x, o.y - from.y); if (o.mark > 0) d /= 2;
+    if (d < range && lineClear(g.m, from.x, from.y, o.x, o.y)) c.push({ o, d });
+  }
+  c.sort((a, b) => a.d - b.d);
+  for (const { o } of c.slice(0, n)) { g.arcs.push({ x0: from.x, y0: from.y, x1: o.x, y1: o.y, t: 0 }); hurt(g, o, dmg, 0, 0, 0); }
+}
+// Once a step: damage over time, fading build-up, freezes and stuns wearing off, gas clouds.
+function stepStatuses(g, dt) {
+  for (const e of g.enemies) {
+    if (e.burn > 0) { // burning: damage over time, stronger with more build-up; fades when not fed
+      hurt(g, e, (2 + e.burn * 0.08) * dt, 0, 0, 0, true);
+      e.burnIdle += dt; if (e.burnIdle > 2) e.burn = Math.max(0, e.burn - 12 * dt);
+    }
+    if (e.poison > 0) { // slow damage over time
+      hurt(g, e, (1 + e.poison * 0.05) * dt, 0, 0, 0, true);
+      e.poisonIdle += dt; if (e.poisonIdle > 4) e.poison = Math.max(0, e.poison - 6 * dt);
+    }
+    if (e.chill > 0) { e.chillIdle += dt; if (e.chillIdle > 2) e.chill = Math.max(0, e.chill - 15 * dt); }
+    if (e.shock > 0) { e.shockIdle += dt; if (e.shockIdle > 2) e.shock = Math.max(0, e.shock - 20 * dt); }
+    if (e.mark > 0) { e.markIdle += dt; if (e.markIdle > 6) e.mark = 0; }
+    if (e.frozen > 0) e.frozen -= dt;
+    if (e.stun > 0) e.stun -= dt;
+    if (e.iceImm > 0) e.iceImm -= dt;
+    if (e.clang > 0) e.clang -= dt;
+  }
+  for (let i = g.clouds.length - 1; i >= 0; i--) {
+    const c = g.clouds[i]; c.t += dt;
+    if (c.boom || c.t > c.life) { g.clouds.splice(i, 1); continue; }
+    for (const e of g.enemies) if (Math.hypot(e.x - c.x, e.y - c.y) < c.r) { e.poison = (e.poison || 0) + 15 * dt; e.poisonIdle = 0; }
+  }
+  for (let i = g.arcs.length - 1; i >= 0; i--) { g.arcs[i].t += dt; if (g.arcs[i].t > 0.15) g.arcs.splice(i, 1); }
+}
 
 // A blast: hits every enemy inside that the blast can see (walls block it). Yours never hurt you.
 function blast(g, x, y, r, dmg, pay) {
-  g.blasts.push({ x, y, r, t: 0, fire: !!(pay && pay.burn) });
+  g.blasts.push({ x, y, r, t: 0, col: pay ? STATUSES.find(k => pay[k]) : null });
   for (const i of tilesNear(g, x, y, r)) hitTile(g, i, dmg * 1.5);
   for (const e of g.enemies) {
     if (e.hp <= 0) continue;
@@ -263,7 +344,7 @@ function stepBolts(g, dt) {
 // ---------- the Spawn cast: balls ----------
 function throwBall(g, ax, ay) {
   if (g.spawnCool > 0) return;
-  g.spawnCool = SPAWN.cooldown * cdMul(g);
+  g.spawnCool = SPAWN.cooldown * cdMul(g, 'spawnCd');
   const n = 1 + L(g, 'spawn', 'extra'), base = Math.atan2(ay, ax);
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * 0.35, dx = Math.cos(a), dy = Math.sin(a);
@@ -375,11 +456,11 @@ function startDash(g, a, dx, dy, chained) {
     else { const p = g.p, px = p.x - a.x, py = p.y - a.y, pd = Math.hypot(px, py) || 1; if (pd < lr && (px * dx + py * dy) / pd > 0.5) { dx = px / pd; dy = py / pd; } }
   }
   if (!chained) {
-    if (isP) { a.charges -= 1; if (a.recharge <= 0) a.recharge = DASH.recharge * cdMul(g); }
+    if (isP) { a.charges -= 1; if (a.recharge <= 0) a.recharge = DASH.recharge * cdMul(g, 'dashCd'); }
     a.chain = mods.extra || 0;
   }
   a.dashT = DASH.time; a.dashLen = dashLen(g, a); a.dx = dx; a.dy = dy; a.fx = dx; a.fy = dy;
-  a.dashBounces = mods.bounce || 0; a.dashHit = new Set(); a.dashPay = mods.burn ? { burn: burn(mods.burn) } : null;
+  a.dashBounces = mods.bounce || 0; a.dashHit = new Set(); a.dashPay = payloadOf(mods);
 }
 
 // steer: where the next dash in a row goes (the move stick for you; toward you for an enemy)
@@ -449,6 +530,15 @@ const FIRST_WAVE = 30, WAVE_EVERY = 45;
 export const WARN = 10;
 function targetAlive(t) { const mn = t / 60; return Math.min(80, Math.round(5 + 2.5 * mn + 0.3 * mn * mn)); }
 const waveSize = (w) => 8 + (w - 1) * 6;
+// Bosses: the Hulk at 5:00, then every 5 minutes, half as tough again each time (until the Queen and Mirror exist).
+const BOSS_AT = 300, BOSS_EVERY = 300;
+function stepBoss(g) {
+  if (g.boss || g.t < g.nextBoss) return;
+  const n = Math.round((g.nextBoss - BOSS_AT) / BOSS_EVERY);
+  if (!spawnEnemy(g, 'hulk', 30, 44)) return;   // try again next step
+  const e = g.enemies[g.enemies.length - 1]; e.maxHp = e.hp = ENEMIES.hulk.hp * (1 + 0.5 * n);
+  g.boss = e; g.nextBoss += BOSS_EVERY; g.pops.push({ text: 'The Hulk', t: 0, big: true });
+}
 // Wave 1 mites; 2 adds darts; 3 spitters; from 4 a brute or two leads it.
 function waveType(w, i) {
   if (w >= 4 && i % 12 === 0) return 'brute';
@@ -489,12 +579,12 @@ export function step(g, dt, inp) {
   // rounds come back
   g.cool = Math.max(0, g.cool - dt); g.sinceShot += dt;
   if (w.refill === 'full') {
-    if (g.reloadT > 0) { g.reloadT -= dt / cdMul(g); if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
+    if (g.reloadT > 0) { g.reloadT -= dt / cdMul(g, 'reload'); if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
     else if (g.ammo < 1 || (g.ammo < w.rounds && g.sinceShot >= w.refillDelay)) g.reloadT = w.reloadTime;
-  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt / cdMul(g));
+  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt / cdMul(g, 'reload'));
 
   // dash charges
-  if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge * cdMul(g) : 0; } }
+  if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge * cdMul(g, 'dashCd') : 0; } }
 
   // player movement
   const SPEED = 8.5 * (1 + 0.08 * g.run.vitals.speed);
@@ -534,15 +624,15 @@ export function step(g, dt, inp) {
     if (w.left <= 0) g.incoming = null;
   }
 
+  stepStatuses(g, dt);
+  stepBoss(g);
+
   // enemies
   const G = m.G, f = g.field;
   for (const e of g.enemies) {
     const S = ENEMIES[e.type];
-    if (e.burn > 0) { // burning: damage over time, stronger with more build-up; fades when not fed
-      hurt(g, e, (2 + e.burn * 0.08) * dt, 0, 0, 0, true);
-      e.burnIdle += dt; if (e.burnIdle > 2) e.burn = Math.max(0, e.burn - 12 * dt);
-    }
     e.flash = Math.max(0, e.flash - dt);
+    if (e.frozen > 0 || e.stun > 0) { e.vx = e.vy = 0; continue; }   // frozen or stunned: still
     if (e.dashT > 0) { stepDash(g, e, dt, null); if (e.dashT <= 0) { e.st = 'rest'; e.t = 0.6; } continue; }
     if (e.sleep) { // a camp at rest: the whole camp wakes when one sees you close, or is hurt
       e.vx = e.vy = 0;
@@ -550,7 +640,7 @@ export function step(g, dt, inp) {
       continue;
     }
     let dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy), toBall = false;
-    let tx = 0, ty = 0, spd = e.speed;
+    let tx = 0, ty = 0, spd = e.speed * (1 - Math.min(0.6, (e.chill || 0) / 100 * 0.6));   // chill slows, up to 60%
     // a ball nearer than you, in sight: they go for it
     for (const b of g.balls) {
       const bx = b.x - e.x, by = b.y - e.y, bd = Math.hypot(bx, by);
@@ -592,12 +682,13 @@ export function step(g, dt, inp) {
   // enemies don't overlap each other, or you
   separate(g);
   for (const e of g.enemies) if (pushOutOfWalls(m, e)) {
-    if (e.type === 'brute') for (const i of tilesNear(g, e.x, e.y, e.r + 0.4)) hitTile(g, i, 35 * dt, true);   // brutes break tiles
+    if (ENEMIES[e.type].breaks) for (const i of tilesNear(g, e.x, e.y, e.r + 0.4)) hitTile(g, i, ENEMIES[e.type].breaks * dt, true);   // brutes and the Hulk break tiles
   }
   pushOutOfWalls(m, p);
   // far behind or lost: come back from somewhere nearer, out of sight
   for (let i = g.enemies.length - 1; i >= 0; i--) {
     const e = g.enemies[i], fd = g.field[Math.floor(e.y) * G + Math.floor(e.x)];
+    if (ENEMIES[e.type].boss) continue;   // a boss never gives up
     if (e.camp) { // round 5: leave their room and a camp goes home (out of your sight) and heals
       if (e.sleep) continue;
       const bx = e.camp.box, out = p.x < bx.x0 - 8 || p.x > bx.x1 + 8 || p.y < bx.y0 - 8 || p.y > bx.y1 + 8;
@@ -624,7 +715,7 @@ export function step(g, dt, inp) {
   for (let i = g.enemies.length - 1; i >= 0; i--) if (g.enemies[i].hp <= 0) g.enemies.splice(i, 1);
 
   // chests: walk into one to open it
-  for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; g.run.offers.push(chestOffer(g)); }
+  for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; g.run.offers.push(chestOffer(g, c.rarity)); }
 
   // XP
   for (let i = g.gems.length - 1; i >= 0; i--) {
@@ -650,12 +741,22 @@ export const xpNeed = (level) => 2 + level * 3;
 
 function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
   if (e.hp <= 0) return;
+  const S = ENEMIES[e.type];
+  if (e.frozen > 0 && dmg >= 12) { // Shatter: a hard hit on a frozen enemy, icicles chill those near
+    e.frozen = 0; dmg += 20; burst(g, e.x, e.y, 'chill', 10); blast(g, e.x, e.y, 3, 4, { chill: 35 });
+  }
+  if (e.mark > 0) dmg *= 1.25;
+  if (S.armor && (vx || vy)) { // the boss's front: hits coming at its face do a quarter
+    const d0 = Math.hypot(vx, vy); if ((vx * e.fx + vy * e.fy) / d0 < -0.3) { dmg *= S.armor; if (!silent) e.clang = 0.1; }
+  }
   e.hp -= dmg * dmgMul(g); if (!silent) e.flash = 0.08;
   if (e.sleep) wakeCamp(g, e.camp);
   const d = Math.hypot(vx, vy) || 1, kb = knock / ENEMIES[e.type].mass; e.x += vx / d * kb; e.y += vy / d * kb;
   if (e.hp <= 0) {
     g.kills++; burst(g, e.x, e.y, 'enemy', 8);
-    g.gems.push({ x: e.x, y: e.y, v: ENEMIES[e.type].xp });
+    g.gems.push({ x: e.x, y: e.y, v: S.xp });
+    if (e.poison > 0) g.clouds.push({ x: e.x, y: e.y, r: 3, t: 0, life: 4 });   // Rot's gas: poisons those inside
+    if (S.boss) { g.boss = null; g.chests.push({ x: e.x, y: e.y, rarity: 'epic' }); g.pops.push({ text: 'Hulk down', t: 0, big: true }); }
   }
 }
 

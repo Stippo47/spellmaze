@@ -69,6 +69,13 @@ const BLOCKS = `(() => { const g = SM.g, p = g.p, m0 = g.m, G = m0.G;
     if (d > 9) { I.move.x = dx / d; I.move.y = dy / d; return; }
     I.fire.engaged = true; I.fire.down = true; I.fire.x = dx / d; I.fire.y = dy / d; }; })()`;
 SCENES['blocks'] = { q: 'weapon=smg&sight=remember', warm: 1, film: 12, small: true, setup: BLOCKS, bot: {} };
+// Stage 4 part 2: the four new statuses, and the Hulk.
+SCENES['chill'] = { q: 'weapon=smg&sight=remember', warm: 40, film: 9, small: true, build: { weapon: { chill: 4 }, spawn: {}, dash: {} }, bot: { fire: 'hold', dash: true } };
+SCENES['shockmark'] = { q: 'weapon=smg&sight=remember', warm: 40, film: 9, small: true, build: { weapon: { shock: 4, mark: 3 }, spawn: {}, dash: {} }, bot: { fire: 'hold', dash: true } };
+SCENES['poison'] = { q: 'weapon=smg&sight=remember', warm: 40, film: 9, small: true, build: { weapon: { poison: 5 }, spawn: {}, dash: {} }, bot: { fire: 'hold', dash: true } };
+SCENES['hulk'] = { q: 'weapon=smg&sight=remember', warm: 2, film: 14, small: true, build: { weapon: { extra: 2 }, spawn: {}, dash: {} },
+  setup: `(() => { const g = SM.g; g.p.maxHp = g.p.hp = 5000; g.nextBoss = g.t + 0.1; g.nextWave = 1e9; g.waveWarn = null; for (let i = 0; i < 400 && !g.boss; i++) SM.advance(1);
+    const b = g.boss, m = g.m; if (b) { const c = g.ring.find(c => g.field[c] >= 22 && g.field[c] <= 26); if (c != null) { b.x = (c % m.G) + 0.5; b.y = ((c / m.G) | 0) + 0.5; } } SM.advance(0); })()`, bot: { fire: 'hold', dash: true } };
 SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,
