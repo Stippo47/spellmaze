@@ -47,11 +47,11 @@ export const MAX_LEVEL = 9;   // the practice build goes to legendary's cap
 export const turn = (l) => 3 + 2.5 * l;          // radians a second a homing bolt can turn
 export const hunt = (l) => 9 + 2 * l;            // a hunting ball's speed
 export const lunge = (l) => 6 + 2 * l;           // how far ahead a homing dash looks
-export const burn = (l) => 18 + 8 * (l - 1);     // burn build-up a hit
-export const chill = (l) => 20 + 8 * (l - 1);
-export const shock = (l) => 20 + 8 * (l - 1);
-export const poison = (l) => 22 + 8 * (l - 1);
-export const mark = (l) => 20 + 5 * (l - 1);
+export const burn = (l) => 12 + 6 * (l - 1);     // build-up a hit (round 8: halved-ish, bursts were too easy)
+export const chill = (l) => 12 + 6 * (l - 1);
+export const shock = (l) => 12 + 6 * (l - 1);
+export const poison = (l) => 10 + 5 * (l - 1);
+export const mark = (l) => 12 + 4 * (l - 1);
 export const STATUSES = ['burn', 'chill', 'shock', 'poison', 'mark'];
 export const BUILD = { burn, chill, shock, poison, mark };
 export const blastR = (l) => 1.2 + 0.45 * l;     // blast radius in cells: starts small (round 3: 'very weak/small')

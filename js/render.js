@@ -32,7 +32,7 @@ export function makeRenderer(canvas) {
     const mode = opts.sight;
 
     if (mode === 'remember') drawMemory(g, x0, y0, x1, y1);
-    if (mode === 'all') drawCells(m, x0, y0, x1, y1, null, true, LIT);
+    if (mode === 'all') { drawCells(m, x0, y0, x1, y1, null, true, LIT, 'floor'); drawClouds(g); drawCells(m, x0, y0, x1, y1, null, true, LIT, 'walls'); }
     else {
       ctx.save();
       ctx.beginPath();
@@ -40,6 +40,7 @@ export function makeRenderer(canvas) {
       for (let i = 2; i < v.length; i += 2) ctx.lineTo(v[i], v[i + 1]);
       ctx.closePath(); ctx.clip();
       drawCells(m, x0, y0, x1, y1, null, true, LIT, 'floor');
+      drawClouds(g);   // gas lies on the floor, under walls and everything else
       ctx.restore();
       drawCells(m, x0, y0, x1, y1, null, true, LIT, 'walls', g.visStamp, g.visNow);
     }
@@ -53,17 +54,7 @@ export function makeRenderer(canvas) {
       for (const i of g.tileFlash.keys()) ctx.fillRect(i % G, (i / G) | 0, 1, 1);
     }
 
-    // the door: a flat gold frame with a slot per key, filled as you find them; keys on the floor: small gold keys
-    if (g.door) {
-      const d = g.door, vis = mode === 'all' || canSee(g, d.x, d.y);
-      if (vis || (mode === 'remember' && g.seen[Math.floor(d.y) * G + Math.floor(d.x)])) {
-        ctx.globalAlpha = vis ? 1 : 0.4;
-        ctx.fillStyle = '#1a1030'; ctx.fillRect(d.x - 2.5, d.y - 3, 5, 6);
-        ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.35; ctx.strokeRect(d.x - 2.5, d.y - 3, 5, 6);
-        for (let k = 0; k < KEYS; k++) { const x = d.x - 1.4 + k * 1.4; ctx.fillStyle = k < g.keys ? COL.gold : '#3a2a50'; ctx.fillRect(x - 0.4, d.y - 0.4, 0.8, 0.8); }
-        ctx.globalAlpha = 1;
-      }
-    }
+    // keys on the floor: small gold keys
     for (const k of g.keysOnFloor) {
       if (mode !== 'all' && !canSee(g, k.x, k.y)) continue;
       ctx.save(); ctx.translate(k.x, k.y); ctx.rotate(Math.sin(g.t * 2) * 0.3); ctx.fillStyle = COL.gold;
@@ -134,9 +125,7 @@ export function makeRenderer(canvas) {
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.38, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, b.hp / b.maxHp)); ctx.stroke();
     }
 
-    // gas clouds (Rot) and shock arcs
-    for (const c of g.clouds) { if (mode !== 'all' && !canSee(g, c.x, c.y)) continue; ctx.globalAlpha = 0.22 * (1 - c.t / c.life) + 0.08; circle(c.x, c.y, c.r, COL.poison); }
-    ctx.globalAlpha = 1;
+    // shock arcs
     ctx.strokeStyle = COL.shock; ctx.lineWidth = 0.18; ctx.lineCap = 'round';
     for (const a of g.arcs) { // a zigzag
       ctx.beginPath(); ctx.moveTo(a.x0, a.y0);
@@ -262,6 +251,14 @@ export function makeRenderer(canvas) {
       }
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Gas clouds as one shape (round 8: a union, not stacked): every circle in one path, filled once.
+  function drawClouds(g) {
+    if (!g.clouds.length) return;
+    ctx.beginPath();
+    for (const c of g.clouds) { ctx.moveTo(c.x + c.r, c.y); ctx.arc(c.x, c.y, c.r, 0, TAU); }
+    ctx.globalAlpha = 0.28; ctx.fillStyle = COL.poison; ctx.fill('nonzero'); ctx.globalAlpha = 1;
   }
 
   function canSeeCached(g, q) { return canSee(g, q.x, q.y); }

@@ -75,7 +75,13 @@ SCENES['shockmark'] = { q: 'weapon=smg&sight=remember', warm: 40, film: 9, small
 SCENES['poison'] = { q: 'weapon=smg&sight=remember', warm: 40, film: 9, small: true, build: { weapon: { poison: 5 }, spawn: {}, dash: {} }, bot: { fire: 'hold', dash: true } };
 SCENES['hulk'] = { q: 'weapon=smg&sight=remember', warm: 2, film: 14, small: true, build: { weapon: { extra: 2 }, spawn: {}, dash: {} },
   setup: `(() => { const g = SM.g; g.p.maxHp = g.p.hp = 5000; g.nextBoss = g.t + 0.1; g.nextWave = 1e9; g.waveWarn = null; for (let i = 0; i < 400 && !g.boss; i++) SM.advance(1);
-    const b = g.boss, m = g.m; if (b) { const c = g.ring.find(c => g.field[c] >= 22 && g.field[c] <= 26); if (c != null) { b.x = (c % m.G) + 0.5; b.y = ((c / m.G) | 0) + 0.5; } } SM.advance(0); })()`, bot: { fire: 'hold', dash: true } };
+    const b = g.boss, m = g.m; if (b) { const f = new Uint16Array(m.G * m.G), n = SM.lib.pathField(m, b.x, b.y, 60, f), q = SM.lib.pathField.q; let c = q[0]; for (let i = 0; i < n; i++) if (f[q[i]] >= 26) { c = q[i]; break; } g.p.x = (c % m.G) + 0.5; g.p.y = ((c / m.G) | 0) + 0.5; } SM.advance(0);
+    let dashT = 0; BOT.think = () => { const b = g.boss, p = g.p, I = SM.inp; I.move.x = I.move.y = 0; I.fire.engaged = I.fire.down = false; if (!b) return;
+      const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+      let mx = -uy, my = ux; if (d < 9) { mx -= ux * 0.8; my -= uy * 0.8; } else if (d > 15) { mx += ux; my += uy; }
+      const mm = Math.hypot(mx, my) || 1; I.move.x = mx / mm; I.move.y = my / mm;
+      if (SM.lib.lineClear(m, p.x, p.y, b.x, b.y)) { I.fire.engaged = I.fire.down = true; I.fire.x = ux; I.fire.y = uy; }
+      if (d < 7 && dashT-- <= 0 && p.charges >= 1) { I.events.push({ type: 'dashRelease', x: -uy, y: ux }); dashT = 20; } }; })()`, bot: { fire: 'hold', dash: true } };
 SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,

@@ -1,0 +1,48 @@
+{
+ "title": "Stage 5",
+ "topic": "builds",
+ "order": 16,
+ "cards": [
+  {
+   "id": "next",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "What stage 5 is",
+   "text": "Stage 4 is done. What comes first?",
+   "why": "The build order says all of these come next; it's a lot, so it goes a piece at a time.",
+   "pick": "a",
+   "details": "More modules: Pierce, Orbit, Return, Grow, Haste, Split, Knock, Pull, Leech, Shrapnel, Trail, Echo... from the design list, a few at a time, each on all three casts.\n\nRunes: modules that cast another spell on hit, on wall, on end, every second or on kill.\n\nBetween runs: what you keep (slots, unlocks) after a run.",
+   "options": [
+    {
+     "id": "a",
+     "label": "More modules",
+     "text": "The design's modules, a few at a time, on all three casts."
+    },
+    {
+     "id": "b",
+     "label": "Runes",
+     "text": "Spells inside spells: on hit, on wall, on end, every 1 s, on kill."
+    },
+    {
+     "id": "c",
+     "label": "Between runs",
+     "text": "What you keep after a run: slots, unlocks."
+    },
+    {
+     "id": "d",
+     "label": "Weapons, casts",
+     "text": "More weapons and a fourth cast."
+    }
+   ]
+  },
+  {
+   "id": "arena",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Where bosses fight",
+   "text": "The Hulk now arrives in the biggest room. Should a boss lock you into its room until one of you wins?",
+   "why": "A locked arena makes the fight a set piece with room to move; an open one lets you run and use the maze.",
+   "pick": "No lock. It starts in the biggest room and roams; the maze is part of the fight."
+  }
+ ]
+}

@@ -3,6 +3,23 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-18 — round 7 answered; round 8 built (v0.11.0)
+
+Answers: keys good, but **"doesn't need to be furthest. No door, just collect 4 keys."** Fixes good; "the boss fight is
+in rooms too small, doesn't look fun or interesting"; shard "didn't show me". Hulk decent: **"either shouldn't turn or
+should turn in snaps of 90 degrees and on a cooldown; only moves on the axis lines."** Statuses decent: **"too easy to
+rot; burst effects trigger too easily. Clouds render under everything including walls; clouds are a union, not
+stacked."** Mark and mixes good.
+
+Built:
+- **4 keys, no door.** Four random camps have a keeper; too few camps puts the rest in dead ends. The 4th key: "Floor
+  clear", and 2 s later the next floor.
+- **Hulk**: rolls only along the axis lines, turning 90 degrees at a time with a 1.5 s cooldown (sooner when stuck),
+  never a U-turn while rolling freely. It arrives in the biggest room you can't see.
+- **Statuses** build about half as fast (burn/chill/shock 12 +6 a level, poison 10 +5, mark 12 +4), and after a burst
+  that status can't burst again on that enemy for 5 s.
+- **Gas clouds** are drawn on the floor under walls and everything else, all clouds as one shape.
+
 ## 2026-11-18 — stage 4 part 3: keys and the door (v0.10.0), my calls inside the approved idea
 
 - 3 keys. The three camps farthest from the start each have a **keeper** (their toughest, +50% health, ringed gold)

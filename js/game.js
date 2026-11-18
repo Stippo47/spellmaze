@@ -44,12 +44,12 @@ export function newGame(opts) {
   return g;
 }
 
-// A floor: a maze and everything in it. The run (build, level, health, time, boss timer) carries over the door.
+// A floor: a maze and everything in it. The run (build, level, health, time, boss timer) carries to the next floor.
 function buildFloor(g, seed) {
   const m = g.m = makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
   Object.assign(g, {
     enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], tileFlash: new Map(), clouds: [], arcs: [],
-    chests: [], keys: 0, keysOnFloor: [], door: null, boss: null,
+    chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0, field: new Uint16Array(m.G * m.G), fieldT: 0,
     waveWarn: null, incoming: null, ring: [],
@@ -57,31 +57,30 @@ function buildFloor(g, seed) {
   g.p.x = m.start.x; g.p.y = m.start.y; g.p.vx = g.p.vy = 0; g.p.dashT = 0;
   placeChests(g);
   placeCamps(g);
-  placeDoor(g);
+  placeKeys(g);
   refreshField(g);
   updateSight(g);
 }
 
-// The door and its keys (decisions: a door to the next level, needs keys spread through the maze; my pick: 3 keys,
-// each held by a camp's keeper). The door sits at the far end of the maze from where you start; the keepers are the
-// toughest enemy in the three farthest camps, ringed gold, and drop their key when they die.
-export const KEYS = 3;
-function placeDoor(g) {
-  const m = g.m, f = new Uint16Array(m.G * m.G), n = pathField(m, m.start.x, m.start.y, 60000, f), q = pathField.q;
-  const far = q[n - 1];
-  let best = null, bd = -1;   // the room or dead end nearest the farthest cell
-  for (const d of m.deadEnds) { const k = f[Math.floor(d.y) * m.G + Math.floor(d.x)]; if (k !== 65535 && k > bd) { bd = k; best = d; } }
-  g.door = best ? { x: best.x, y: best.y } : { x: (far % m.G) + 0.5, y: ((far / m.G) | 0) + 0.5 };
-  g.chests = g.chests.filter(c => Math.hypot(c.x - g.door.x, c.y - g.door.y) > 4);
-  const camps = g.camps.slice().sort((a, b) => Math.hypot(b.x - m.start.x, b.y - m.start.y) - Math.hypot(a.x - m.start.x, a.y - m.start.y));
-  for (const c of camps.slice(0, KEYS)) {
+// Keys (round 8: "no door, just collect 4 keys", and they needn't be the farthest). Four camps, picked at random, each
+// have a keeper (their toughest, +50% health, ringed gold) who drops a key. Too few camps: the rest lie in dead ends.
+// The fourth key clears the floor.
+export const KEYS = 4;
+function placeKeys(g) {
+  const camps = g.camps.slice();
+  for (let i = camps.length - 1; i > 0; i--) { const j = (g.R() * (i + 1)) | 0; [camps[i], camps[j]] = [camps[j], camps[i]]; }
+  let placed = 0;
+  for (const c of camps) {
+    if (placed >= KEYS) break;
     let keeper = null;
     for (const e of g.enemies) if (e.camp === c && (!keeper || e.maxHp > keeper.maxHp)) keeper = e;
-    if (keeper) { keeper.key = true; keeper.maxHp = keeper.hp = keeper.maxHp * 1.5; }
+    if (keeper) { keeper.key = true; keeper.maxHp = keeper.hp = keeper.maxHp * 1.5; placed++; }
   }
+  const ends = g.m.deadEnds.filter(d => Math.hypot(d.x - g.m.start.x, d.y - g.m.start.y) > 30);
+  while (placed < KEYS && ends.length) { const d = ends.splice((g.R() * ends.length) | 0, 1)[0]; g.keysOnFloor.push({ x: d.x, y: d.y }); placed++; }
 }
 
-// Through the door: a new maze, harder, the wave timer starts again.
+// The next floor: a new maze, harder, the wave timer starts again.
 function nextFloor(g) {
   g.depth++;
   buildFloor(g, (g.seed + g.depth * 7919) | 0);
@@ -115,7 +114,7 @@ function wakeCamp(g, camp) { for (const e of g.enemies) if (e.camp === camp) e.s
 
 export function makeEnemy(g, type, x, y, extra) {
   const s = ENEMIES[type];
-  const hp = s.hp * (1 + 0.25 * (g.depth || 0));   // each floor through the door: +25% health
+  const hp = s.hp * (1 + 0.25 * (g.depth || 0));   // each floor: +25% health
   const e = { id: g.nextId++, type, x, y, r: s.r, hp, maxHp: hp, speed: s.speed * (0.9 + g.R() * 0.2), vx: 0, vy: 0, flash: 0,
     fx: 1, fy: 0, cd: 0.5 + g.R() * 1.5, st: null, t: 0, ...extra };
   g.enemies.push(e);
@@ -217,6 +216,10 @@ function applyPayload(g, e, pay, scale = 1) {
   if (pay.shock) addShock(g, e, pay.shock * scale);
 }
 
+// After a burst (Flare, Freeze, Overload, Rot, Detonate) that status can't burst again for REST seconds.
+const REST = 5;
+const full = (e, k) => e.rest && e.rest[k] > 0;
+const rested = (e, k) => { (e.rest = e.rest || {})[k] = REST; };
 function addBurn(g, e, amt) {
   if (e.hp <= 0) return;
   if ((e.chill || 0) > 30 || e.frozen > 0) { // Thaw
@@ -226,30 +229,35 @@ function addBurn(g, e, amt) {
   for (const c of g.clouds) if (!c.boom && Math.hypot(e.x - c.x, e.y - c.y) < c.r) { // Ignite
     c.boom = true; blast(g, c.x, c.y, c.r + 1.5, 30, { burn: 25 });
   }
-  if (e.burn >= 100) { // Flare: a big hit and a small fire blast
-    e.burn = 20; hurt(g, e, 25, 0, 0);
+  if (full(e, 'burn')) e.burn = Math.min(e.burn, 95);
+  else if (e.burn >= 100) { // Flare: a big hit and a small fire blast
+    e.burn = 20; rested(e, 'burn'); hurt(g, e, 25, 0, 0);
     blast(g, e.x, e.y, 2.5, 6, { burn: 30 });
   }
 }
 function addChill(g, e, amt) {
   if (e.hp <= 0 || e.frozen > 0) return;
   e.chill = (e.chill || 0) + amt; e.chillIdle = 0;
-  if (e.chill >= 100 && !(e.iceImm > 0)) { e.frozen = 2; e.chill = 0; e.iceImm = 4; e.dashT = 0; }   // Freeze
+  if (full(e, 'chill')) e.chill = Math.min(e.chill, 95);
+  else if (e.chill >= 100) { e.frozen = 2; e.chill = 0; rested(e, 'chill'); e.dashT = 0; }   // Freeze
 }
 function addPoison(g, e, amt) {
   if (e.hp <= 0) return;
   e.poison = (e.poison || 0) + amt; e.poisonIdle = 0;
-  if (e.poison >= 100) { e.poison = 30; hurt(g, e, e.maxHp * (ENEMIES[e.type].boss ? 0.03 : 0.15) / dmgMul(g), 0, 0); burst(g, e.x, e.y, 'poison', 8); }   // Rot
+  if (full(e, 'poison')) e.poison = Math.min(e.poison, 95);
+  else if (e.poison >= 100) { e.poison = 30; rested(e, 'poison'); hurt(g, e, e.maxHp * (ENEMIES[e.type].boss ? 0.03 : 0.15) / dmgMul(g), 0, 0); burst(g, e.x, e.y, 'poison', 8); }   // Rot
 }
 function addMark(g, e, amt) {
   if (e.hp <= 0) return;
   e.mark = (e.mark || 0) + amt; e.markIdle = 0;
-  if (e.mark >= 100) { e.mark = 0; hurt(g, e, 45, 0, 0); g.blasts.push({ x: e.x, y: e.y, r: 2.2, t: 0, col: 'mark' }); }   // Detonate
+  if (full(e, 'mark')) e.mark = Math.min(e.mark, 95);
+  else if (e.mark >= 100) { e.mark = 0; rested(e, 'mark'); hurt(g, e, 45, 0, 0); g.blasts.push({ x: e.x, y: e.y, r: 2.2, t: 0, col: 'mark' }); }   // Detonate
 }
 function addShock(g, e, amt) {
   if (e.hp <= 0) return;
   e.shock = (e.shock || 0) + amt; e.shockIdle = 0;
-  if (e.shock >= 100) { e.shock = 0; e.stun = 0.6; arc(g, e, 3, 6, 6); }   // Overload
+  if (full(e, 'shock')) e.shock = Math.min(e.shock, 95);
+  if (e.shock >= 100) { e.shock = 0; rested(e, 'shock'); e.stun = 0.6; arc(g, e, 3, 6, 6); }   // Overload
   else arc(g, e, 1, 5, 3);
 }
 // Shock jumps: to the n nearest others in sight (marked ones count as half as far: Conduct).
@@ -279,7 +287,7 @@ function stepStatuses(g, dt) {
     if (e.mark > 0) { e.markIdle += dt; if (e.markIdle > 6) e.mark = 0; }
     if (e.frozen > 0) e.frozen -= dt;
     if (e.stun > 0) e.stun -= dt;
-    if (e.iceImm > 0) e.iceImm -= dt;
+    if (e.rest) for (const k in e.rest) e.rest[k] -= dt;
     if (e.clang > 0) e.clang -= dt;
   }
   for (let i = g.clouds.length - 1; i >= 0; i--) {
@@ -573,7 +581,11 @@ const BOSS_AT = 300, BOSS_EVERY = 300;
 function stepBoss(g) {
   if (g.boss || g.t < g.nextBoss) return;
   const n = Math.round((g.nextBoss - BOSS_AT) / BOSS_EVERY);
-  if (!spawnEnemy(g, 'hulk', 30, 44)) return;   // try again next step
+  // round 8: "boss fight is in rooms too small": it arrives in the biggest room you can't see, else nearby out of sight
+  const rooms = g.m.halls.slice().sort((a, b) => (b.box.x1 - b.box.x0) * (b.box.y1 - b.box.y0) - (a.box.x1 - a.box.x0) * (a.box.y1 - a.box.y0));
+  const room = rooms.find(r => !canSee(g, r.x, r.y) && Math.hypot(r.x - g.p.x, r.y - g.p.y) > 25);
+  if (room) makeEnemy(g, 'hulk', room.x, room.y);
+  else if (!spawnEnemy(g, 'hulk', 30, 44)) return;   // try again next step
   const e = g.enemies[g.enemies.length - 1]; e.maxHp = e.hp = ENEMIES.hulk.hp * (1 + 0.5 * n);
   g.boss = e; g.nextBoss += BOSS_EVERY; g.pops.push({ text: 'The Hulk', t: 0, big: true });
 }
@@ -711,11 +723,24 @@ export function step(g, dt, inp) {
         const o = S.orb; g.shots.push({ x: e.x + e.fx * 1.2, y: e.y + e.fy * 1.2, vx: e.fx * o.speed, vy: e.fy * o.speed, r: o.r, dmg: o.damage, life: o.life });
       }
     }
+    if (e.type === 'hulk') { // round 8: rolls only along the axis lines, turning 90 degrees at a time, on a cooldown
+      e.turnCd = (e.turnCd || 0) - dt;
+      const want = Math.abs(tx) >= Math.abs(ty) ? [Math.sign(tx) || 1, 0] : [0, Math.sign(ty) || 1];
+      const stuck = Math.hypot(e.vx, e.vy) < spd * 0.25;
+      if (!e.dir || ((want[0] !== e.dir[0] || want[1] !== e.dir[1]) && (e.turnCd <= 0 || (stuck && e.turnCd < 0.9)))) {
+        if (e.dir && want[0] === -e.dir[0] && want[1] === -e.dir[1] && !stuck) { /* never a U-turn while rolling freely */ }
+        else { e.dir = want; e.turnCd = 1.5; }
+      }
+      tx = e.dir[0]; ty = e.dir[1];
+      const kk = Math.min(1, dt * 4);   // straight along its axis: the other speed dies off
+      if (e.dir[0]) e.vy -= e.vy * kk; else e.vx -= e.vx * kk;
+    }
     const k = Math.min(1, dt * 6);
     e.vx += (tx * spd - e.vx) * k; e.vy += (ty * spd - e.vy) * k;
     e.x += e.vx * dt; e.y += e.vy * dt;
     const v = Math.hypot(e.vx, e.vy);
-    if (e.st === 'aim') { e.fx = e.ax; e.fy = e.ay; } else if (v > 0.5 && e.type !== 'spitter') { e.fx = e.vx / v; e.fy = e.vy / v; }
+    if (e.dir) { e.fx = e.dir[0]; e.fy = e.dir[1]; }
+    if (e.st === 'aim') { e.fx = e.ax; e.fy = e.ay; } else if (v > 0.5 && e.type !== 'spitter' && !e.dir) { e.fx = e.vx / v; e.fy = e.vy / v; }
   }
   // enemies don't overlap each other, or you
   separate(g);
@@ -752,15 +777,16 @@ export function step(g, dt, inp) {
   g.blasts = g.blasts.filter(b => b.t < 0.35);
   for (let i = g.enemies.length - 1; i >= 0; i--) if (g.enemies[i].hp <= 0) g.enemies.splice(i, 1);
 
-  // keys and the door
+  // keys
   for (let i = g.keysOnFloor.length - 1; i >= 0; i--) {
     const k = g.keysOnFloor[i];
-    if (Math.hypot(k.x - p.x, k.y - p.y) < p.r + 1.2) { g.keysOnFloor.splice(i, 1); g.keys++; g.pops.push({ text: `Key ${g.keys} of ${KEYS}`, t: 0 }); }
+    if (Math.hypot(k.x - p.x, k.y - p.y) < p.r + 1.2) {
+      g.keysOnFloor.splice(i, 1); g.keys++;
+      if (g.keys >= KEYS) { g.clearT = 2; g.pops.push({ text: 'Floor clear', t: 0, big: true }); }
+      else g.pops.push({ text: `Key ${g.keys} of ${KEYS}`, t: 0 });
+    }
   }
-  if (g.door && Math.hypot(g.door.x - p.x, g.door.y - p.y) < p.r + 2.2) {
-    if (g.keys >= KEYS) { nextFloor(g); return; }
-    if (!g.doorPop || g.t - g.doorPop > 3) { g.doorPop = g.t; g.pops.push({ text: `The door needs ${KEYS} keys`, t: 0 }); }
-  }
+  if (g.clearT > 0 && (g.clearT -= dt) <= 0) { nextFloor(g); return; }
 
   // chests: walk into one to open it
   for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; g.run.offers.push(chestOffer(g, c.rarity)); }

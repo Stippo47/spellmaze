@@ -1,0 +1,55 @@
+{
+ "title": "Keys, Hulk, statuses",
+ "topic": "builds",
+ "order": 15,
+ "cards": [
+  {
+   "id": "fixes",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Your round 7 notes",
+   "text": "4 keys and no door, the Hulk on straight lines, slower statuses, merged gas clouds.",
+   "why": "Everything from the last deck. Mark any part that's off.",
+   "details": "Version 0.11.0. Close and reopen the app twice to get it.",
+   "parts": [
+    {
+     "id": "keys",
+     "title": "4 keys",
+     "text": "No door. Four random camps have a gold-ringed keeper with a key. The 4th key clears the floor and you move on.",
+     "images": [
+      "../../../films/keeper.png"
+     ]
+    },
+    {
+     "id": "hulk",
+     "title": "Hulk",
+     "text": "Rolls only along straight lines, turning 90 degrees at a time on a cooldown. It arrives in the biggest room you can't see.",
+     "videos": [
+      "../../../films/hulk.mp4"
+     ]
+    },
+    {
+     "id": "statuses",
+     "title": "Statuses",
+     "text": "Build-up about half as fast, and after a burst (freeze, rot...) that enemy can't burst from it again for 5 s."
+    },
+    {
+     "id": "clouds",
+     "title": "Gas clouds",
+     "text": "Drawn on the floor under walls and everything, overlapping clouds as one shape.",
+     "videos": [
+      "../../../films/poison.mp4"
+     ]
+    },
+    {
+     "id": "shard",
+     "title": "Shard",
+     "text": "Here it is: the double star, close up.",
+     "images": [
+      "../../../films/shard-star-game.png"
+     ]
+    }
+   ]
+  }
+ ]
+}
