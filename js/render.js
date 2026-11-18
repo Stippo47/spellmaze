@@ -44,6 +44,19 @@ export function makeRenderer(canvas) {
       drawCells(m, x0, y0, x1, y1, null, true, LIT, 'walls', g.visStamp, g.visNow);
     }
 
+    // chests: gold boxes. Seen ones stay drawn (faint out of sight) in Remembered sight
+    for (const c of g.chests) {
+      const vis = mode === 'all' || canSee(g, c.x, c.y);
+      if (!vis && !(mode === 'remember' && g.seen[Math.floor(c.y) * G + Math.floor(c.x)])) continue;
+      ctx.globalAlpha = vis ? 1 : 0.35;
+      if (c.open) { ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.15; ctx.strokeRect(c.x - 0.8, c.y - 0.6, 1.6, 1.2); }
+      else {
+        ctx.fillStyle = COL.gold; ctx.fillRect(c.x - 0.9, c.y - 0.7, 1.8, 1.4);
+        ctx.fillStyle = '#7a4d00'; ctx.fillRect(c.x - 0.9, c.y - 0.18, 1.8, 0.2); ctx.fillRect(c.x - 0.15, c.y - 0.3, 0.3, 0.42);
+      }
+    }
+    ctx.globalAlpha = 1;
+
     // XP
     ctx.fillStyle = COL.xp;
     for (const q of g.gems) {

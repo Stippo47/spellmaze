@@ -2,6 +2,7 @@
 import { makeMaze, rayStamp, lineClear, pathField } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
 import { level, turn, hunt, lunge, burn, blastR, blastDmg } from './modules.js';
+import { newRun, rebuild, chestOffer, levelOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
 export const SIGHT = 34;          // how far you can see, in cells
@@ -21,18 +22,34 @@ export function newGame(opts) {
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9,
     enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [],
-    build: opts.build || { weapon: {}, spawn: {}, dash: {} }, spawnCool: 0, spawnAim: null,
+    run: newRun(), practice: opts.practice ? opts.build : null, build: null, chests: [], spawnCool: 0, spawnAim: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0,
     vis: new Float32Array(RAYS * 2), field: new Uint16Array(m.G * m.G), fieldT: 0,
     spawnAcc: 0, nextWave: 60, wave: 0, aim: null, dashAim: null,
     ring: [],
   };
+  rebuild(g);
+  placeChests(g);
   setWeapon(g, opts.weapon || 'pistol');
   refreshField(g);
   updateSight(g);
   return g;
 }
+
+// Chests (round 3 answer): one in four dead ends, and one in each hall. None in practice.
+function placeChests(g) {
+  if (g.practice) return;
+  const m = g.m, s = m.start;
+  for (const d of m.deadEnds) if (Math.hypot(d.x - s.x, d.y - s.y) > 16 && g.R() < 0.25) g.chests.push({ x: d.x, y: d.y });
+  for (const h of m.halls) {
+    const x = (m.cxs[h.i] + m.cxs[h.i + h.s - 1]) / 2, y = (m.cys[h.j] + m.cys[h.j + h.s - 1]) / 2;
+    g.chests.push({ x, y, hall: true });
+  }
+}
+
+const cdMul = (g) => Math.pow(0.92, g.run.vitals.cooldown);
+export const pickupRange = (g) => 3.5 + g.run.vitals.pickup;
 
 export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
@@ -202,7 +219,7 @@ function stepBolts(g, dt) {
 // ---------- the Spawn cast: balls ----------
 function throwBall(g, ax, ay) {
   if (g.spawnCool > 0) return;
-  g.spawnCool = SPAWN.cooldown;
+  g.spawnCool = SPAWN.cooldown * cdMul(g);
   const n = 1 + L(g, 'spawn', 'extra'), base = Math.atan2(ay, ax);
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * 0.35, dx = Math.cos(a), dy = Math.sin(a);
@@ -270,7 +287,7 @@ function startDash(g, dx, dy, chained) {
     if (e) { const ex = e.x - p.x, ey = e.y - p.y, ed = Math.hypot(ex, ey) || 1; dx = ex / ed; dy = ey / ed; }
   }
   if (!chained) {
-    p.charges -= 1; if (p.recharge <= 0) p.recharge = DASH.recharge;
+    p.charges -= 1; if (p.recharge <= 0) p.recharge = DASH.recharge * cdMul(g);
     p.chain = L(g, 'dash', 'extra');
   }
   p.dashT = DASH.time; p.dx = dx; p.dy = dy; p.fx = dx; p.fy = dy;
@@ -336,7 +353,7 @@ function targetAlive(t) { const mn = t / 60; return Math.min(240, Math.round(6 +
 
 // ---------- step ----------
 export function step(g, dt, inp) {
-  if (g.over) return;
+  if (g.over || g.run.offers.length) return;   // a chest or level-up card is up: the game waits
   g.t += dt; g.frame = (g.frame || 0) + 1;
   const p = g.p, m = g.m, w = g.weapon;
 
@@ -359,15 +376,15 @@ export function step(g, dt, inp) {
   // rounds come back
   g.cool = Math.max(0, g.cool - dt); g.sinceShot += dt;
   if (w.refill === 'full') {
-    if (g.reloadT > 0) { g.reloadT -= dt; if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
+    if (g.reloadT > 0) { g.reloadT -= dt / cdMul(g); if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
     else if (g.ammo < 1 || (g.ammo < w.rounds && g.sinceShot >= w.refillDelay)) g.reloadT = w.reloadTime;
-  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt);
+  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt / cdMul(g));
 
   // dash charges
-  if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge : 0; } }
+  if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge * cdMul(g) : 0; } }
 
   // player movement
-  const SPEED = 8.5;
+  const SPEED = 8.5 * (1 + 0.07 * g.run.vitals.speed);
   if (p.dashT > 0) stepDash(g, dt, inp);
   else {
     const mx = inp.move.x, my = inp.move.y, mm = Math.min(1, Math.hypot(mx, my));
@@ -451,15 +468,20 @@ export function step(g, dt, inp) {
   g.blasts = g.blasts.filter(b => b.t < 0.35);
   for (let i = g.enemies.length - 1; i >= 0; i--) if (g.enemies[i].hp <= 0) g.enemies.splice(i, 1);
 
+  // chests: walk into one to open it
+  for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; g.run.offers.push(chestOffer(g)); }
+
   // XP
   for (let i = g.gems.length - 1; i >= 0; i--) {
     const q = g.gems[i], dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
-    if (d < 3.5 || q.pull) { q.pull = true; const sp = 6 + (q.sp = (q.sp || 0) + dt * 40); q.x += dx / d * sp * dt; q.y += dy / d * sp * dt; }
+    if (d < pickupRange(g) || q.pull) { q.pull = true; const sp = 6 + (q.sp = (q.sp || 0) + dt * 40); q.x += dx / d * sp * dt; q.y += dy / d * sp * dt; }
     if (d < p.r + 0.3) {
       g.gems.splice(i, 1); g.xp += q.v;
-      const need = 5 + g.level * 4;
-      if (g.xp >= need) { g.xp -= need; g.level++; g.pops.push({ text: `Level ${g.level}`, t: 0 }); }
     }
+  }
+  for (let need = 5 + g.level * 4; g.xp >= need; need = 5 + g.level * 4) { // XP from gems or a scrapped chest
+    g.xp -= need; g.level++; g.pops.push({ text: `Level ${g.level}`, t: 0 });
+    if (!g.practice) g.run.offers.push(levelOffer(g));
   }
 
   for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.9; q.vy *= 0.9; if (q.life <= 0) g.parts.splice(i, 1); }

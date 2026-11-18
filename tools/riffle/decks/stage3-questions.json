@@ -1,0 +1,57 @@
+{
+ "title": "Stage 3: questions",
+ "topic": "builds",
+ "order": 6,
+ "cards": [
+  {
+   "id": "start",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "The empty first minutes",
+   "text": "Runs start with no modules, so early level-ups only offer health, speed and the like. Fix it how?",
+   "why": "The first chest can be two minutes away. Until then the build part of the game hasn't started.",
+   "pick": "a",
+   "options": [
+    {
+     "id": "a",
+     "label": "Pick 1 of 3",
+     "text": "Each run starts by choosing one of 3 common modules."
+    },
+    {
+     "id": "b",
+     "label": "Level-ups give some",
+     "text": "While you have free slots, level-ups can offer a new module."
+    },
+    {
+     "id": "c",
+     "label": "A chest near start",
+     "text": "One chest always sits a short walk away."
+    },
+    {
+     "id": "d",
+     "label": "Leave it",
+     "text": "The plain start is fine."
+    }
+   ]
+  },
+  {
+   "id": "slots",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Slots",
+   "text": "Weapon 3 slots, Spawn 2, Dash 2 at the start, more bought between runs?",
+   "why": "Few slots make every chest a real choice. Many let builds stack up faster.",
+   "pick": "Yes, as it is."
+  },
+  {
+   "id": "next",
+   "kind": "question",
+   "rarity": "rare",
+   "title": "Stage 4 next",
+   "text": "Next: the other enemies, camps in halls guarding their chests, statuses, and the first boss.",
+   "why": "Mites alone don't test the modules. Camps in halls also give the door-and-keys idea its keys later.",
+   "pick": "Yes. Camps first, so halls have something in them, then enemies two or three at a time.",
+   "details": "You said camps go in halls. Each camp would be a tier of enemies sitting in a hall around its chest, waking when you come near. The door and keys come after, once camps exist."
+  }
+ ]
+}

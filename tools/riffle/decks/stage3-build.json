@@ -1,0 +1,65 @@
+{
+ "title": "Stage 3: chests and levels",
+ "topic": "builds",
+ "order": 5,
+ "cards": [
+  {
+   "id": "run",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "You earn your build now",
+   "text": "Runs start with no modules. Chests give them, level-ups level them, rarity caps how far.",
+   "why": "First time the game is a run rather than a test bench. Mark any part that's off.",
+   "details": "Version 0.4.0. Close and reopen the app twice to get it.\n\nThe free build is still there: Pause → Practice build: On. That turns off chests and level-ups for that run.",
+   "parts": [
+    {
+     "id": "chests",
+     "title": "Chests",
+     "text": "Gold boxes in a quarter of dead ends and one in every hall, as you picked. Walk in to open: the game waits while you choose which cast gets the module, or scrap it for XP.",
+     "images": [
+      "../../../films/offer-chest.png"
+     ]
+    },
+    {
+     "id": "dupes",
+     "title": "Duplicates",
+     "text": "The same module in the same cast: a rarer one promotes yours (level kept, cap raised); same or lower gives +1 level. A full cast asks which module to replace."
+    },
+    {
+     "id": "levels",
+     "title": "Level-ups",
+     "text": "4 cards: +1 level to modules you have (below their cap), or you: health, speed, cooldowns, pickup range.",
+     "images": [
+      "../../../films/offer-level.png"
+     ]
+    },
+    {
+     "id": "rarity",
+     "title": "Rarity",
+     "text": "Common 3, Uncommon 4 (green), Rare 5, Epic 7, Legendary 9: the level each can reach. Chests get rarer as the run goes on."
+    },
+    {
+     "id": "build",
+     "title": "Your build",
+     "text": "Pause → Build shows the run's modules and lets you move one to another cast; it keeps its level. Slots: Weapon 3, Spawn 2, Dash 2.",
+     "images": [
+      "../../../films/run-build.png"
+     ]
+    },
+    {
+     "id": "halls",
+     "title": "More big rooms",
+     "text": "Your note: homing needs room. 9 halls now, up to 4×4 squares.",
+     "images": [
+      "../../../films/maze-overview.png"
+     ]
+    },
+    {
+     "id": "explode",
+     "title": "Explode starts small",
+     "text": "Level 1 is a small, weak pop (1.7 cells, 8 damage); level 5 is 3.5 cells, 28."
+    }
+   ]
+  }
+ ]
+}

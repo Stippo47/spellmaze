@@ -10,7 +10,7 @@ export const WIDTHS = {
   wide:     { road: 8, normal: 8, tunnel: 8, label: 'All 4 wide' },
 };
 
-export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15, halls = 5 } = {}) {
+export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15, halls = Math.round(nodes * nodes / 64) } = {}) {   // 24x24: 9 halls (round 3: more big rooms)
   const R = rng(seed);
   const W = WIDTHS[widths] || WIDTHS.mixed;
   const N = nodes;
@@ -54,7 +54,7 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
   // 3. Halls: small blocks of nodes opened up into one room.
   const hallList = [];
   for (let t = 0; t < halls * 6 && hallList.length < halls; t++) {
-    const s = R() < 0.5 ? 2 : 3;
+    const s = 2 + ((R() * 3) | 0);   // 2x2 to 4x4 squares
     const i0 = 1 + ((R() * (N - s - 2)) | 0), j0 = 1 + ((R() * (N - s - 2)) | 0);
     const ok = hallList.every(h => i0 + s + 1 < h.i || h.i + h.s + 1 < i0 || j0 + s + 1 < h.j || h.j + h.s + 1 < j0);
     if (ok) hallList.push({ i: i0, j: j0, s });

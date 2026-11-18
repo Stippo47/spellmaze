@@ -29,15 +29,15 @@ export const MODULES = {
     dash: (l) => `blast where the dash ends (${blastR(l).toFixed(1)} wide, ${blastDmg(l)})` } },
 };
 export const MODULE_ORDER = ['extra', 'bounce', 'home', 'burn', 'explode'];
-export const MAX_LEVEL = 5;
+export const MAX_LEVEL = 9;   // the practice build goes to legendary's cap
 
 // Numbers by level, in one place.
 export const turn = (l) => 3 + 2.5 * l;          // radians a second a homing bolt can turn
 export const hunt = (l) => 9 + 2 * l;            // a hunting ball's speed
 export const lunge = (l) => 6 + 2 * l;           // how far ahead a homing dash looks
 export const burn = (l) => 18 + 8 * (l - 1);     // burn build-up a hit
-export const blastR = (l) => 2 + 0.5 * l;        // blast radius in cells
-export const blastDmg = (l) => 8 + 5 * l;
+export const blastR = (l) => 1.2 + 0.45 * l;     // blast radius in cells: starts small (round 3: 'very weak/small')
+export const blastDmg = (l) => 3 + 5 * l;
 
 export const level = (build, cast, id) => (build && build[cast] && build[cast][id]) || 0;
 export const allowed = (cast, id) => !!MODULES[id].on[CASTS[cast].shape];

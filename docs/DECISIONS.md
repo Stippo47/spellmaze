@@ -3,6 +3,18 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-17 — stage 2 answered; stage 3 built
+
+Answers: every module on every cast good. Build screen: decent (no comment). Explode: "should start out very weak/
+small" (now 1.7 cells, 8 at level 1). Homing needs "more big rooms" (9 halls, up to 4x4). Spawn cast good.
+Chests: **1 in 4 dead ends plus halls, and from camps; camps in halls.** **Door and keys: go.** **Level-ups next: go.**
+
+Stage 3 (v0.4.0), my calls inside the agreed plan: runs start with no modules; chests offer one module of a rolled
+rarity (rarer each minute), placed in a cast you choose or scrapped for XP; duplicates promote or level; full casts ask
+what to replace. Level-ups: 4 cards from modules below their cap (weighted 3) and vitals (health +20, speed +7%,
+cooldowns 8% faster, pickup +1 cell). Rarity caps Common 3, Uncommon 4, Rare 5, Epic 7, Legendary 9. Slots 3/2/2.
+Practice build is a setting (off by default): free build, no chests or level-ups.
+
 ## 2026-11-17 — stage 2 built (my calls, to be reviewed in the stage 2 decks)
 
 - Five modules (Extra, Bounce, Home, Burn, Explode) on all three casts, levels 0-5, numbers in `js/modules.js`.
