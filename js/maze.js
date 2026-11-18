@@ -15,7 +15,13 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
   const W = WIDTHS[widths] || WIDTHS.mixed;
   const N = nodes;
   const P = Math.max(W.road, W.normal, W.tunnel) + 2;   // pitch: widest corridor + a 2-cell wall
-  const G = N * P + 2;                                  // 1-cell border on each side
+  // Some rows and columns sit further apart, so some walls are as thick as a tunnel (round 2 answer).
+  const gapX = [], gapY = [];
+  for (let i = 0; i < N; i++) { gapX.push(R() < 0.3 ? 4 : 0); gapY.push(R() < 0.3 ? 4 : 0); }
+  const cxs = [], cys = [];
+  let ax = 1, ay = 1;
+  for (let i = 0; i < N; i++) { cxs.push(ax + (P + gapX[i]) / 2); ax += P + gapX[i]; cys.push(ay + (P + gapY[i]) / 2); ay += P + gapY[i]; }
+  const G = Math.max(ax, ay) + 1;                       // 1-cell border on each side
   const at = (i, j) => j * N + i;
 
   // 1. Perfect maze by depth-first carving: long corridors, lots of dead ends.
@@ -88,24 +94,24 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
 
   // 5. Carve cells.
   const cells = new Uint8Array(G * G).fill(1);
-  const ctr = (i) => 1 + i * P + P / 2;
+  const cx = (i) => cxs[i], cy = (j) => cys[j];
   const open = (x0, y0, x1, y1) => {
     for (let y = Math.max(1, y0); y < Math.min(G - 1, y1); y++) for (let x = Math.max(1, x0); x < Math.min(G - 1, x1); x++) cells[y * G + x] = 0;
   };
   const nodeW = new Uint8Array(N * N);
   for (const [k, w] of edges) { const [a, b] = k.split('-').map(Number); nodeW[a] = Math.max(nodeW[a], w); nodeW[b] = Math.max(nodeW[b], w); }
   for (let c = 0; c < N * N; c++) {
-    const w = nodeW[c] || W.normal, x = ctr(c % N), y = ctr((c / N) | 0);
+    const w = nodeW[c] || W.normal, x = cx(c % N), y = cy((c / N) | 0);
     open(x - w / 2, y - w / 2, x + w / 2, y + w / 2);
   }
   for (const [k, w] of edges) {
     const [a, b] = k.split('-').map(Number);
-    const ax = ctr(a % N), ay = ctr((a / N) | 0), bx = ctr(b % N), by = ctr((b / N) | 0);
+    const ax = cx(a % N), ay = cy((a / N) | 0), bx = cx(b % N), by = cy((b / N) | 0);
     open(Math.min(ax, bx) - w / 2, Math.min(ay, by) - w / 2, Math.max(ax, bx) + w / 2, Math.max(ay, by) + w / 2);
   }
   for (const h of hallList) {
     const w = W.road;
-    open(ctr(h.i) - w / 2, ctr(h.j) - w / 2, ctr(h.i + h.s - 1) + w / 2, ctr(h.j + h.s - 1) + w / 2);
+    open(cx(h.i) - w / 2, cy(h.j) - w / 2, cx(h.i + h.s - 1) + w / 2, cy(h.j + h.s - 1) + w / 2);
   }
 
   // "clear": a 2x2 body centred on this cell's centre fits (the cell and its 8 neighbours are open).
@@ -116,8 +122,8 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     clear[y * G + x] = ok;
   }
 
-  const startX = ctr(N >> 1), startY = ctr(N >> 1);
-  return { G, N, P, cells, clear, deadEnds: deadEnds.map(c => ({ x: ctr(c % N), y: ctr((c / N) | 0) })),
+  const startX = cx(N >> 1), startY = cy(N >> 1);
+  return { G, N, P, cells, clear, deadEnds: deadEnds.map(c => ({ x: cx(c % N), y: cy((c / N) | 0) })), cxs, cys,
     halls: hallList, start: { x: startX, y: startY }, widths };
 }
 
@@ -145,7 +151,7 @@ export function rayDist(m, x, y, dx, dy, max) {
 
 // Same march, stamping every cell passed (and the wall it stops at) as in view now, and as seen.
 // Returns the distance to the wall, up to max.
-export function rayStamp(m, x, y, dx, dy, max, now, stamp, seen) {
+export function rayStamp(m, x, y, dx, dy, max, now, stamp, seen, seenAt = 1) {
   let cx = Math.floor(x), cy = Math.floor(y);
   const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
   const tdx = dx === 0 ? 1e9 : Math.abs(1 / dx), tdy = dy === 0 ? 1e9 : Math.abs(1 / dy);
@@ -153,12 +159,12 @@ export function rayStamp(m, x, y, dx, dy, max, now, stamp, seen) {
   let ty = dy === 0 ? 1e9 : (dy > 0 ? cy + 1 - y : y - cy) * tdy;
   const G = m.G, cells = m.cells;
   let t = 0;
-  stamp[cy * G + cx] = now; seen[cy * G + cx] = 1;
+  stamp[cy * G + cx] = now; seen[cy * G + cx] = seenAt;
   while (t < max) {
     if (tx < ty) { t = tx; tx += tdx; cx += sx; } else { t = ty; ty += tdy; cy += sy; }
     if (cx < 0 || cy < 0 || cx >= G || cy >= G) return Math.min(t, max);
     const i = cy * G + cx;
-    if (t < max) { stamp[i] = now; seen[i] = 1; }
+    if (t < max) { stamp[i] = now; seen[i] = seenAt; }
     if (cells[i]) return Math.min(t, max);
   }
   return max;

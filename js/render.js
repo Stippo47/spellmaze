@@ -31,7 +31,14 @@ export function makeRenderer(canvas) {
     const y0 = Math.max(0, Math.floor(cy - H / 2 / s) - 1), y1 = Math.min(G, Math.ceil(cy + H / 2 / s) + 1);
     const mode = opts.sight;
 
-    if (mode === 'remember') drawCells(m, x0, y0, x1, y1, g.seen, false, MEM);
+    if (mode === 'remember') { // what you've seen fades out slowly, over FADE seconds
+      const seen = g.seen, now = g.t + 1, FADE = 120, K = 5;
+      for (let k = 1; k <= K; k++) {
+        ctx.globalAlpha = k / K;
+        drawCells(m, x0, y0, x1, y1, (i) => seen[i] > 0 && Math.ceil((1 - (now - seen[i]) / FADE) * K) === k, false, MEM);
+      }
+      ctx.globalAlpha = 1;
+    }
     if (mode === 'all') drawCells(m, x0, y0, x1, y1, null, true, LIT);
     else {
       ctx.save();
@@ -138,13 +145,13 @@ export function makeRenderer(canvas) {
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
   }
 
-  // Floors and walls in a box of cells. seen: only cells you've seen (the faint memory).
+  // Floors and walls in a box of cells. seen: a filter on cell index (the fading memory).
   const LIT = { floor: COL.floor, wall: COL.wallTop, edge: COL.wallEdge };
   const MEM = { floor: COL.memFloor, wall: COL.memWall, edge: COL.memEdge };
   // only: 'floor' or 'walls' to draw one layer. stamp/now: walls only where in view right now.
   function drawCells(m, x0, y0, x1, y1, seen, lit, pal, only, stamp, now) {
     const G = m.G, c = m.cells;
-    const show = (i) => (!seen || seen[i]) && (!stamp || stamp[i] === now);
+    const show = (i) => (!seen || seen(i)) && (!stamp || stamp[i] === now);
     if (only !== 'walls') {
     ctx.fillStyle = pal.floor;
     for (let y = y0; y < y1; y++) {
@@ -229,6 +236,10 @@ export function makeRenderer(canvas) {
     } else {
       ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.arc(f.x, f.y, rr, 0, TAU); ctx.stroke();
       ctx.strokeStyle = COL.gold; ctx.beginPath(); ctx.arc(f.x, f.y, rr, a0, a0 + TAU * g.ammo / n); ctx.stroke();
+    }
+    if (g.reloadT > 0) { // a full reload: a thin white sweep inside the ring
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath(); ctx.arc(f.x, f.y, rr - 7, a0, a0 + TAU * (1 - g.reloadT / w.reloadTime)); ctx.stroke();
     }
     ctx.fillStyle = COL.ui; ctx.font = '700 10px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(w.trigger === 'release' ? 'drag · let go' : w.trigger === 'hold' ? 'hold to fire' : 'auto · drag to aim', f.x, f.y + f.r + 26);

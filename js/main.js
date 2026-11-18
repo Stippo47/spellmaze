@@ -6,9 +6,10 @@ import { WEAPONS, WEAPON_ORDER } from './weapons.js';
 import { fmtTime } from './util.js';
 
 const canvas = document.getElementById('game');
-const DEFAULTS = { sight: 'remember', ticks: true, widths: 'mixed', nodes: 24, view: 22, weapon: 'pistol', fps: false };
+const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false };
 let opts = { ...DEFAULTS };
-try { Object.assign(opts, JSON.parse(localStorage.getItem('spellmaze-opts') || '{}')); } catch {}
+try { const sv = JSON.parse(localStorage.getItem('spellmaze-opts') || '{}'); if (sv.v === 2) Object.assign(opts, sv); } catch {}
+opts.v = 2; // new defaults (round 2): saved settings from before are dropped
 const q = new URLSearchParams(location.search);
 for (const k of Object.keys(DEFAULTS)) if (q.has(k)) { const v = q.get(k); opts[k] = typeof DEFAULTS[k] === 'number' ? +v : typeof DEFAULTS[k] === 'boolean' ? v === '1' : v; }
 const save = () => { try { localStorage.setItem('spellmaze-opts', JSON.stringify(opts)); } catch {} };

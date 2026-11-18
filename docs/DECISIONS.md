@@ -3,6 +3,27 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-17 (later) — stage 1 decks and read-back answered
+
+- Stage 1 build: good on every part (pistol, SMG, auto, dash, crowds hold you, waves, flat look).
+- **Sight: Remembered**, and it **fades out very slowly**. **No enemy arrows.** Built: memory fades over 2 minutes,
+  arrows off by default (still a setting).
+- **Camera: Far** (28 cells top to bottom). Default now.
+- **Corridors: Mixed**, go.
+- **Sizes: wall thickness** (and camera). "Should have tunnel sized walls some places." Built: about a third of maze rows
+  and columns sit 4 cells further apart, so some walls are as thick as a tunnel.
+- **Rounds: each weapon picks.** Built: Pistol and Auto trickle back; SMG does a full reload (1.4 s) when empty or
+  after a pause, shown as a white sweep inside the ring. Firing cancels a reload.
+- **Firing lives on the weapon** (a weapon = shape + trigger + rounds); modules can change it. Go.
+- **Crowds hold you:** go.
+- Read-back: all good. Notes:
+  - Endless, but maybe **a door to the next level**: harder, wave timer resets, needs **x keys spread through the
+    maze** to open. Idea, not yet decided.
+  - **Waves come from some sides, not every side.**
+  - Chests: the problem was **too many chests in dead ends**. Not every dead end; they can also be in the halls.
+  - Generic terms vs my channels: "Idk. I liked ur system as well. Just need to test and see." So the module system
+    gets built and tested rather than designed further on paper.
+
 ## 2026-11-17 — first pack answered (11 decks, read in full)
 
 ### Start

@@ -30,7 +30,7 @@ const BOT = () => {
     // goals: far node centres that aren't dead ends (dead ends get you cornered)
     const m = g.m, G = m.G, P = m.P, N = m.N; let d = null;
     for (let t = 0; t < 200 && !d; t++) {
-      const i = (Math.random() * N) | 0, j = (Math.random() * N) | 0, x = 1 + i * P + P / 2, y = 1 + j * P + P / 2;
+      const i = (Math.random() * N) | 0, j = (Math.random() * N) | 0, x = m.cxs[i], y = m.cys[j];
       if (Math.hypot(x - g.p.x, y - g.p.y) > 35 && !m.deadEnds.some(e => e.x === x && e.y === y)) d = { x, y };
     }
     d = d || m.deadEnds[0];

@@ -20,7 +20,8 @@ export function newGame(opts) {
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9,
     enemies: [], bolts: [], gems: [], parts: [], pops: [],
-    seen: new Uint8Array(m.G * m.G), visStamp: new Uint32Array(m.G * m.G), visNow: 0,
+    seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
+    visStamp: new Uint32Array(m.G * m.G), visNow: 0,
     vis: new Float32Array(RAYS * 2), field: new Uint16Array(m.G * m.G), fieldT: 0,
     spawnAcc: 0, nextWave: 60, wave: 0, aim: null, dashAim: null,
     ring: [],
@@ -31,7 +32,7 @@ export function newGame(opts) {
   return g;
 }
 
-export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; }
+export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
 // ---------- collision ----------
 function pushOutOfWalls(m, b) {
@@ -65,7 +66,7 @@ function updateSight(g) {
   const p = g.p, m = g.m, now = ++g.visNow;
   for (let i = 0; i < RAYS; i++) {
     const a = i / RAYS * TAU, dx = Math.cos(a), dy = Math.sin(a);
-    const d = rayStamp(m, p.x, p.y, dx, dy, SIGHT, now, g.visStamp, g.seen);
+    const d = rayStamp(m, p.x, p.y, dx, dy, SIGHT, now, g.visStamp, g.seen, g.t + 1);
     g.vis[i * 2] = p.x + dx * d; g.vis[i * 2 + 1] = p.y + dy * d;
   }
 }
@@ -88,6 +89,7 @@ function nearestVisible(g, range) {
 function fire(g, ax, ay) {
   const w = g.weapon;
   if (g.ammo < 1 || g.cool > 0) return false;
+  g.reloadT = 0;
   g.ammo -= 1; g.cool = w.cooldown; g.sinceShot = 0;
   const a = Math.atan2(ay, ax) + (g.R() - 0.5) * 2 * w.spread;
   const dx = Math.cos(a), dy = Math.sin(a);
@@ -153,7 +155,10 @@ export function step(g, dt, inp) {
 
   // rounds come back
   g.cool = Math.max(0, g.cool - dt); g.sinceShot += dt;
-  if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt);
+  if (w.refill === 'full') {
+    if (g.reloadT > 0) { g.reloadT -= dt; if (g.reloadT <= 0) { g.reloadT = 0; g.ammo = w.rounds; } }
+    else if (g.ammo < 1 || (g.ammo < w.rounds && g.sinceShot >= w.refillDelay)) g.reloadT = w.reloadTime;
+  } else if (g.sinceShot >= w.refillDelay) g.ammo = Math.min(w.rounds, g.ammo + w.refillRate * dt);
 
   // dash charges
   if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge : 0; } }
