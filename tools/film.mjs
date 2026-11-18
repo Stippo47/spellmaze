@@ -47,23 +47,25 @@ const TRIO = `(() => { const g = SM.g, m = g.m, p = g.p, rays = [];
     const r = Math.min(13, o.r - 1); SM.lib.makeEnemy(g, t, p.x + Math.cos(o.a) * r, p.y + Math.sin(o.a) * r); } })()`;
 // Round 5: breaking blocks. A scripted player walks to the nearest block it can see, shoots it with the SMG, and
 // dashes into every other one.
-const BLOCKS = `(() => { const g = SM.g, p = g.p, m0 = g.m;
-  // stand beside the nearest block with open floor in front of it (the clip jumps to the next when none is in reach)
-  const hop = () => { const cand = m0.blocks.filter(b => !b.broken).map(b => ({ b, d: Math.hypot(b.x0 + 2 - p.x, b.y0 + 2 - p.y) })).sort((a, c) => a.d - c.d);
-    for (const { b } of cand) for (const [dx, dy] of [[0, -8], [0, 8], [-8, 0], [8, 0]]) { const x = b.x0 + 2 + dx, y = b.y0 + 2 + dy;
-      if (m0.clear[Math.floor(y) * m0.G + Math.floor(x)] && SM.lib.lineClear(m0, x, y, b.x0 + 2 + dx * 0.35, b.y0 + 2 + dy * 0.35)) { p.x = x; p.y = y; return; } } };
-  hop(); let idle = 0;
+const BLOCKS = `(() => { const g = SM.g, p = g.p, m0 = g.m, G = m0.G;
+  // round 6: tiles are single cells. Find tiles in sight, shoot them with the SMG, dash into every other group;
+  // the clip jumps to the next tiles when none are in reach.
+  const near = (r) => { let best = null, bd = r; const px = Math.floor(p.x), py = Math.floor(p.y);
+    for (let y = py - r; y <= py + r; y++) for (let x = px - r; x <= px + r; x++) { if (m0.cells[y * G + x] !== 2) continue;
+      const tx = x + 0.5, ty = y + 0.5, d = Math.hypot(tx - p.x, ty - p.y); if (d >= bd || d < 0.5) continue;
+      if (SM.lib.lineClear(m0, p.x, p.y, tx - (tx - p.x) / d * 0.9, ty - (ty - p.y) / d * 0.9)) { bd = d; best = { x: tx, y: ty, i: y * G + x }; } }
+    return best; };
+  const hop = () => { for (let r = 10; r < 200; r += 6) for (let k = 0; k < 40; k++) { const a = Math.random() * 6.283, x = p.x + Math.cos(a) * r, y = p.y + Math.sin(a) * r, c = Math.floor(y) * G + Math.floor(x);
+      if (!m0.clear[c]) continue; const ox = p.x, oy = p.y; p.x = x; p.y = y; const t = near(9); if (t && t.d !== 0) return; p.x = ox; p.y = oy; } };
   g.enemies = g.enemies.filter(e => e.camp && Math.hypot(e.x - p.x, e.y - p.y) > 50); g.nextWave = 1e9; g.waveWarn = null; g.spawnAcc = -1e9;
-  SM.setOpt('weapon', 'smg'); let n = 0, tg = null, dashT = 0;
-  BOT.think = () => { const g = SM.g, p = g.p, m = g.m, I = SM.inp;
-    if (!tg || tg.broken) { tg = null; let bd = 26; n++;
-      for (const b of m.blocks) { if (b.broken) continue; const x = b.x0 + 2, y = b.y0 + 2, d = Math.hypot(x - p.x, y - p.y); if (d > bd || d < 1) continue;
-        if (SM.lib.lineClear(m, p.x, p.y, x - (x - p.x) / d * 3.2, y - (y - p.y) / d * 3.2)) { bd = d; tg = b; } } }
+  SM.setOpt('weapon', 'smg'); hop(); let n = 0, idle = 0, tg = null, dashT = 0;
+  BOT.think = () => { const I = SM.inp;
+    if (!tg || m0.cells[tg.i] !== 2) { tg = near(14); n++; }
     I.fire.engaged = false; I.fire.down = false; I.move.x = 0; I.move.y = 0;
     if (!tg) { if (++idle > 15) { hop(); idle = 0; } return; }
     idle = 0;
-    const dx = tg.x0 + 2 - p.x, dy = tg.y0 + 2 - p.y, d = Math.hypot(dx, dy);
-    if (n % 2 === 0 && d < 12) { if (dashT-- <= 0 && g.p.charges >= 1) { I.events.push({ type: 'dashRelease', x: dx / d, y: dy / d }); dashT = 12; } if (d > 4) { I.move.x = dx / d; I.move.y = dy / d; } return; }
+    const dx = tg.x - p.x, dy = tg.y - p.y, d = Math.hypot(dx, dy);
+    if (n % 3 === 0 && d < 8) { if (dashT-- <= 0 && p.charges >= 1) { I.events.push({ type: 'dashRelease', x: dx / d, y: dy / d }); dashT = 14; } return; }
     if (d > 9) { I.move.x = dx / d; I.move.y = dy / d; return; }
     I.fire.engaged = true; I.fire.down = true; I.fire.x = dx / d; I.fire.y = dy / d; }; })()`;
 SCENES['blocks'] = { q: 'weapon=smg&sight=remember', warm: 1, film: 12, small: true, setup: BLOCKS, bot: {} };

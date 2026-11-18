@@ -1,0 +1,74 @@
+{
+ "title": "Pockets, tiles, one Dash",
+ "topic": "builds",
+ "order": 12,
+ "cards": [
+  {
+   "id": "build",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Your round 5 notes",
+   "text": "Dead-end pockets, 1-cell dark tiles, a shorter Dash shared with darts, afterimages, a flat star.",
+   "why": "Everything from the last two decks. Mark any part that's off.",
+   "details": "Version 0.8.0. Close and reopen the app twice to get it.",
+   "parts": [
+    {
+     "id": "pockets",
+     "title": "Dead ends",
+     "text": "Dead ends are back, as pockets: any part behind a single way in holds at most 6 squares. So 1 to 6 square dead ends, never a whole branch.",
+     "images": [
+      "../../../films/maze-overview.png"
+     ]
+    },
+    {
+     "id": "tiles",
+     "title": "Tiles",
+     "text": "One cell each, a darker wall, white for a moment when hit. Arms 2 cells thick, small clusters, filled-in barriers. In the map they're the bright blue bits.",
+     "videos": [
+      "../../../films/blocks.mp4"
+     ]
+    },
+    {
+     "id": "dash",
+     "title": "Dash 5",
+     "text": "Base dash is 5 cells now (was 6 at first). Duration on the Dash makes it longer."
+    },
+    {
+     "id": "dart",
+     "title": "Dart uses the Dash",
+     "text": "The dart aims, then does the same Dash as you, so it goes 5 cells. Its Dash can carry modules later, same as yours.",
+     "videos": [
+      "../../../films/enemies.mp4"
+     ]
+    },
+    {
+     "id": "ghosts",
+     "title": "Afterimages",
+     "text": "Dashes leave fading copies of the body behind; no squares or lines.",
+     "images": [
+      "../../../films/dash-ghost.png"
+     ],
+     "videos": [
+      "../../../films/dash.mp4"
+     ]
+    },
+    {
+     "id": "duration",
+     "title": "Duration module",
+     "text": "Duration is a module now: on a Weapon it's bolt range, on Spawn its life, on Dash its length, +20% a level. 'You' cards are 'Stat' cards.",
+     "images": [
+      "../../../films/card-level.png"
+     ]
+    },
+    {
+     "id": "shard",
+     "title": "Shard",
+     "text": "A flat gold four-point star, one colour, turning slowly.",
+     "images": [
+      "../../../films/shard-star-game.png"
+     ]
+    }
+   ]
+  }
+ ]
+}

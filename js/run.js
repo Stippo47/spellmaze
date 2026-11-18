@@ -16,7 +16,6 @@ export const MODULE_EVERY = 3;   // every 3rd level-up offers new modules (round
 // You, not a module. Round 4: level-ups felt weak, so bigger steps, and damage + duration join.
 export const VITALS = {
   damage:   { name: 'Power', text: () => `+15% damage from everything` },
-  duration: { name: 'Duration', text: () => `+15% longer: bolt range, spawn life, dash length` },
   health:   { name: 'Health', text: () => `+25 max health, and heal 25` },
   speed:    { name: 'Speed', text: () => `+8% move speed` },
   cooldown: { name: 'Cooldowns', text: () => `Spawn, Dash and reloads 10% faster` },

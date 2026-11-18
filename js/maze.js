@@ -10,7 +10,8 @@ export const WIDTHS = {
   narrow:   { road: 8, normal: 8, tunnel: 8, label: 'All 4 wide' },
   wide:     { road: 16, normal: 16, tunnel: 16, label: 'All 8 wide' },
 };
-const WALL = 4, CHUNK = 4;   // a breakable block is a CHUNK x CHUNK square of cells
+const WALL = 4;
+export const TILE_HP = 12;   // a breakable tile: one cell (round 6)
 
 export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15, halls = Math.round(nodes * nodes / 72) } = {}) {   // 24x24: 8 rooms, bigger and of several shapes (round 4)
   const R = rng(seed);
@@ -110,25 +111,40 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     r.ways = left;
   });
 
-  // 3b. Round 5: "only short local dead ends, not entire branches". A dead-end branch longer than 2 squares has its
-  //     tip joined to a neighbour (not into a room, so rooms keep their few ways in).
-  for (let pass = 0; pass < 6; pass++) {
+  // 3b. Round 6: dead ends are local pockets, not whole branches. Any part of the maze reached through one corridor
+  //     only (a bridge) may hold at most POCKET squares; a bigger one is joined back to the rest at its far end.
+  //     Pockets of 1 to POCKET squares stay, so short dead ends still exist.
+  const POCKET = 6, skip = new Set();
+  for (let pass = 0; pass < 300; pass++) {
     const ad = Array.from({ length: N * N }, () => []);
     for (const k of edges.keys()) { const [a, b] = k.split('-').map(Number); ad[a].push(b); ad[b].push(a); }
-    const touched = new Uint8Array(N * N); let added = 0;
-    for (let c = 0; c < N * N; c++) {
-      if (ad[c].length !== 1 || roomOf[c] >= 0 || touched[c]) continue;
-      let len = 0, prev = -1, cur = c;
-      while (ad[cur].length <= 2 && len < 4) { const nx = ad[cur].find(n => n !== prev); if (nx == null) break; prev = cur; cur = nx; len++; }
-      if (len <= 2) continue;
+    const tin = new Int32Array(N * N).fill(-1), low = new Int32Array(N * N), sub = new Int32Array(N * N);
+    let timer = 0, found = null;
+    const dfs = (v, parent) => {
+      tin[v] = low[v] = timer++; sub[v] = 1;
+      for (const to of ad[v]) {
+        if (to === parent) continue;
+        if (tin[to] >= 0) { low[v] = Math.min(low[v], tin[to]); continue; }
+        dfs(to, v); sub[v] += sub[to]; low[v] = Math.min(low[v], low[to]);
+        if (!found && low[to] > tin[v] && !skip.has(key(v, to)) && Math.min(sub[to], N * N - sub[to]) > POCKET) found = { v, to };
+      }
+    };
+    dfs(at(N >> 1, N >> 1), -1);
+    if (!found) break;
+    // the pocket: the smaller side of the bridge
+    const side = (start, block) => { const seen = new Set([start]), q = [start]; for (let h = 0; h < q.length; h++) for (const n of ad[q[h]]) if (!seen.has(n) && !(q[h] === start && n === block)) { seen.add(n); q.push(n); } return q; };
+    let pocket = side(found.to, found.v), door = found.to;
+    if (pocket.length > N * N / 2) { pocket = side(found.v, found.to); door = found.v; }
+    const inP = new Set(pocket), dist = new Map([[door, 0]]), q = [door];
+    for (let h = 0; h < q.length; h++) for (const n of ad[q[h]]) if (inP.has(n) && !dist.has(n)) { dist.set(n, dist.get(q[h]) + 1); q.push(n); }
+    let best = null, bd = -1;
+    for (const c of pocket) {
+      if (roomOf[c] >= 0) continue;
       const ci = c % N, cj = (c / N) | 0, nb = [];
       if (ci > 0) nb.push(c - 1); if (ci < N - 1) nb.push(c + 1); if (cj > 0) nb.push(c - N); if (cj < N - 1) nb.push(c + N);
-      const opts = nb.filter(n => roomOf[n] < 0 && !edges.has(key(c, n)));
-      if (!opts.length) continue;
-      const n = opts.find(n => ad[n].length === 1) ?? opts[ri(opts.length)];
-      edges.set(key(c, n), 0); touched[c] = touched[n] = 1; added++;
+      for (const n of nb) if (!inP.has(n) && roomOf[n] < 0 && (dist.get(c) || 0) > bd) { bd = dist.get(c) || 0; best = [c, n]; }
     }
-    if (!added) break;
+    if (best) edges.set(key(best[0], best[1]), 0); else skip.add(key(found.v, found.to));
   }
 
   // 4. Widths. Roads: the tree paths from the centre to the far corners. Tunnels: the last stretch into a
@@ -200,47 +216,43 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     r.box = { x0: cx(r.i) - w / 2, y0: cy(r.j) - w / 2, x1: cx(r.i + r.w - 1) + w / 2, y1: cy(r.j + r.h - 1) + w / 2 };
   }
 
-  // 6. Breakable blocks (round 5): arms off corridor walls (some reach right across), crates in wide spots and rooms,
-  //    and barriers in some walls between neighbouring squares, so breaking through makes a shortcut. Each block is
-  //    a CHUNK x CHUNK square of cells (value 2) with its own health.
-  const blockId = new Int32Array(G * G), blocks = [];
+  // 6. Breakable tiles (round 6: one cell each, drawn as a darker wall). Arms off corridor walls, 2 cells thick
+  //    (some reach right across); small clusters you go round, in wide squares and rooms; and barriers in some walls
+  //    between squares that aren't joined, so breaking through makes a shortcut. Each tile has its own health.
+  const bhp = new Float32Array(G * G);
   const sx0 = cx(N >> 1), sy0 = cy(N >> 1);
-  const addBlock = (x0, y0, any) => {
-    x0 = Math.round(x0); y0 = Math.round(y0);
-    if (x0 < 2 || y0 < 2 || x0 + CHUNK > G - 2 || y0 + CHUNK > G - 2) return false;
-    if (Math.abs(x0 + 2 - sx0) < 14 && Math.abs(y0 + 2 - sy0) < 14) return false;   // never at the start
-    for (let y = y0; y < y0 + CHUNK; y++) for (let x = x0; x < x0 + CHUNK; x++) { const i = y * G + x; if (blockId[i] || (!any && cells[i])) return false; }
-    blocks.push({ x0, y0, x1: x0 + CHUNK, y1: y0 + CHUNK, hp: 40, maxHp: 40 });
-    for (let y = y0; y < y0 + CHUNK; y++) for (let x = x0; x < x0 + CHUNK; x++) { cells[y * G + x] = 2; blockId[y * G + x] = blocks.length; }
-    return true;
+  const tile = (x, y, any) => {
+    x = Math.round(x); y = Math.round(y);
+    if (x < 2 || y < 2 || x >= G - 2 || y >= G - 2 || (Math.abs(x - sx0) < 12 && Math.abs(y - sy0) < 12)) return false;
+    const i = y * G + x;
+    if (bhp[i] || (!any && cells[i])) return false;
+    cells[i] = 2; bhp[i] = TILE_HP; return true;
   };
-  // arms: across the middle of a corridor, from one side; a quarter reach all the way
   for (const [k, w] of edges) {
-    if (w < 8 || R() > 0.2) continue;
+    if (w < 8 || R() > 0.22) continue;
     const [a, b] = k.split('-').map(Number), ax = cx(a % N), ay = cy((a / N) | 0), bx = cx(b % N), by = cy((b / N) | 0);
-    const across = w / CHUNK, n = R() < 0.25 ? across : 1 + ri(across - 1), fromLow = R() < 0.5;
-    for (let c = 0; c < n; c++) {
-      if (ay === by) { const x0 = Math.round((ax + bx) / 2) - 2; addBlock(x0, fromLow ? ay - w / 2 + c * CHUNK : ay + w / 2 - (c + 1) * CHUNK); }
-      else { const y0 = Math.round((ay + by) / 2) - 2; addBlock(fromLow ? ax - w / 2 + c * CHUNK : ax + w / 2 - (c + 1) * CHUNK, y0); }
+    const len = R() < 0.25 ? w : 2 + ri(w - 4), fromLow = R() < 0.5;
+    for (let c = 0; c < len; c++) for (let t = 0; t < 2; t++) {
+      if (ay === by) { const x = Math.round((ax + bx) / 2) - 1 + t; tile(x, fromLow ? ay - w / 2 + c : ay + w / 2 - 1 - c); }
+      else { const y = Math.round((ay + by) / 2) - 1 + t; tile(fromLow ? ax - w / 2 + c : ax + w / 2 - 1 - c, y); }
     }
   }
-  // crates: in some wide squares, and a few in each room (away from its shard spot)
+  const cluster = (x0, y0) => { const s = 2 + ri(2); for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) tile(x0 + x, y0 + y); };
   for (let c = 0; c < N * N; c++) {
-    const w = nodeW[c]; if (roomOf[c] >= 0 || w < 12 || R() > 0.06) continue;
-    addBlock(cx(c % N) - w / 2 + 2 + ri(w - 8), cy((c / N) | 0) - w / 2 + 2 + ri(w - 8));
+    const w = nodeW[c]; if (roomOf[c] >= 0 || w < 12 || R() > 0.08) continue;
+    cluster(cx(c % N) - w / 2 + 2 + ri(w - 6), cy((c / N) | 0) - w / 2 + 2 + ri(w - 6));
   }
   for (const r of rooms) for (let t = 0, made = 0; t < 30 && made < 2 + ri(3); t++) {
-    const x = r.box.x0 + 2 + ri(Math.max(1, r.box.x1 - r.box.x0 - 8)), y = r.box.y0 + 2 + ri(Math.max(1, r.box.y1 - r.box.y0 - 8));
-    if (Math.hypot(x + 2 - r.x, y + 2 - r.y) > 8 && addBlock(x, y)) made++;
+    const x = r.box.x0 + 2 + ri(Math.max(1, r.box.x1 - r.box.x0 - 6)), y = r.box.y0 + 2 + ri(Math.max(1, r.box.y1 - r.box.y0 - 6));
+    if (Math.hypot(x + 1 - r.x, y + 1 - r.y) > 7) { cluster(x, y); made++; }
   }
-  // barriers: a wall between two squares that aren't joined becomes blocks
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) for (const [di, dj] of [[1, 0], [0, 1]]) {
     if (i + di >= N || j + dj >= N || R() > 0.08) continue;
     const a = at(i, j), b = at(i + di, j + dj);
     if (edges.has(key(a, b)) || roomOf[a] >= 0 || roomOf[b] >= 0) continue;
     const wa = nodeW[a] || W.normal, wb = nodeW[b] || W.normal, wn = Math.min(wa, wb);
-    if (di) { for (let y = cy(j) - wn / 2; y < cy(j) + wn / 2; y += CHUNK) for (let x = cx(i) + wa / 2; x < cx(i + 1) - wb / 2; x += CHUNK) addBlock(x, y, true); }
-    else { for (let x = cx(i) - wn / 2; x < cx(i) + wn / 2; x += CHUNK) for (let y = cy(j) + wa / 2; y < cy(j + 1) - wb / 2; y += CHUNK) addBlock(x, y, true); }
+    if (di) { for (let y = cy(j) - wn / 2; y < cy(j) + wn / 2; y++) for (let x = cx(i) + wa / 2; x < cx(i + 1) - wb / 2; x++) tile(x, y, true); }
+    else { for (let x = cx(i) - wn / 2; x < cx(i) + wn / 2; x++) for (let y = cy(j) + wa / 2; y < cy(j + 1) - wb / 2; y++) tile(x, y, true); }
   }
 
   const clear = new Uint8Array(G * G);
@@ -249,7 +261,7 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
 
   const startX = cx(N >> 1), startY = cy(N >> 1);
   return { G, N, P, cells, clear, deadEnds: deadEnds.map(c => ({ x: cx(c % N), y: cy((c / N) | 0) })), cxs, cys,
-    halls: rooms, start: { x: startX, y: startY }, widths, blockId, blocks };
+    halls: rooms, start: { x: startX, y: startY }, widths, bhp };
 }
 
 export const solid = (m, x, y) => {
@@ -269,12 +281,12 @@ export function updateClear(m, x0, y0, x1, y1) {
   }
 }
 
-// Break a block: its cells open up, and the room around it is walkable again.
-export function breakBlock(m, b) {
-  if (b.broken) return;
-  b.broken = true;
-  for (let y = b.y0; y < b.y1; y++) for (let x = b.x0; x < b.x1; x++) { const i = y * m.G + x; m.cells[i] = 0; m.blockId[i] = 0; }
-  updateClear(m, b.x0 - 2, b.y0 - 2, b.x1 + 2, b.y1 + 2);
+// Break a tile: its cell opens up, and the floor around it is walkable again.
+export function breakTile(m, i) {
+  if (m.cells[i] !== 2) return;
+  m.cells[i] = 0; m.bhp[i] = 0;
+  const x = i % m.G, y = (i / m.G) | 0;
+  updateClear(m, x - 2, y - 2, x + 3, y + 3);
 }
 
 // Grid ray march (DDA). Returns the distance to the first wall, up to max.

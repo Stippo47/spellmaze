@@ -16,7 +16,7 @@ export const WEAPONS = {
 };
 export const WEAPON_ORDER = ['pistol', 'smg', 'auto'];
 
-export const DASH = { length: 9, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6, safe: 0.35, block: 45 };   // block: damage to a breakable block   // safe: untouchable after a dash (round 4)
+export const DASH = { length: 5, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6, safe: 0.35, block: 45 };   // block: damage to each breakable tile it hits   // safe: untouchable after a dash (round 4)
 
 // The Spawn cast (decisions: on a cooldown, reads as "spawn" not "summon"). A thrown Ball: hits by contact, harder
 // the faster it goes; slows to a stop, sits, and enemies near it go for it instead of you.

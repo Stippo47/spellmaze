@@ -1,0 +1,17 @@
+{
+ "title": "One question",
+ "topic": "builds",
+ "order": 13,
+ "cards": [
+  {
+   "id": "oneoption",
+   "kind": "question",
+   "rarity": "common",
+   "title": "Upgrade shows 1 option?",
+   "text": "On level-ups you wrote: 'Upgrade will show 1 option.' What should happen?",
+   "why": "I can read it a few ways and don't want to guess.",
+   "pick": "At most one Upgrade card per level-up, so the other two are new modules or stats.",
+   "details": "Other readings: an Upgrade card should let you choose which module to level; or a level-up should show a single card."
+  }
+ ]
+}

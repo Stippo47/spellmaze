@@ -1,7 +1,7 @@
 // The simulation: fixed steps, no drawing. Units are maze cells; the player is a 2x2 body (radius 1).
-import { makeMaze, rayStamp, lineClear, pathField, breakBlock } from './maze.js';
+import { makeMaze, rayStamp, lineClear, pathField, breakTile } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
-import { level, turn, hunt, lunge, burn, blastR, blastDmg } from './modules.js';
+import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf } from './modules.js';
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
@@ -15,7 +15,7 @@ const FIELD_STEPS = 90;
 //   brute: big, slow, tanky; hard to knock back, and shoves smaller enemies along.
 export const ENEMIES = {
   mite:    { r: 1, hp: 20, speed: 6.0, damage: 8, xp: 1, mass: 1 },
-  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, charge: 42, chargeTime: 0.4, sight: 11, chargeDamage: 18, aim: 0.6 },   // round 5: shorter, faster
+  dart:    { r: 1, hp: 26, speed: 5.0, damage: 8, xp: 2, mass: 1, sight: 11, dashDamage: 18, aim: 0.6, dash: {} },   // round 6: its charge is the Dash
   spitter: { r: 1, hp: 30, speed: 4.6, damage: 6, xp: 3, mass: 1, reload: 2.4, orb: { speed: 11, r: 0.55, damage: 10, life: 3 } },
   brute:   { r: 1.7, hp: 170, speed: 3.4, damage: 20, xp: 8, mass: 5 },
 };
@@ -31,7 +31,7 @@ export function newGame(opts) {
     p: { x: m.start.x, y: m.start.y, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9,
-    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [], shots: [], camps: [], nextId: 1,
+    enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [], shots: [], camps: [], nextId: 1, ghosts: [], tileFlash: new Map(),
     run: newRun(), practice: opts.practice ? opts.build : null, build: null, chests: [], spawnCool: 0, spawnAim: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0,
@@ -90,7 +90,7 @@ function hurtPlayer(g, dmg) {
 const cdMul = (g) => Math.pow(0.9, g.run.vitals.cooldown);
 export const pickupRange = (g) => 3.5 + 1.5 * g.run.vitals.pickup;
 const dmgMul = (g) => 1 + 0.15 * g.run.vitals.damage;
-export const durMul = (g) => 1 + 0.15 * g.run.vitals.duration;
+export const dashLen = (g, a = g.p) => DASH.length * durOf(dashMods(g, a).duration || 0);
 
 export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
@@ -174,7 +174,7 @@ function addBurn(g, e, amt) {
 // A blast: hits every enemy inside that the blast can see (walls block it). Yours never hurt you.
 function blast(g, x, y, r, dmg, pay) {
   g.blasts.push({ x, y, r, t: 0, fire: !!(pay && pay.burn) });
-  for (const b of blocksNear(g, x, y, r)) hitBlock(g, b, dmg * 1.5);
+  for (const i of tilesNear(g, x, y, r)) hitTile(g, i, dmg * 1.5);
   for (const e of g.enemies) {
     if (e.hp <= 0) continue;
     const dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
@@ -208,7 +208,7 @@ function fire(g, ax, ay) {
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * 0.16, dx = Math.cos(a), dy = Math.sin(a);
     g.bolts.push({ x: g.p.x + dx * 0.9, y: g.p.y + dy * 0.9, vx: dx * w.speed, vy: dy * w.speed, r: w.radius,
-      dmg: w.damage, left: w.range * durMul(g), bounces, home, pay, ex });
+      dmg: w.damage, left: w.range * durOf(L(g, 'weapon', 'duration')), bounces, home, pay, ex });
   }
   g.p.fx = Math.cos(base); g.p.fy = Math.sin(base);
   return true;
@@ -236,8 +236,8 @@ function stepBolts(g, dt) {
       const ox = b.x, oy = b.y;
       b.x += b.vx * dt / 3; b.y += b.vy * dt / 3; b.left -= Math.hypot(b.vx, b.vy) * dt / 3;
       if (m.cells[Math.floor(b.y) * G + Math.floor(b.x)]) {
-        const bi = m.blockId[Math.floor(b.y) * G + Math.floor(b.x)];
-        if (bi) hitBlock(g, m.blocks[bi - 1], b.dmg);
+        const ti = Math.floor(b.y) * G + Math.floor(b.x);
+        if (m.cells[ti] === 2) hitTile(g, ti, b.dmg);
         if (b.bounces > 0) { // reflect off the side it crossed
           b.bounces--;
           const hx = m.cells[Math.floor(oy) * G + Math.floor(b.x)], hy = m.cells[Math.floor(b.y) * G + Math.floor(ox)];
@@ -268,7 +268,7 @@ function throwBall(g, ax, ay) {
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * 0.35, dx = Math.cos(a), dy = Math.sin(a);
     g.balls.push({ x: g.p.x + dx * 1.2, y: g.p.y + dy * 1.2, vx: dx * SPAWN.speed, vy: dy * SPAWN.speed, r: SPAWN.r,
-      hp: SPAWN.hp, maxHp: SPAWN.hp, decay: SPAWN.hp / (SPAWN.life * durMul(g)), hurtT: 0, cd: new Map(),
+      hp: SPAWN.hp, maxHp: SPAWN.hp, decay: SPAWN.hp / (SPAWN.life * durOf(L(g, 'spawn', 'duration'))), hurtT: 0, cd: new Map(),
       bounces: L(g, 'spawn', 'bounce'), home: L(g, 'spawn', 'home'), pay: payload(g, 'spawn'), ex: L(g, 'spawn', 'explode') });
   }
 }
@@ -320,26 +320,23 @@ function stepBalls(g, dt) {
   }
 }
 
-// ---------- breakable blocks (round 5) ----------
-// Blocks near a point: every block whose square comes within r of it.
-function blocksNear(g, x, y, r) {
+// ---------- breakable tiles (round 6: one cell each) ----------
+function tilesNear(g, x, y, r) {
   const m = g.m, G = m.G, out = [];
   for (let cy = Math.floor(y - r); cy <= Math.floor(y + r); cy++) for (let cx = Math.floor(x - r); cx <= Math.floor(x + r); cx++) {
-    if (cx < 0 || cy < 0 || cx >= G || cy >= G) continue;
-    const bi = m.blockId[cy * G + cx]; if (!bi) continue;
-    const b = m.blocks[bi - 1];
-    if (out.includes(b)) continue;
-    const nx = Math.max(b.x0, Math.min(x, b.x1)), ny = Math.max(b.y0, Math.min(y, b.y1));
-    if (Math.hypot(x - nx, y - ny) <= r) out.push(b);
+    if (cx < 0 || cy < 0 || cx >= G || cy >= G || m.cells[cy * G + cx] !== 2) continue;
+    const nx = Math.max(cx, Math.min(x, cx + 1)), ny = Math.max(cy, Math.min(y, cy + 1));
+    if (Math.hypot(x - nx, y - ny) <= r) out.push(cy * G + cx);
   }
   return out;
 }
-function hitBlock(g, b, dmg, quiet) {
-  if (b.broken) return;
-  b.hp -= dmg; if (!quiet) b.flash = 0.08;
-  if (b.hp <= 0) {
-    breakBlock(g.m, b); g.fieldT = 0;   // enemies find the new way at once
-    for (let i = 0; i < 14; i++) { const a = g.R() * TAU, s = 3 + g.R() * 8; g.parts.push({ x: b.x0 + 2, y: b.y0 + 2, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, max: 0.5, col: 'block', s: 0.6 }); }
+function hitTile(g, i, dmg, quiet) {
+  const m = g.m; if (m.cells[i] !== 2) return;
+  m.bhp[i] -= dmg; if (!quiet) g.tileFlash.set(i, 0.08);
+  if (m.bhp[i] <= 0) {
+    breakTile(m, i); g.fieldT = 0;   // enemies find the new way at once
+    const x = (i % m.G) + 0.5, y = ((i / m.G) | 0) + 0.5;
+    for (let k = 0; k < 4; k++) { const a = g.R() * TAU, s = 3 + g.R() * 6; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.4, max: 0.4, col: 'tile', s: 0.4 }); }
   }
 }
 
@@ -362,50 +359,62 @@ function stepShots(g, dt) {
 }
 
 // ---------- the Dash cast ----------
-function startDash(g, dx, dy, chained) {
-  const p = g.p;
-  if (!chained && (p.charges < 1 || p.dashT > 0)) return;
-  const d = Math.hypot(dx, dy); if (d < 1e-6) { dx = p.fx; dy = p.fy; } else { dx /= d; dy /= d; }
-  const home = L(g, 'dash', 'home');
-  if (home) { // lunge: turn toward an enemy ahead
-    const e = nearestEnemy(g, p.x, p.y, lunge(home), dx, dy, 0.5);
-    if (e) { const ex = e.x - p.x, ey = e.y - p.y, ed = Math.hypot(ex, ey) || 1; dx = ex / ed; dy = ey / ed; }
+// One Dash for everyone (round 6: "use the same dash as the player so it can use upgrade modules later; reuse, not
+// reinvent"). A dasher is the player or an enemy (the dart); its Dash modules come from your build, or the enemy's own
+// `dash` list in ENEMIES (empty for now). It hits the other side as it passes.
+export const GHOST = 0.22;   // how long an afterimage lasts (round 6: afterimage trails, not lines)
+function dashMods(g, a) { return a === g.p ? (g.build.dash || {}) : (a.dash || ENEMIES[a.type].dash || {}); }
+
+function startDash(g, a, dx, dy, chained) {
+  const isP = a === g.p, mods = dashMods(g, a);
+  if (isP && !chained && (a.charges < 1 || a.dashT > 0)) return;
+  const d = Math.hypot(dx, dy); if (d < 1e-6) { dx = a.fx; dy = a.fy; } else { dx /= d; dy /= d; }
+  if (mods.home) { // lunge: turn toward a foe ahead
+    const lr = lunge(mods.home);
+    if (isP) { const e = nearestEnemy(g, a.x, a.y, lr, dx, dy, 0.5); if (e) { const ex = e.x - a.x, ey = e.y - a.y, ed = Math.hypot(ex, ey) || 1; dx = ex / ed; dy = ey / ed; } }
+    else { const p = g.p, px = p.x - a.x, py = p.y - a.y, pd = Math.hypot(px, py) || 1; if (pd < lr && (px * dx + py * dy) / pd > 0.5) { dx = px / pd; dy = py / pd; } }
   }
   if (!chained) {
-    p.charges -= 1; if (p.recharge <= 0) p.recharge = DASH.recharge * cdMul(g);
-    p.chain = L(g, 'dash', 'extra');
+    if (isP) { a.charges -= 1; if (a.recharge <= 0) a.recharge = DASH.recharge * cdMul(g); }
+    a.chain = mods.extra || 0;
   }
-  p.dashT = DASH.time; p.dx = dx; p.dy = dy; p.fx = dx; p.fy = dy;
-  p.dashBounces = L(g, 'dash', 'bounce'); p.dashHit = new Set(); p.dashPay = payload(g, 'dash');
-  for (let i = 0; i < 10; i++) g.parts.push({ x: p.x, y: p.y, vx: -dx * 6 + (g.R() - 0.5) * 6, vy: -dy * 6 + (g.R() - 0.5) * 6, life: 0.35, max: 0.35, col: 'dash', s: 0.35 });
+  a.dashT = DASH.time; a.dashLen = dashLen(g, a); a.dx = dx; a.dy = dy; a.fx = dx; a.fy = dy;
+  a.dashBounces = mods.bounce || 0; a.dashHit = new Set(); a.dashPay = mods.burn ? { burn: burn(mods.burn) } : null;
 }
 
-function stepDash(g, dt, inp) {
-  const p = g.p, m = g.m, sp = DASH.length * durMul(g) / DASH.time;
-  const r = moveBodyN(m, p, p.dx * sp * dt, p.dy * sp * dt);
-  p.dashT -= dt;
-  for (const b of blocksNear(g, p.x, p.y, p.r + 0.5)) if (!p.dashHit.has(b)) { p.dashHit.add(b); hitBlock(g, b, DASH.block * dmgMul(g)); }
+// steer: where the next dash in a row goes (the move stick for you; toward you for an enemy)
+function stepDash(g, a, dt, steer) {
+  const isP = a === g.p, m = g.m, sp = a.dashLen / DASH.time, p = g.p;
+  const r = moveBodyN(m, a, a.dx * sp * dt, a.dy * sp * dt);
+  a.dashT -= dt;
+  for (const i of tilesNear(g, a.x, a.y, a.r + 0.5)) if (!a.dashHit.has(i)) { a.dashHit.add(i); hitTile(g, i, DASH.block * (isP ? dmgMul(g) : 1)); }
   if (r.hit) {
     const nl = Math.hypot(r.nx, r.ny);
-    if (p.dashBounces > 0 && nl > 1e-6) {
-      const nx = r.nx / nl, ny = r.ny / nl, vn = p.dx * nx + p.dy * ny;
-      if (vn < 0) { p.dashBounces--; p.dx -= 2 * vn * nx; p.dy -= 2 * vn * ny; p.dashT = DASH.time; }
-    } else p.dashT = Math.min(p.dashT, 0.02);
+    if (a.dashBounces > 0 && nl > 1e-6) {
+      const nx = r.nx / nl, ny = r.ny / nl, vn = a.dx * nx + a.dy * ny;
+      if (vn < 0) { a.dashBounces--; a.dx -= 2 * vn * nx; a.dy -= 2 * vn * ny; a.dashT = DASH.time; }
+    } else a.dashT = Math.min(a.dashT, 0.02);
   }
-  // everyone you pass: small damage and your payloads (decisions: payloads on the Dash, small damage)
-  for (const e of g.enemies) {
-    if (e.hp <= 0 || p.dashHit.has(e)) continue;
-    if (Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.r + 0.6) { p.dashHit.add(e); hurt(g, e, 3, 0, 0); applyPayload(g, e, p.dashPay); }
+  if (isP) { // everyone you pass: small damage and your payloads (decisions: payloads on the Dash, small damage)
+    for (const e of g.enemies) {
+      if (e.hp <= 0 || a.dashHit.has(e)) continue;
+      if (Math.hypot(e.x - a.x, e.y - a.y) < a.r + e.r + 0.6) { a.dashHit.add(e); hurt(g, e, 3, 0, 0); applyPayload(g, e, a.dashPay); }
+    }
+  } else if (!a.dashHit.has(p) && !(p.dashT > 0) && p.safeT <= 0 && Math.hypot(p.x - a.x, p.y - a.y) < a.r + p.r + 0.3) {
+    a.dashHit.add(p);
+    if (p.hurtT <= 0) hurtPlayer(g, ENEMIES[a.type].dashDamage || ENEMIES[a.type].damage);
   }
-  if (g.R() < 0.8) g.parts.push({ x: p.x, y: p.y, vx: 0, vy: 0, life: 0.25, max: 0.25, col: 'dash', s: 0.9 });
-  if (p.dashT <= 0) {
-    p.dashT = 0; p.safeT = DASH.safe;
-    const ex = L(g, 'dash', 'explode');
-    if (ex) blast(g, p.x, p.y, blastR(ex), blastDmg(ex), p.dashPay);
-    if (p.chain > 0) { // Extra on the Dash: the next dash in a row, where you're steering now
-      p.chain--;
-      const mx = inp.move.x, my = inp.move.y, mv = Math.hypot(mx, my) > 0.2;
-      startDash(g, mv ? mx : p.dx, mv ? my : p.dy, true);
+  if ((g.frame & 1) === 0) g.ghosts.push({ x: a.x, y: a.y, r: a.r, fx: a.fx, fy: a.fy, type: isP ? 'player' : a.type, t: 0 });
+  if (a.dashT <= 0) {
+    a.dashT = 0;
+    if (isP) a.safeT = DASH.safe;
+    if (isP && L(g, 'dash', 'explode')) blast(g, a.x, a.y, blastR(L(g, 'dash', 'explode')), blastDmg(L(g, 'dash', 'explode')), a.dashPay);
+    if (a.chain > 0) { // Extra on the Dash: the next dash in a row
+      a.chain--;
+      let sx = a.dx, sy = a.dy;
+      if (steer && Math.hypot(steer.x, steer.y) > 0.2) { sx = steer.x; sy = steer.y; }
+      else if (!isP) { sx = p.x - a.x; sy = p.y - a.y; }
+      startDash(g, a, sx, sy, true);
     }
   }
 }
@@ -465,8 +474,8 @@ export function step(g, dt, inp) {
   for (const ev of inp.events) {
     if (ev.type === 'fireTap' && w.tapNearest) { const e = nearestVisible(g, w.range); if (e) fire(g, e.x - p.x, e.y - p.y); else fire(g, p.fx, p.fy); }
     if (ev.type === 'fireRelease' && w.trigger === 'release') fire(g, ev.x, ev.y);
-    if (ev.type === 'dashTap') startDash(g, inp.move.x, inp.move.y);
-    if (ev.type === 'dashRelease') startDash(g, ev.x, ev.y);
+    if (ev.type === 'dashTap') startDash(g, p, inp.move.x, inp.move.y);
+    if (ev.type === 'dashRelease') startDash(g, p, ev.x, ev.y);
     if (ev.type === 'spawnTap') { const e = nearestVisible(g, 9); if (e) throwBall(g, e.x - p.x, e.y - p.y); else throwBall(g, p.fx, p.fy); }
     if (ev.type === 'spawnRelease') throwBall(g, ev.x, ev.y);
   }
@@ -489,7 +498,7 @@ export function step(g, dt, inp) {
 
   // player movement
   const SPEED = 8.5 * (1 + 0.08 * g.run.vitals.speed);
-  if (p.dashT > 0) stepDash(g, dt, inp);
+  if (p.dashT > 0) stepDash(g, p, dt, inp.move);
   else {
     const mx = inp.move.x, my = inp.move.y, mm = Math.min(1, Math.hypot(mx, my));
     const tvx = mm > 0.05 ? mx / Math.hypot(mx, my) * mm * SPEED : 0, tvy = mm > 0.05 ? my / Math.hypot(mx, my) * mm * SPEED : 0;
@@ -534,6 +543,7 @@ export function step(g, dt, inp) {
       e.burnIdle += dt; if (e.burnIdle > 2) e.burn = Math.max(0, e.burn - 12 * dt);
     }
     e.flash = Math.max(0, e.flash - dt);
+    if (e.dashT > 0) { stepDash(g, e, dt, null); if (e.dashT <= 0) { e.st = 'rest'; e.t = 0.6; } continue; }
     if (e.sleep) { // a camp at rest: the whole camp wakes when one sees you close, or is hurt
       e.vx = e.vy = 0;
       if ((g.frame + e.id) % 6 === 0 && Math.hypot(p.x - e.x, p.y - e.y) < 16 && lineClear(m, e.x, e.y, p.x, p.y)) wakeCamp(g, e.camp);
@@ -559,14 +569,11 @@ export function step(g, dt, inp) {
       else if (f[c] === 65535) e.lost = (e.lost || 0) + dt;
     }
     e.cd = Math.max(0, e.cd - dt);
-    if (e.type === 'dart') { // see you, stop and aim, charge straight to a wall, rest
+    if (e.type === 'dart') { // see you, stop and aim, then Dash at you (the same Dash as yours), rest
       if (e.st === 'aim') {
         spd = 0; e.t -= dt;
         if (e.t > 0.2 && d > 0.1) { e.ax = dx / d; e.ay = dy / d; }   // follows you, then locks for the last 0.2 s
-        if (e.t <= 0) { e.st = 'charge'; e.t = S.chargeTime; }
-      } else if (e.st === 'charge') {
-        tx = e.ax; ty = e.ay; spd = S.charge; e.t -= dt;
-        if (e.t <= 0) { e.st = 'rest'; e.t = 0.6; }
+        if (e.t <= 0) { e.st = 'dash'; startDash(g, e, e.ax, e.ay); }
       } else if (e.st === 'rest') { spd = 0; e.t -= dt; if (e.t <= 0) { e.st = null; e.cd = 2; } }
       else if (e.cd <= 0 && sees && d < S.sight) { e.st = 'aim'; e.t = S.aim; e.ax = dx / d; e.ay = dy / d; spd = 0; }
     } else if (e.type === 'spitter' && sees && d < 20) { // keep a distance, and lob orbs
@@ -576,7 +583,7 @@ export function step(g, dt, inp) {
         const o = S.orb; g.shots.push({ x: e.x + e.fx * 1.2, y: e.y + e.fy * 1.2, vx: e.fx * o.speed, vy: e.fy * o.speed, r: o.r, dmg: o.damage, life: o.life });
       }
     }
-    const k = Math.min(1, dt * (e.st === 'charge' ? 20 : 6));
+    const k = Math.min(1, dt * 6);
     e.vx += (tx * spd - e.vx) * k; e.vy += (ty * spd - e.vy) * k;
     e.x += e.vx * dt; e.y += e.vy * dt;
     const v = Math.hypot(e.vx, e.vy);
@@ -585,8 +592,7 @@ export function step(g, dt, inp) {
   // enemies don't overlap each other, or you
   separate(g);
   for (const e of g.enemies) if (pushOutOfWalls(m, e)) {
-    if (e.st === 'charge') { e.st = 'rest'; e.t = 0.7; burst(g, e.x + e.fx, e.y + e.fy, 'enemy', 5); }
-    if (e.type === 'brute') for (const b of blocksNear(g, e.x, e.y, e.r + 0.4)) hitBlock(g, b, 35 * dt, true);   // brutes break blocks
+    if (e.type === 'brute') for (const i of tilesNear(g, e.x, e.y, e.r + 0.4)) hitTile(g, i, 35 * dt, true);   // brutes break tiles
   }
   pushOutOfWalls(m, p);
   // far behind or lost: come back from somewhere nearer, out of sight
@@ -607,7 +613,7 @@ export function step(g, dt, inp) {
   // touching you
   for (const e of g.enemies) {
     const d = Math.hypot(p.x - e.x, p.y - e.y);
-    if (d < p.r + e.r + 0.15 && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) hurtPlayer(g, e.st === 'charge' ? ENEMIES[e.type].chargeDamage : ENEMIES[e.type].damage);
+    if (d < p.r + e.r + 0.15 && !(e.dashT > 0) && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) hurtPlayer(g, ENEMIES[e.type].damage);
   }
 
   stepBolts(g, dt);
@@ -633,7 +639,8 @@ export function step(g, dt, inp) {
     if (!g.practice) g.run.offers.push(levelOffer(g));
   }
 
-  for (const b of m.blocks) if (b.flash > 0) b.flash -= dt;
+  for (const [i, t] of g.tileFlash) { if (t - dt <= 0) g.tileFlash.delete(i); else g.tileFlash.set(i, t - dt); }
+  for (let i = g.ghosts.length - 1; i >= 0; i--) { g.ghosts[i].t += dt; if (g.ghosts[i].t > GHOST) g.ghosts.splice(i, 1); }
   for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.9; q.vy *= 0.9; if (q.life <= 0) g.parts.splice(i, 1); }
   for (let i = g.pops.length - 1; i >= 0; i--) { g.pops[i].t += dt; if (g.pops[i].t > 1.6) g.pops.splice(i, 1); }
 }

@@ -3,6 +3,29 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-18 — round 5 answered; round 6 built (v0.8.0)
+
+Answers: maze 2x decent, "I don't see any short dead ends at all now; destructible tiles aren't 1 cell big". Short
+dead ends **PROBLEM: "way too short???"**. Blocks: **"too big, don't like the visual, can just go darker"**. Dash
+**PROBLEM: "I thought I said shorter base dash?"** (their "short base dash length" meant make it shorter). Dart:
+**"charges too far. Use the same dash as the player so it can use upgrade modules later. Reuse, not reinvent."**
+Camps go home: good. Level-ups: **"'You' is weird terminology. Duration shouldn't upgrade everything."** Plus
+"Upgrade will show 1 option" (unclear, asked). Drag: good. After images: **they want afterimage trails for dashes,
+not trail lines.** Shard looks: **none; "the original problem was the crystal having depth; the new options are that
+or more complex shapes; the spinning star is the only one close."** Stage 4 deck: camps, spitter, brute, waves good.
+
+Built (round 6):
+- Dead ends are pockets: any part of the maze behind a single corridor holds at most 6 squares, so dead ends of 1-6
+  squares stay and whole branches don't (bridge test on the square graph; bigger pockets are joined at their far end).
+- Breakable tiles are single cells (12 health), drawn as a darker wall, white when hit. Arms 2 cells thick, clusters
+  of 2x2 or 3x3, barriers filled with tiles. Blasts break many at once, a dash does 45 to each tile it touches.
+- Dash 5 cells (was 6, then 9). **One Dash for everyone**: the dart aims, then uses the same Dash (5 cells), with
+  modules read from its own list (empty for now), so enemies can carry Dash modules later.
+- Dashes leave afterimages (fading copies of the body), no squares or lines.
+- **Duration is a module** (+20% a level: bolt range, spawn life or dash length on its cast); the Duration stat is gone.
+  "You" cards are now "Stat".
+- Shard: a flat gold four-point star, one colour, turning slowly.
+
 ## 2026-11-18 — round 4 fixes answered; round 5 built (v0.7.0)
 
 Answers: crowd/waves, dash safety, Power/Duration good ("short base dash length"). Level-ups decent: "inconsistent

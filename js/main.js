@@ -117,7 +117,7 @@ function levelCard(c) {
       sub: `${Rr.name} · ${icon(c.cast, '#8b94bb', 14)} ${CASTS[c.cast].name}`, pipsHtml: pips(m.level, Rr.cap, true), text: cardText(c.cast, c.id, m.level + 1), onClick: take });
   }
   const V = VITALS[c.id], n = g.run.vitals[c.id];
-  return card({ color: '#8b94bb', band: 'You', ic: c.id, icColor: '#e8f0ff', name: V.name, sub: `${n} → ${n + 1}`, text: V.text(n), onClick: take });
+  return card({ color: '#8b94bb', band: 'Stat', ic: c.id, icColor: '#e8f0ff', name: V.name, sub: `${n} → ${n + 1}`, text: V.text(n), onClick: take });
 }
 
 function showOffer() {

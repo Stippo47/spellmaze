@@ -1,6 +1,6 @@
 // Drawing. Flat, solid shapes, no glow (docs/DECISIONS.md: "solid and flat"). Canvas 2D.
 import { COL, TAU, fmtTime } from './util.js';
-import { canSee, SIGHT, durMul, xpNeed, WARN } from './game.js';
+import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST } from './game.js';
 import { rayDist } from './maze.js';
 import { DASH, SPAWN } from './weapons.js';
 
@@ -44,43 +44,28 @@ export function makeRenderer(canvas) {
       drawCells(m, x0, y0, x1, y1, null, true, LIT, 'walls', g.visStamp, g.visNow);
     }
 
-    // breakable blocks (round 5): brown squares with a lighter rim, a crack growing as they're hit. Seen-but-not-in-view
-    // ones are left to the faded memory, like walls.
-    for (const b of m.blocks) {
-      if (b.broken || b.x1 < x0 || b.x0 > x1 || b.y1 < y0 || b.y0 > y1) continue;
-      let lit = mode === 'all';
-      for (let y = b.y0; y < b.y1 && !lit; y++) for (let x = b.x0; x < b.x1; x++) if (g.visStamp[y * G + x] === g.visNow) { lit = true; break; }
-      if (!lit) continue;
-      const w = b.x1 - b.x0;
-      ctx.fillStyle = b.flash > 0 ? '#ffffff' : '#6e4320'; ctx.fillRect(b.x0, b.y0, w, w);
-      ctx.fillStyle = '#c98a4a'; ctx.fillRect(b.x0 + 0.25, b.y0 + 0.25, w - 0.5, w - 0.5);
-      ctx.fillStyle = '#9a6230'; ctx.fillRect(b.x0 + 0.65, b.y0 + 0.65, w - 1.3, w - 1.3);
-      const dmg = 1 - b.hp / b.maxHp;
-      if (dmg > 0) {
-        ctx.strokeStyle = '#3a2210'; ctx.lineWidth = 0.22; ctx.lineCap = 'round'; ctx.beginPath();
-        const cx = b.x0 + w / 2, cy = b.y0 + w / 2, L = 0.4 + dmg * 1.6;
-        ctx.moveTo(cx - L, cy - L * 0.6); ctx.lineTo(cx - L * 0.2, cy + L * 0.2); ctx.lineTo(cx + L * 0.3, cy - L * 0.3); ctx.lineTo(cx + L, cy + L * 0.7);
-        if (dmg > 0.5) { ctx.moveTo(cx - L * 0.2, cy + L * 0.2); ctx.lineTo(cx - L * 0.1, cy + L); }
-        ctx.stroke();
-      }
+    // breakable tiles (round 6): a wall cell, just darker; white for a moment when hit
+    {
+      const c = m.cells, now = g.visNow, st = g.visStamp;
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * G + x; if (c[i] === 2 && (mode === 'all' || st[i] === now)) ctx.fillRect(x, y, 1, 1); }
+      ctx.fillStyle = '#ffffff';
+      for (const i of g.tileFlash.keys()) ctx.fillRect(i % G, (i / G) | 0, 1, 1);
     }
 
-    // shards (were chests; round 4: a chest didn't fit): a standing gold crystal, two flat faces, bobbing.
-    // Seen ones stay drawn (faint out of sight) in Remembered sight; a taken one leaves a dim outline.
+    // shards (round 6: the crystal's depth was the problem; the spinning star was closest): a flat gold four-point
+    // star turning slowly. Seen ones stay drawn (faint out of sight) in Remembered sight; a taken one leaves an outline.
     for (const c of g.chests) {
       const vis = mode === 'all' || canSee(g, c.x, c.y);
       if (!vis && !(mode === 'remember' && g.seen[Math.floor(c.y) * G + Math.floor(c.x)])) continue;
       ctx.globalAlpha = vis ? 1 : 0.35;
-      const by = c.y - 0.25 + (c.open ? 0 : Math.sin(g.t * 2.2 + c.x) * 0.15), hw = 0.75, top = 1.35, bot = 0.95;
-      if (c.open) {
-        ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.12; ctx.globalAlpha *= 0.5;
-        ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x + hw, by); ctx.lineTo(c.x, by + bot); ctx.lineTo(c.x - hw, by); ctx.closePath(); ctx.stroke();
-      } else {
-        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 1.05, 0.8, 0.25, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = COL.gold; ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x, by + bot); ctx.lineTo(c.x - hw, by); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#c98a00'; ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x + hw, by); ctx.lineTo(c.x, by + bot); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#fff1c4'; ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x - hw * 0.45, by - 0.25); ctx.lineTo(c.x, by - 0.1); ctx.closePath(); ctx.fill();
-      }
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.open ? 0.4 : g.t * 1.2 + c.x);
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? 0.42 : 1.5; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      ctx.closePath();
+      if (c.open) { ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.12; ctx.globalAlpha *= 0.5; ctx.stroke(); }
+      else { ctx.fillStyle = COL.gold; ctx.fill(); }
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
 
@@ -99,7 +84,7 @@ export function makeRenderer(canvas) {
     }
     if (g.dashAim) {
       const d = Math.hypot(g.dashAim.x, g.dashAim.y) || 1, ax = g.dashAim.x / d, ay = g.dashAim.y / d;
-      const L = rayDist(m, p.x, p.y, ax, ay, DASH.length * durMul(g) + 1) - 1;
+      const L = rayDist(m, p.x, p.y, ax, ay, dashLen(g) + 1) - 1;
       strip(p.x, p.y, p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 2, 'rgba(159,233,255,0.25)');
       circle(p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 1, 'rgba(159,233,255,0.35)');
     }
@@ -139,7 +124,7 @@ export function makeRenderer(canvas) {
       const [lite, dark] = ECOL[e.type] || ECOL.mite;
       if (e.sleep) ctx.globalAlpha = 0.5;
       if (e.st === 'aim') { // a dart about to charge: where it will go
-        const L = rayDist(m, e.x, e.y, e.ax, e.ay, 40);
+        const L = Math.min(rayDist(m, e.x, e.y, e.ax, e.ay, 40), DASH.length + 1);
         ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(g.t * 20));
         strip(e.x, e.y, e.x + e.ax * L, e.y + e.ay * L, 0.5, lite);
         ctx.globalAlpha = 1;
@@ -188,10 +173,18 @@ export function makeRenderer(canvas) {
       }
     }
 
+    // afterimages of a dash (round 6: afterimage trails, not lines): fading copies of the body
+    for (const q of g.ghosts) {
+      if (mode !== 'all' && !canSee(g, q.x, q.y)) continue;
+      ctx.globalAlpha = 0.45 * (1 - q.t / GHOST);
+      if (q.type === 'player') circle(q.x, q.y, q.r, COL.dash); else enemyShape(q, q.r, (ECOL[q.type] || ECOL.mite)[0]);
+    }
+    ctx.globalAlpha = 1;
+
     // bits
     for (const q of g.parts) {
       ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.col === 'dash' ? 0.5 : 1);
-      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'block' ? '#c98a4a' : COL.shot;
+      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'tile' ? COL.wallEdge : COL.shot;
       ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s);
     }
     ctx.globalAlpha = 1;

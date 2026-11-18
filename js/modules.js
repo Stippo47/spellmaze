@@ -23,12 +23,14 @@ export const MODULES = {
     dash: (l) => `lunges at an enemy ahead (${lunge(l)} cells)` } },
   burn: { name: 'Burn', family: 'payload', on: {
     bolt: (l) => `+${burn(l)} burn a hit`, ball: (l) => `+${burn(l)} burn a hit`, dash: (l) => `+${burn(l)} burn to all you pass` } },
+  duration: { name: 'Duration', family: 'form', on: {
+    bolt: (l) => `+${pct(l)}% range`, ball: (l) => `+${pct(l)}% life`, dash: (l) => `+${pct(l)}% length` } },
   explode: { name: 'Explode', family: 'spawn', on: {
     bolt: (l) => `blast where it hits or ends (${blastR(l).toFixed(1)} wide, ${blastDmg(l)})`,
     ball: (l) => `blast when it dies (${(blastR(l) + 1).toFixed(1)} wide, ${blastDmg(l) * 2})`,
     dash: (l) => `blast where the dash ends (${blastR(l).toFixed(1)} wide, ${blastDmg(l)})` } },
 };
-export const MODULE_ORDER = ['extra', 'bounce', 'home', 'burn', 'explode'];
+export const MODULE_ORDER = ['extra', 'bounce', 'home', 'burn', 'explode', 'duration'];
 export const MAX_LEVEL = 9;   // the practice build goes to legendary's cap
 
 // Numbers by level, in one place.
@@ -38,6 +40,8 @@ export const lunge = (l) => 6 + 2 * l;           // how far ahead a homing dash 
 export const burn = (l) => 18 + 8 * (l - 1);     // burn build-up a hit
 export const blastR = (l) => 1.2 + 0.45 * l;     // blast radius in cells: starts small (round 3: 'very weak/small')
 export const blastDmg = (l) => 3 + 5 * l;
+export const pct = (l) => 20 * l;                 // Duration: +20% a level
+export const durOf = (l) => 1 + pct(l) / 100;
 
 export const level = (build, cast, id) => (build && build[cast] && build[cast][id]) || 0;
 export const allowed = (cast, id) => !!MODULES[id].on[CASTS[cast].shape];
