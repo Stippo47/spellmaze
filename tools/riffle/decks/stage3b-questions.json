@@ -1,0 +1,47 @@
+{
+ "title": "Breakable walls",
+ "topic": "builds",
+ "order": 8,
+ "cards": [
+  {
+   "id": "walls",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "Breakable walls",
+   "text": "You asked for destructible tiles making up some walls. Which walls, and what breaks them?",
+   "why": "Breaking walls opens shortcuts and new ways into rooms, for you and for enemies.",
+   "pick": "a",
+   "options": [
+    {
+     "id": "a",
+     "label": "Cracked blocks",
+     "text": "Some thin walls are cracked blocks. Any hit chips them; blasts break them fast."
+    },
+    {
+     "id": "b",
+     "label": "Blasts only",
+     "text": "Cracked blocks, but only blasts and dashes break them."
+    },
+    {
+     "id": "c",
+     "label": "Room walls",
+     "text": "Rooms' sealed sides are cracked, so you can make your own way in."
+    },
+    {
+     "id": "d",
+     "label": "Every wall",
+     "text": "All walls can break, thin ones fast, thick ones slowly."
+    }
+   ]
+  },
+  {
+   "id": "enemies",
+   "kind": "question",
+   "rarity": "uncommon",
+   "title": "Enemies breaking walls",
+   "text": "Should some enemies break cracked walls too?",
+   "why": "A wall you hid behind stops being safe, and the maze slowly opens up during a run.",
+   "pick": "Later: one heavy enemy type breaks them when it comes. Mites don't."
+  }
+ ]
+}

@@ -2,7 +2,7 @@
 import { makeMaze, rayStamp, lineClear, pathField } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
 import { level, turn, hunt, lunge, burn, blastR, blastDmg } from './modules.js';
-import { newRun, rebuild, chestOffer, levelOffer } from './run.js';
+import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
 export const SIGHT = 34;          // how far you can see, in cells
@@ -19,37 +19,37 @@ export function newGame(opts) {
   const g = {
     opts, seed, m, R: rng(seed ^ 0x9e3779b9), t: 0, over: false, kills: 0, xp: 0, level: 1,
     p: { x: m.start.x, y: m.start.y, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
-         dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0 },
+         dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9,
     enemies: [], bolts: [], balls: [], blasts: [], gems: [], parts: [], pops: [],
     run: newRun(), practice: opts.practice ? opts.build : null, build: null, chests: [], spawnCool: 0, spawnAim: null,
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0,
     vis: new Float32Array(RAYS * 2), field: new Uint16Array(m.G * m.G), fieldT: 0,
-    spawnAcc: 0, nextWave: 60, wave: 0, aim: null, dashAim: null,
+    spawnAcc: 0, nextWave: FIRST_WAVE, wave: 0, waveWarn: null, incoming: null, aim: null, dashAim: null,
     ring: [],
   };
   rebuild(g);
   placeChests(g);
+  if (!g.practice) g.run.offers.push(startOffer(g));   // pick 1 of 3 to start (round 4)
   setWeapon(g, opts.weapon || 'pistol');
   refreshField(g);
   updateSight(g);
   return g;
 }
 
-// Chests (round 3 answer): one in four dead ends, and one in each hall. None in practice.
+// Shards (round 3 answer, as chests): one in four dead ends, and one in each room. None in practice.
 function placeChests(g) {
   if (g.practice) return;
   const m = g.m, s = m.start;
   for (const d of m.deadEnds) if (Math.hypot(d.x - s.x, d.y - s.y) > 16 && g.R() < 0.25) g.chests.push({ x: d.x, y: d.y });
-  for (const h of m.halls) {
-    const x = (m.cxs[h.i] + m.cxs[h.i + h.s - 1]) / 2, y = (m.cys[h.j] + m.cys[h.j + h.s - 1]) / 2;
-    g.chests.push({ x, y, hall: true });
-  }
+  for (const h of m.halls) g.chests.push({ x: h.x, y: h.y, hall: true });
 }
 
-const cdMul = (g) => Math.pow(0.92, g.run.vitals.cooldown);
-export const pickupRange = (g) => 3.5 + g.run.vitals.pickup;
+const cdMul = (g) => Math.pow(0.9, g.run.vitals.cooldown);
+export const pickupRange = (g) => 3.5 + 1.5 * g.run.vitals.pickup;
+const dmgMul = (g) => 1 + 0.15 * g.run.vitals.damage;
+export const durMul = (g) => 1 + 0.15 * g.run.vitals.duration;
 
 export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
@@ -166,7 +166,7 @@ function fire(g, ax, ay) {
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * 0.16, dx = Math.cos(a), dy = Math.sin(a);
     g.bolts.push({ x: g.p.x + dx * 0.9, y: g.p.y + dy * 0.9, vx: dx * w.speed, vy: dy * w.speed, r: w.radius,
-      dmg: w.damage, left: w.range, bounces, home, pay, ex });
+      dmg: w.damage, left: w.range * durMul(g), bounces, home, pay, ex });
   }
   g.p.fx = Math.cos(base); g.p.fy = Math.sin(base);
   return true;
@@ -224,7 +224,7 @@ function throwBall(g, ax, ay) {
   for (let i = 0; i < n; i++) {
     const a = base + (i - (n - 1) / 2) * 0.35, dx = Math.cos(a), dy = Math.sin(a);
     g.balls.push({ x: g.p.x + dx * 1.2, y: g.p.y + dy * 1.2, vx: dx * SPAWN.speed, vy: dy * SPAWN.speed, r: SPAWN.r,
-      hp: SPAWN.hp, maxHp: SPAWN.hp, life: SPAWN.life, hurtT: 0, cd: new Map(),
+      hp: SPAWN.hp, maxHp: SPAWN.hp, decay: SPAWN.hp / (SPAWN.life * durMul(g)), hurtT: 0, cd: new Map(),
       bounces: L(g, 'spawn', 'bounce'), home: L(g, 'spawn', 'home'), pay: payload(g, 'spawn'), ex: L(g, 'spawn', 'explode') });
   }
 }
@@ -233,7 +233,7 @@ function stepBalls(g, dt) {
   const m = g.m;
   for (let i = g.balls.length - 1; i >= 0; i--) {
     const b = g.balls[i];
-    b.life -= dt; b.hurtT -= dt;
+    b.hp -= b.decay * dt; b.hurtT -= dt;   // wears down over its life (round 4)
     let hunting = false;
     if (b.home) {
       if (!b.tg || b.tg.hp <= 0 || (g.frame + i) % 10 === 0) b.tg = nearestEnemy(g, b.x, b.y, 14);
@@ -268,7 +268,7 @@ function stepBalls(g, dt) {
       }
       if (b.hurtT <= 0) { b.hp -= ENEMIES[e.type].damage; b.hurtT = 0.4; }
     }
-    if (b.hp <= 0 || b.life <= 0) {
+    if (b.hp <= 0) {
       burst(g, b.x, b.y, 'player', 10);
       if (b.ex) blast(g, b.x, b.y, blastR(b.ex) + 1, blastDmg(b.ex) * 2, b.pay);
       g.balls.splice(i, 1);
@@ -296,7 +296,7 @@ function startDash(g, dx, dy, chained) {
 }
 
 function stepDash(g, dt, inp) {
-  const p = g.p, m = g.m, sp = DASH.length / DASH.time;
+  const p = g.p, m = g.m, sp = DASH.length * durMul(g) / DASH.time;
   const r = moveBodyN(m, p, p.dx * sp * dt, p.dy * sp * dt);
   p.dashT -= dt;
   if (r.hit) {
@@ -313,7 +313,7 @@ function stepDash(g, dt, inp) {
   }
   if (g.R() < 0.8) g.parts.push({ x: p.x, y: p.y, vx: 0, vy: 0, life: 0.25, max: 0.25, col: 'dash', s: 0.9 });
   if (p.dashT <= 0) {
-    p.dashT = 0;
+    p.dashT = 0; p.safeT = DASH.safe;
     const ex = L(g, 'dash', 'explode');
     if (ex) blast(g, p.x, p.y, blastR(ex), blastDmg(ex), p.dashPay);
     if (p.chain > 0) { // Extra on the Dash: the next dash in a row, where you're steering now
@@ -348,8 +348,13 @@ function spawnEnemy(g, type, minD, maxD, angle) {
   return false;
 }
 
-// Stage 1 has no upgrades yet, so the crowd grows gently.
-function targetAlive(t) { const mn = t / 60; return Math.min(240, Math.round(6 + 6 * mn + 1.5 * mn * mn)); }
+// Round 4: "way too many enemies from the get go ... not coming in waves you can prepare for". Between waves only a
+// few wander in; waves are warned WARN seconds ahead, from 1 side at first, 2 later, sometimes 3, and arrive over a
+// few seconds rather than all at once.
+const FIRST_WAVE = 30, WAVE_EVERY = 45;
+export const WARN = 10;
+function targetAlive(t) { const mn = t / 60; return Math.min(80, Math.round(5 + 2.5 * mn + 0.3 * mn * mn)); }
+const waveSize = (w) => 8 + (w - 1) * 6;
 
 // ---------- step ----------
 export function step(g, dt, inp) {
@@ -384,7 +389,7 @@ export function step(g, dt, inp) {
   if (p.charges < DASH.charges) { p.recharge -= dt; if (p.recharge <= 0) { p.charges++; p.recharge = p.charges < DASH.charges ? DASH.recharge * cdMul(g) : 0; } }
 
   // player movement
-  const SPEED = 8.5 * (1 + 0.07 * g.run.vitals.speed);
+  const SPEED = 8.5 * (1 + 0.08 * g.run.vitals.speed);
   if (p.dashT > 0) stepDash(g, dt, inp);
   else {
     const mx = inp.move.x, my = inp.move.y, mm = Math.min(1, Math.hypot(mx, my));
@@ -394,23 +399,30 @@ export function step(g, dt, inp) {
     if (mm > 0.2 && !g.aim) { p.fx = mx / Math.hypot(mx, my); p.fy = my / Math.hypot(mx, my); }
   }
   if (g.aim) { const d = Math.hypot(g.aim.x, g.aim.y) || 1; p.fx = g.aim.x / d; p.fy = g.aim.y / d; }
-  p.hurtT = Math.max(0, p.hurtT - dt);
+  p.hurtT = Math.max(0, p.hurtT - dt); p.safeT = Math.max(0, p.safeT - dt);
 
   updateSight(g);
   g.fieldT -= dt;
   if (g.fieldT <= 0) { refreshField(g); g.fieldT = 0.2; }
 
-  // spawning: keep the count up, and every minute a wave from a few sides
+  // spawning: a few wanderers between waves; waves warned ahead, from a few sides
   const want = targetAlive(g.t);
-  g.spawnAcc += dt * (g.enemies.length < want ? 3 + g.t / 30 : 0);
-  while (g.spawnAcc >= 1) { g.spawnAcc -= 1; spawnEnemy(g, 'mite', 20, 36); }
-  if (g.t >= g.nextWave) {
-    g.wave++; g.nextWave += 60;
-    // from a few sides, not every side (round 2 answer): 2 or 3 directions
-    const n = 8 + g.wave * 6, k = 2 + (g.R() < 0.5 ? 1 : 0), a0 = g.R() * TAU, sides = [];
+  g.spawnAcc += dt * (g.enemies.length < want ? 0.8 + g.t / 200 : 0);
+  while (g.spawnAcc >= 1) { g.spawnAcc -= 1; spawnEnemy(g, 'mite', 22, 40); }
+  if (!g.waveWarn && g.t >= g.nextWave - WARN) {
+    const w = g.wave + 1, k = w === 1 ? 1 : w <= 3 ? 2 : 2 + (g.R() < 0.5 ? 1 : 0), a0 = g.R() * TAU, sides = [];
     for (let j = 0; j < k; j++) sides.push(a0 + j * TAU / k + (g.R() - 0.5) * 0.8);
-    for (let i = 0; i < n; i++) spawnEnemy(g, 'mite', 18, 40, sides[i % k] + (g.R() - 0.5) * 0.4);
+    g.waveWarn = { at: g.nextWave, wave: w, sides, n: waveSize(w) };
+  }
+  if (g.t >= g.nextWave) {
+    const w = g.waveWarn; g.wave++; g.nextWave += WAVE_EVERY; g.waveWarn = null;
+    g.incoming = { left: w.n, sides: w.sides, rate: Math.max(4, w.n / 3), acc: 0 };
     g.pops.push({ text: `Wave ${g.wave}`, t: 0, big: true });
+  }
+  if (g.incoming) { // the wave arrives over about 3 seconds
+    const w = g.incoming; w.acc += dt * w.rate;
+    while (w.acc >= 1 && w.left > 0) { w.acc -= 1; w.left--; spawnEnemy(g, 'mite', 18, 40, w.sides[w.left % w.sides.length] + (g.R() - 0.5) * 0.4); }
+    if (w.left <= 0) g.incoming = null;
   }
 
   // enemies
@@ -450,13 +462,13 @@ export function step(g, dt, inp) {
   // far behind or lost: come back from somewhere nearer, out of sight
   for (let i = g.enemies.length - 1; i >= 0; i--) {
     const e = g.enemies[i], fd = g.field[Math.floor(e.y) * G + Math.floor(e.x)];
-    if ((fd > 60 && fd !== 65535) || (e.lost || 0) > 1.5) { g.enemies.splice(i, 1); spawnEnemy(g, e.type, 20, 36); }
+    if ((fd > 60 && fd !== 65535) || (e.lost || 0) > 1.5) { g.enemies.splice(i, 1); spawnEnemy(g, e.type, 20, 36, Math.atan2(e.y - p.y, e.x - p.x)) || spawnEnemy(g, e.type, 20, 36); }
   }
 
   // touching you
   for (const e of g.enemies) {
     const d = Math.hypot(p.x - e.x, p.y - e.y);
-    if (d < p.r + e.r + 0.15 && p.dashT <= 0 && p.hurtT <= 0) {
+    if (d < p.r + e.r + 0.15 && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) {
       p.hp -= ENEMIES[e.type].damage; p.hurtT = 0.5;
       if (p.hp <= 0) { p.hp = 0; g.over = true; burst(g, p.x, p.y, 'player', 30); }
     }
@@ -479,7 +491,7 @@ export function step(g, dt, inp) {
       g.gems.splice(i, 1); g.xp += q.v;
     }
   }
-  for (let need = 5 + g.level * 4; g.xp >= need; need = 5 + g.level * 4) { // XP from gems or a scrapped chest
+  for (let need = xpNeed(g.level); g.xp >= need; need = xpNeed(g.level)) { // XP from gems or a scrapped shard
     g.xp -= need; g.level++; g.pops.push({ text: `Level ${g.level}`, t: 0 });
     if (!g.practice) g.run.offers.push(levelOffer(g));
   }
@@ -488,9 +500,12 @@ export function step(g, dt, inp) {
   for (let i = g.pops.length - 1; i >= 0; i--) { g.pops[i].t += dt; if (g.pops[i].t > 1.6) g.pops.splice(i, 1); }
 }
 
+// Round 4: "too few" level-ups, so the early ones come quicker.
+export const xpNeed = (level) => 2 + level * 3;
+
 function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
   if (e.hp <= 0) return;
-  e.hp -= dmg; if (!silent) e.flash = 0.08;
+  e.hp -= dmg * dmgMul(g); if (!silent) e.flash = 0.08;
   const d = Math.hypot(vx, vy) || 1; e.x += vx / d * knock; e.y += vy / d * knock;
   if (e.hp <= 0) {
     g.kills++; burst(g, e.x, e.y, 'enemy', 8);
@@ -520,6 +535,15 @@ function separate(g) {
         e.x -= nx * push; e.y -= ny * push; o.x += nx * push; o.y += ny * push;
       }
     }
+  }
+  const bs = g.balls;
+  for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) { // balls bump each other
+    const a = bs[i], b = bs[j], dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r, d = Math.hypot(dx, dy);
+    if (d >= rr) continue;
+    const nx = d ? dx / d : 1, ny = d ? dy / d : 0, push = (rr - d) / 2;
+    a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+    const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+    if (rel < 0) { a.vx += rel * nx; a.vy += rel * ny; b.vx -= rel * nx; b.vy -= rel * ny; }
   }
   for (const b of g.balls) for (const e of es) { // balls are solid to enemies
     const dx = e.x - b.x, dy = e.y - b.y, rr = e.r + b.r, d = Math.hypot(dx, dy);

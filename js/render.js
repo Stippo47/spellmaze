@@ -1,6 +1,6 @@
 // Drawing. Flat, solid shapes, no glow (docs/DECISIONS.md: "solid and flat"). Canvas 2D.
 import { COL, TAU, fmtTime } from './util.js';
-import { canSee, SIGHT } from './game.js';
+import { canSee, SIGHT, durMul, xpNeed, WARN } from './game.js';
 import { rayDist } from './maze.js';
 import { DASH, SPAWN } from './weapons.js';
 
@@ -44,15 +44,21 @@ export function makeRenderer(canvas) {
       drawCells(m, x0, y0, x1, y1, null, true, LIT, 'walls', g.visStamp, g.visNow);
     }
 
-    // chests: gold boxes. Seen ones stay drawn (faint out of sight) in Remembered sight
+    // shards (were chests; round 4: a chest didn't fit): a standing gold crystal, two flat faces, bobbing.
+    // Seen ones stay drawn (faint out of sight) in Remembered sight; a taken one leaves a dim outline.
     for (const c of g.chests) {
       const vis = mode === 'all' || canSee(g, c.x, c.y);
       if (!vis && !(mode === 'remember' && g.seen[Math.floor(c.y) * G + Math.floor(c.x)])) continue;
       ctx.globalAlpha = vis ? 1 : 0.35;
-      if (c.open) { ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.15; ctx.strokeRect(c.x - 0.8, c.y - 0.6, 1.6, 1.2); }
-      else {
-        ctx.fillStyle = COL.gold; ctx.fillRect(c.x - 0.9, c.y - 0.7, 1.8, 1.4);
-        ctx.fillStyle = '#7a4d00'; ctx.fillRect(c.x - 0.9, c.y - 0.18, 1.8, 0.2); ctx.fillRect(c.x - 0.15, c.y - 0.3, 0.3, 0.42);
+      const by = c.y - 0.25 + (c.open ? 0 : Math.sin(g.t * 2.2 + c.x) * 0.15), hw = 0.75, top = 1.35, bot = 0.95;
+      if (c.open) {
+        ctx.strokeStyle = COL.gold; ctx.lineWidth = 0.12; ctx.globalAlpha *= 0.5;
+        ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x + hw, by); ctx.lineTo(c.x, by + bot); ctx.lineTo(c.x - hw, by); ctx.closePath(); ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 1.05, 0.8, 0.25, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = COL.gold; ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x, by + bot); ctx.lineTo(c.x - hw, by); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#c98a00'; ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x + hw, by); ctx.lineTo(c.x, by + bot); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fff1c4'; ctx.beginPath(); ctx.moveTo(c.x, by - top); ctx.lineTo(c.x - hw * 0.45, by - 0.25); ctx.lineTo(c.x, by - 0.1); ctx.closePath(); ctx.fill();
       }
     }
     ctx.globalAlpha = 1;
@@ -72,7 +78,7 @@ export function makeRenderer(canvas) {
     }
     if (g.dashAim) {
       const d = Math.hypot(g.dashAim.x, g.dashAim.y) || 1, ax = g.dashAim.x / d, ay = g.dashAim.y / d;
-      const L = rayDist(m, p.x, p.y, ax, ay, DASH.length + 1) - 1;
+      const L = rayDist(m, p.x, p.y, ax, ay, DASH.length * durMul(g) + 1) - 1;
       strip(p.x, p.y, p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 2, 'rgba(159,233,255,0.25)');
       circle(p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 1, 'rgba(159,233,255,0.35)');
     }
@@ -124,6 +130,7 @@ export function makeRenderer(canvas) {
     if (!g.over) {
       const hurt = p.hurtT > 0 && Math.floor(p.hurtT * 20) % 2 === 0;
       const dashing = p.dashT > 0;
+      if (p.safeT > 0) { ctx.strokeStyle = COL.dash; ctx.lineWidth = 0.18; ctx.globalAlpha = Math.min(1, p.safeT / DASH.safe + 0.3); ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 0.35, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
       circle(p.x, p.y, p.r, hurt ? COL.hp : dashing ? COL.dash : COL.player);
       circle(p.x, p.y, p.r * 0.5, '#1a2240');
       ctx.fillStyle = hurt ? COL.hp : COL.player;
@@ -156,6 +163,7 @@ export function makeRenderer(canvas) {
 
     // ---------- screen space ----------
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawWaveWarn(g);
     drawHud(g, opts);
     drawControls(g, inp);
     for (const pop of g.pops) {
@@ -240,6 +248,25 @@ export function makeRenderer(canvas) {
     }
   }
 
+  // A wave on its way (round 4: waves you can prepare for): a red bar on each screen edge it comes from, pulsing
+  // faster as it nears, and a countdown under the pause button.
+  function drawWaveWarn(g) {
+    const w = g.waveWarn; if (!w) return;
+    const left = w.at - g.t, k = 1 - left / WARN, pulse = 0.45 + 0.4 * Math.abs(Math.sin(g.t * (3 + 5 * k)));
+    ctx.fillStyle = COL.enemy;
+    for (const a of w.sides) {
+      const dx = Math.cos(a), dy = Math.sin(a), t = Math.min((W / 2) / Math.abs(dx || 1e-6), (H / 2) / Math.abs(dy || 1e-6));
+      const ex = W / 2 + dx * t, ey = H / 2 + dy * t, len = 0.32 * (Math.abs(dx) * t >= W / 2 - 1 ? H : W), th = 7;
+      ctx.globalAlpha = pulse;
+      if (Math.abs(dx) * t >= W / 2 - 1) ctx.fillRect(dx > 0 ? W - th : 0, Math.max(0, Math.min(H - len, ey - len / 2)), th, len);
+      else ctx.fillRect(Math.max(0, Math.min(W - len, ex - len / 2)), dy > 0 ? H - th : 0, len, th);
+    }
+    ctx.globalAlpha = 1;
+    const st = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--st')) || 0;
+    ctx.font = '800 15px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`Wave ${w.wave} in ${Math.ceil(left)}`, W / 2, st + 58);
+  }
+
   function drawHud(g, opts) {
     const cs = getComputedStyle(document.documentElement);
     const sl = parseFloat(cs.getPropertyValue('--sl')) || 0, st = parseFloat(cs.getPropertyValue('--st')) || 0, sr = parseFloat(cs.getPropertyValue('--sr')) || 0;
@@ -250,7 +277,7 @@ export function makeRenderer(canvas) {
     ctx.fillStyle = COL.ui; ctx.font = '700 11px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText(`${Math.ceil(p.hp)}`, x + 6, y + 7.5);
     // level and XP
-    const need = 5 + g.level * 4;
+    const need = xpNeed(g.level);
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x, y + 18, 160, 7);
     ctx.fillStyle = COL.xp; ctx.fillRect(x + 1.5, y + 19.5, 157 * Math.min(1, g.xp / need), 4);
     ctx.fillStyle = COL.ui; ctx.fillText(`Lv ${g.level}`, x + 166, y + 21);

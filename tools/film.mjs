@@ -29,6 +29,10 @@ for (const cast of ['weapon', 'spawn', 'dash']) for (const mod of MODS) {
     bot: { fire: cast === 'weapon' ? 'release' : 'none', spawn: cast === 'spawn', dash: cast === 'dash', dashAt: cast === 'dash', approach: cast === 'dash' } };
   if (cast === 'dash') SCENES[`m-${cast}-${mod}`].film = 8;
 }
+// Round 4: a normal run (no practice build), filmed through a wave's warning and arrival; spawns bumping and draining.
+SCENES['wave'] = { q: 'weapon=pistol&sight=remember', warm: 66, film: 14, run: true, bot: { fire: 'release', dash: true, spawn: true } };
+SCENES['spawns'] = { q: 'weapon=pistol&sight=remember', warm: 30, film: 10, small: true, build: { weapon: {}, spawn: { extra: 2 }, dash: {} },
+  bot: { fire: 'none', spawn: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,
   build: { weapon: { burn: 2, bounce: 2, extra: 1 }, spawn: { burn: 2, home: 2, explode: 2 }, dash: { burn: 2, extra: 1, explode: 1 } },
   bot: { fire: 'hold', spawn: true, dash: true, dashAt: true } };
@@ -46,7 +50,7 @@ async function open(browser, q, small) {
 async function film(browser, name) {
   const sc = SCENES[name];
   const page = await open(browser, sc.q, sc.small);
-  await page.evaluate((sc) => { BOT.cfg = sc.bot; SM.setOpt('build', sc.build || { weapon: {}, spawn: {}, dash: {} }); }, sc);
+  await page.evaluate((sc) => { BOT.cfg = sc.bot; SM.setOpt('build', sc.run ? null : sc.build || { weapon: {}, spawn: {}, dash: {} }); }, sc);
   // play unfilmed: 2 steps per bot thought, health kept up so the film has a crowd
   await page.evaluate((frames) => { for (let i = 0; i < frames; i++) { BOT.think(); SM.advance(2); SM.g.p.hp = Math.max(SM.g.p.hp, 60); } }, sc.warm * 30);
   const dir = join(OUT, '_' + name); rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
@@ -98,9 +102,42 @@ async function stills(browser) {
   await page.close();
 }
 
+// Cards (round 4): the start pick, level-ups, a shard, the build, and a wave warning, with the game drawn behind.
+async function cards(browser) {
+  const page = await open(browser, 'weapon=pistol&sight=remember');
+  const snap = async (file) => { await page.evaluate(() => { SM.setManual(false); SM.setPaused(true); }); await page.waitForTimeout(250);
+    await page.screenshot({ path: join(OUT, file) }); await page.evaluate(() => { SM.setPaused(false); SM.setManual(true); }); };
+  const hide = () => page.evaluate(() => document.querySelectorAll('.screen').forEach(e => e.classList.add('hidden')));
+  await page.evaluate(() => SM.showOffer());
+  await snap('card-start.png');
+  await page.evaluate(() => { BOT.cfg = { fire: 'release', dash: true, spawn: true }; SM.pickOffer(0);
+    for (let i = 0; i < 150 * 30 && !(SM.g.run.offers[0] && SM.g.run.offers[0].modules); i++) { BOT.think(); SM.advance(2); SM.g.p.hp = 100;
+      const o = SM.g.run.offers[0]; if (o && !o.modules) SM.pickOffer(0); } SM.showOffer(); });
+  await snap('card-modules.png');
+  await page.evaluate(() => { SM.pickOffer(1);
+    for (let i = 0; i < 150 * 30 && !(SM.g.run.offers[0] && !SM.g.run.offers[0].modules && SM.g.run.offers[0].cards.some(c => c.type === 'mod')); i++) { BOT.think(); SM.advance(2); SM.g.p.hp = 100;
+      const o = SM.g.run.offers[0]; if (o && (o.modules || !o.cards.some(c => c.type === 'mod'))) SM.pickOffer(0); } SM.showOffer(); });
+  await snap('card-level.png');
+  await page.evaluate(() => { SM.pickOffer(0); SM.g.run.offers.push({ kind: 'chest', id: SM.g.run.mods.spawn[0] ? SM.g.run.mods.spawn[0].id : 'home', rarity: 'rare' }); SM.showOffer(); });
+  await snap('card-shard.png');
+  await page.evaluate(() => { SM.pickOffer(0); });
+  await hide();
+  await page.evaluate(() => { document.getElementById('openbuild').click(); });
+  await snap('build.png');
+  await hide();
+  // a wave warning, and a shard on screen
+  await page.evaluate(() => { const g = SM.g; g.nextWave = g.t + 6; g.waveWarn = null; SM.advance(1);
+    const c = g.chests.find(c => !c.open), m = g.m;
+    if (c) for (const [dx, dy] of [[0, -6], [0, 6], [6, 0], [-6, 0], [4, -4], [-4, 4]]) { const x = g.p.x + dx, y = g.p.y + dy; if (m.clear[Math.floor(y) * m.G + Math.floor(x)] && SM.lib.lineClear(m, g.p.x, g.p.y, x, y)) { c.x = x; c.y = y; break; } }
+    SM.advance(1); });
+  await snap('wave-warn.png');
+  await page.close();
+}
+
 const browser = await chromium.launch({ executablePath: EDGE, headless: true });
 const what = process.argv[2] || 'all';
 if (what === 'perf') await perf(browser);
+else if (what === 'cards') await cards(browser);
 else if (what === 'stills') await stills(browser);
 else {
   const names = what === 'all' ? Object.keys(SCENES) : what === 'modules' ? Object.keys(SCENES).filter(k => k.startsWith('m-') || k.startsWith('combo')) : what.split(',');

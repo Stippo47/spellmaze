@@ -6,6 +6,7 @@ import { WEAPONS, WEAPON_ORDER } from './weapons.js';
 import { fmtTime } from './util.js';
 import { MODULES, MODULE_ORDER, CASTS, CAST_ORDER, MAX_LEVEL, allowed } from './modules.js';
 import { RARITY, RARITY_ORDER, SLOTS, VITALS, placeResult, place, takeLevelCard, cardText, rebuild } from './run.js';
+import { icon, pips, slots } from './ui.js';
 
 const canvas = document.getElementById('game');
 const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false, practice: false };
@@ -86,58 +87,70 @@ $('pause').onclick = () => { paused = true; $('menu').classList.remove('hidden')
 $('resume').onclick = () => { paused = false; $('menu').classList.add('hidden'); last = performance.now(); };
 $('newmaze').onclick = () => { restart(false); paused = false; $('menu').classList.add('hidden'); };
 
-// ---------- chest and level-up cards ----------
+// ---------- shard, start and level-up cards (round 4: new look) ----------
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const FAMC = { path: '#38e8ff', form: '#e8f0ff', payload: '#ff8a1f', spawn: '#ffd23f' };
+const modColor = (id) => FAMC[MODULES[id].family];
 const rar = (r) => `<span style="color:${RARITY[r].color}">${RARITY[r].name}</span>`;
 function closeOffer() { g.run.offers.shift(); $('offer').classList.add('hidden'); last = performance.now(); }
+
+// One card: a coloured band on top, an icon and name, pips, then what it does.
+function card({ color, band, ic, icColor, name, sub, pipsHtml = '', text, onClick, disabled }) {
+  const b = el('button', 'card', `<div class="band" style="background:${color}">${band}</div>
+    <div class="chead">${icon(ic, icColor, 32)}<div><div class="cname">${name}</div><div class="csub">${sub}</div></div></div>
+    ${pipsHtml}<div class="ctext">${text}</div>`);
+  b.style.setProperty('--rc', color);
+  if (disabled) b.disabled = true; else b.onclick = onClick;
+  return b;
+}
+
+function levelCard(c) {
+  const take = () => { takeLevelCard(g, c); closeOffer(); };
+  if (c.type === 'new') {
+    const M = MODULES[c.id], Rr = RARITY[c.rarity];
+    return card({ color: Rr.color, band: `New · ${Rr.name}`, ic: c.id, icColor: modColor(c.id), name: M.name,
+      sub: `${icon(c.cast, '#8b94bb', 14)} on ${CASTS[c.cast].name}`, pipsHtml: pips(0, Rr.cap, true), text: cardText(c.cast, c.id, 1), onClick: take });
+  }
+  if (c.type === 'mod') {
+    const m = g.run.mods[c.cast].find(m => m.id === c.id), M = MODULES[c.id], Rr = RARITY[m.rarity];
+    return card({ color: Rr.color, band: `${Rr.name} · level ${m.level + 1}`, ic: c.id, icColor: modColor(c.id), name: M.name,
+      sub: `${icon(c.cast, '#8b94bb', 14)} ${CASTS[c.cast].name}`, pipsHtml: pips(m.level, Rr.cap, true), text: cardText(c.cast, c.id, m.level + 1), onClick: take });
+  }
+  const V = VITALS[c.id], n = g.run.vitals[c.id];
+  return card({ color: '#8b94bb', band: 'You', ic: c.id, icColor: '#e8f0ff', name: V.name, sub: `level ${n} → ${n + 1}`, text: V.text(n), onClick: take });
+}
 
 function showOffer() {
   const o = g.run.offers[0], cards = $('offerCards'), foot = $('offerFoot');
   cards.innerHTML = ''; foot.innerHTML = '';
   $('offer').classList.remove('hidden');
-  if (o.kind === 'level') {
-    $('offerTitle').textContent = `Level ${g.level}: pick one`;
-    for (const c of o.cards) {
-      let b;
-      if (c.type === 'mod') {
-        const m = g.run.mods[c.cast].find(m => m.id === c.id), M = MODULES[c.id];
-        b = el('button', 'ocard', `<div class="fam-${M.family} oname">${M.name} ${m.level} → ${m.level + 1}</div>
-          <div class="osub">${CASTS[c.cast].name} · ${rar(m.rarity)} · cap ${RARITY[m.rarity].cap}</div>
-          <div class="otext">${cardText(c.cast, c.id, m.level + 1)}</div>`);
-        b.style.borderColor = RARITY[m.rarity].color;
-      } else {
-        const V = VITALS[c.id];
-        b = el('button', 'ocard', `<div class="oname">${V.name}</div><div class="osub">You</div><div class="otext">${V.text(g.run.vitals[c.id])}</div>`);
-      }
-      b.onclick = () => { takeLevelCard(g, c); closeOffer(); };
-      cards.appendChild(b);
-    }
+  if (o.kind === 'start' || o.kind === 'level') {
+    $('offerTitle').innerHTML = o.kind === 'start' ? 'Choose your first module' : o.modules ? `Level ${g.level} · a new module` : `Level ${g.level} · pick one`;
+    for (const c of o.cards) cards.appendChild(levelCard(c));
     return;
   }
-  // a chest: one module, put it in a cast
-  const M = MODULES[o.id];
-  $('offerTitle').innerHTML = `Chest: <span class="fam-${M.family}">${M.name}</span> · ${rar(o.rarity)} <span class="osub">(levels up to ${RARITY[o.rarity].cap})</span>`;
+  // a shard: one module, put it in a cast
+  const M = MODULES[o.id], Rr = RARITY[o.rarity];
+  $('offerTitle').innerHTML = `${icon('shard', Rr.color, 26)} Shard: <span style="color:${modColor(o.id)}">${M.name}</span> · ${rar(o.rarity)} <span class="csub">levels up to ${Rr.cap}</span>`;
   for (const c of CAST_ORDER) {
     const r = placeResult(g, c, o.id, o.rarity), have = g.run.mods[c].find(m => m.id === o.id);
-    const what = { new: `New, level 1: ${allowed(c, o.id) ? cardText(c, o.id, 1) : ''}`,
-      promote: `Already there: becomes ${RARITY[o.rarity].name}, keeps level ${have && have.level}, cap ${RARITY[o.rarity].cap}`,
-      level: `Already there: level ${have && have.level} → ${have && have.level + 1}`,
-      capped: `Already there at its cap`, full: `Full (${SLOTS[c]} slots): replace one`, no: `Doesn't fit this cast` }[r];
-    const b = el('button', 'ocard', `<div class="oname">${CASTS[c].name}</div><div class="osub">${g.run.mods[c].length} of ${SLOTS[c]} slots</div><div class="otext">${what}</div>`);
-    b.style.borderColor = RARITY[o.rarity].color;
-    if (r === 'no' || r === 'capped') b.disabled = true;
-    b.onclick = () => {
-      if (r !== 'full') { place(g, c, o.id, o.rarity); closeOffer(); return; }
-      cards.innerHTML = ''; $('offerTitle').textContent = `Replace which ${CASTS[c].name} module?`;
-      g.run.mods[c].forEach((m, i) => {
-        const x = el('button', 'ocard', `<div class="oname fam-${MODULES[m.id].family}">${MODULES[m.id].name} ${m.level}</div><div class="osub">${rar(m.rarity)}</div><div class="otext">Goes. ${M.name} takes its slot at level 1.</div>`);
-        x.onclick = () => { place(g, c, o.id, o.rarity, i); closeOffer(); };
-        cards.appendChild(x);
-      });
-      const back = el('button', 'big alt', 'Back'); back.onclick = () => { $('offer').classList.add('hidden'); };
-      foot.innerHTML = ''; foot.appendChild(back);
-    };
-    cards.appendChild(b);
+    const what = { new: allowed(c, o.id) ? cardText(c, o.id, 1) : '',
+      promote: `Yours becomes ${Rr.name}: keeps level ${have && have.level}, can reach ${Rr.cap}`,
+      level: `Yours goes up: level ${have && have.level} → ${have && have.level + 1}`,
+      capped: `Yours is at its cap`, full: `Full: replace one`, no: `Doesn't fit here` }[r];
+    const band = { new: 'New here', promote: 'Upgrade', level: '+1 level', capped: 'At cap', full: 'Full', no: '—' }[r];
+    cards.appendChild(card({ color: r === 'no' || r === 'capped' ? '#2a3360' : Rr.color, band, ic: c, icColor: '#e8f0ff', name: CASTS[c].name,
+      sub: slots(g.run.mods[c].length, SLOTS[c]), pipsHtml: have ? pips(have.level, RARITY[have.rarity].cap, r === 'level') : '', text: what,
+      disabled: r === 'no' || r === 'capped',
+      onClick: () => {
+        if (r !== 'full') { place(g, c, o.id, o.rarity); closeOffer(); return; }
+        cards.innerHTML = ''; $('offerTitle').innerHTML = `Replace which ${CASTS[c].name} module with ${M.name}?`;
+        g.run.mods[c].forEach((m, i) => cards.appendChild(card({ color: RARITY[m.rarity].color, band: 'Goes', ic: m.id, icColor: modColor(m.id),
+          name: MODULES[m.id].name, sub: rar(m.rarity), pipsHtml: pips(m.level, RARITY[m.rarity].cap), text: `${M.name} takes its slot at level 1.`,
+          onClick: () => { place(g, c, o.id, o.rarity, i); closeOffer(); } })));
+        const back = el('button', 'big alt', 'Back'); back.onclick = () => { $('offer').classList.add('hidden'); };
+        foot.innerHTML = ''; foot.appendChild(back);
+      } }));
   }
   const xp = 3 * (RARITY_ORDER.indexOf(o.rarity) + 1);
   const scrap = el('button', 'big alt', `Scrap it: +${xp} XP`); scrap.onclick = () => { g.xp += xp; closeOffer(); };
@@ -148,35 +161,40 @@ function showOffer() {
 // Practice on: every module free, any level. Practice off: the run's own build, and modules can be moved.
 function buildBuild() {
   const grid = $('buildGrid'); grid.innerHTML = '';
-  $('buildHead').textContent = opts.practice ? '· practice: free, any level (Settings → Practice)' : '· this run: found in chests, levelled by level-ups';
+  $('buildHead').textContent = opts.practice ? 'practice: free, any level' : 'this run';
   $('buildClear').classList.toggle('hidden', !opts.practice);
   if (!opts.practice) {
-    grid.appendChild(el('tr', null, CAST_ORDER.map(c => `<th>${CASTS[c].name} (${g.run.mods[c].length}/${SLOTS[c]})</th>`).join('')));
-    const tr = el('tr');
+    const row = el('div', 'casts');
     for (const c of CAST_ORDER) {
-      const td = el('td', 'runcol');
-      if (!g.run.mods[c].length) td.appendChild(el('div', 'note', 'empty'));
+      const col = el('div', 'castcol', `<div class="casthead">${icon(c, '#e8f0ff', 20)}<b>${CASTS[c].name}</b>${slots(g.run.mods[c].length, SLOTS[c])}</div>`);
       g.run.mods[c].forEach((m, i) => {
-        const M = MODULES[m.id], box = el('div', 'runmod', `<div><b class="fam-${M.family}">${M.name}</b> ${m.level}/${RARITY[m.rarity].cap} ${rar(m.rarity)}</div><div class="note">${cardText(c, m.id, m.level)}</div>`);
-        box.style.borderColor = RARITY[m.rarity].color;
+        const M = MODULES[m.id], Rr = RARITY[m.rarity];
+        const t = el('div', 'tile', `${icon(m.id, modColor(m.id), 28)}<div class="tbody"><div><b>${M.name}</b> ${rar(m.rarity)}</div>${pips(m.level, Rr.cap)}<div class="ttext">${cardText(c, m.id, m.level)}</div></div>`);
+        t.style.setProperty('--rc', Rr.color);
+        const moves = el('div', 'moves');
         for (const to of CAST_ORDER) {
           if (to === c || !allowed(to, m.id) || g.run.mods[to].length >= SLOTS[to] || g.run.mods[to].some(x => x.id === m.id)) continue;
-          const mv = el('button', 'mini', `→ ${CASTS[to].name}`);
+          const mv = el('button', 'mini', `${icon(to, '#c4cbe8', 12)} move to ${CASTS[to].name}`);
           mv.onclick = () => { g.run.mods[c].splice(i, 1); g.run.mods[to].push(m); rebuild(g); buildBuild(); };
-          box.appendChild(mv);
+          moves.appendChild(mv);
         }
-        td.appendChild(box);
+        if (moves.children.length) t.querySelector('.tbody').appendChild(moves);
+        col.appendChild(t);
       });
-      tr.appendChild(td);
+      for (let k = g.run.mods[c].length; k < SLOTS[c]; k++) col.appendChild(el('div', 'tile empty', 'Empty slot'));
+      row.appendChild(col);
     }
-    grid.appendChild(tr);
-    const v = g.run.vitals;
-    $('buildText').innerHTML = `You: health ${v.health}, speed ${v.speed}, cooldowns ${v.cooldown}, pickup ${v.pickup}. Moving a module keeps its level.`;
+    grid.appendChild(row);
+    const vit = el('div', 'vitals');
+    for (const [k, V] of Object.entries(VITALS)) vit.appendChild(el('span', 'chip' + (g.run.vitals[k] ? ' on' : ''), `${icon(k, '#e8f0ff', 14)} ${V.name} ${g.run.vitals[k]}`));
+    grid.appendChild(vit);
+    $('buildText').innerHTML = 'Moving a module keeps its level and rarity.';
     return;
   }
-  grid.appendChild(el('tr', null, '<th></th>' + CAST_ORDER.map(c => `<th>${CASTS[c].name}</th>`).join('')));
+  const tbl = el('table', 'ptable'); grid.appendChild(tbl);
+  tbl.appendChild(el('tr', null, '<th></th>' + CAST_ORDER.map(c => `<th>${CASTS[c].name}</th>`).join('')));
   for (const id of MODULE_ORDER) {
-    const M = MODULES[id], tr = el('tr', null, `<td class="name fam-${M.family}">${M.name}</td>`);
+    const M = MODULES[id], tr = el('tr', null, `<td class="name" style="color:${modColor(id)}">${M.name}</td>`);
     for (const c of CAST_ORDER) {
       const td = el('td');
       if (allowed(c, id)) {
@@ -188,7 +206,7 @@ function buildBuild() {
       } else td.textContent = '·';
       tr.appendChild(td);
     }
-    grid.appendChild(tr);
+    tbl.appendChild(tr);
   }
   const lines = [];
   for (const c of CAST_ORDER) for (const id of MODULE_ORDER) {
@@ -209,7 +227,7 @@ window.SM = { get g() { return g; }, inp, opts, restart, R, setPaused: (v) => { 
   advance: (n = 1) => { for (let i = 0; i < n && !g.over; i++) { step(g, DT, inp); inp.events.length = 0; } R.draw(g, inp, opts); if (g.over && $('over').classList.contains('hidden')) showOver(); },
   setOpt: (k, v) => { opts[k] = v; if (k === 'weapon') setWeapon(g, v); if (k === 'build') { g.practice = v; rebuild(g); } },
   showOffer: () => showOffer(),
-  pickOffer: (i = 0) => { const o = g.run.offers[0]; if (!o) return; if (o.kind === 'level') takeLevelCard(g, o.cards[i] || o.cards[0]);
+  pickOffer: (i = 0) => { const o = g.run.offers[0]; if (!o) return; if (o.kind !== 'chest') { if (o.cards.length) takeLevelCard(g, o.cards[i] || o.cards[0]); }
     else { const c = CAST_ORDER.find(c => ['new', 'promote', 'level'].includes(placeResult(g, c, o.id, o.rarity))); if (c) place(g, c, o.id, o.rarity); } closeOffer(); } };
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');

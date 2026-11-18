@@ -3,6 +3,36 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-17 — stage 3 answered (they played it); round 4 fixes built (v0.5.0)
+
+Answers: chests good, rarity good, Explode small start good; duplicates and level-ups decent. Level-ups "too few. Seemed
+too weak or simple. Too many choices not enough options." Build screen: "don't like the look". Rooms: "bigger, more room
+shapes, rooms with fewer entrances". Deck notes: **balancing way off: way too many enemies from the get go, no way to
+increase damage, enemies constant, not waves you can prepare for, from every direction. No dash i-frames. Don't like
+the upgrade UI. The chest should look like something else, doesn't fit the theme. Duration upgrade (summon life,
+projectile life, dash range). Summons slowly lose HP; lower base damage, higher HP, collide with each other.**
+Questions: empty start → **pick 1 of 3**, plus "every x upgrades can offer a module, first one at the first upgrade".
+Slots 3/2/2 between-run growth: go. Stage 4 (camps first, then enemies): go. **"I want destructible tiles. Some making
+up walls."**
+
+Built (round 4), my numbers:
+- Crowd: 5 wanderers at the start, growing slowly. Waves at 0:30 then every 45 s, **warned 10 s ahead**: a red bar on
+  each screen edge it comes from and "Wave N in 7" under pause. Wave 1 from 1 side, 2-3 from 2, then 2 or 3. Size
+  8, 14, 20... arriving over ~3 s. Enemies that fall behind come back on their own side.
+- Dash: untouchable for 0.35 s after it ends (a pale ring shows it), on top of the dash itself.
+- New "you" cards: **Power** +15% damage from everything, **Duration** +15% bolt range, spawn life, dash length.
+  Bigger steps: health +25, speed +8%, cooldowns 10%, pickup 1.5 cells.
+- Level-ups: 3 cards, not 4; quicker (XP 5, 8, 11...). New-module cards at the first level-up and every 3rd after
+  (levels 2, 5, 8...), each already on a cast with room, one tap. Runs start with a pick of 3 common modules.
+- Spawn: 90 health (was 40), drains over its 16 s life so hits shorten it; contact 2 + speed×0.4 (was 4 + ×0.7);
+  balls bump off each other.
+- New card look (rarity band, icon, level pips) and build screen (a column per cast, slot squares, empty slots shown,
+  "you" chips). Line icons in `js/ui.js`.
+- **Chest → Shard**: a standing gold crystal. Code still calls them chests.
+- Rooms: 8 per medium maze, shapes rect, round, L, cross, pillared; 2 ways in (3 for big rooms), never cutting the maze
+  off. Roads are now shortest paths (trimmed entrances can't reopen).
+- Destructible walls go with camps in stage 4.
+
 ## 2026-11-17 — stage 2 answered; stage 3 built
 
 Answers: every module on every cast good. Build screen: decent (no comment). Explode: "should start out very weak/

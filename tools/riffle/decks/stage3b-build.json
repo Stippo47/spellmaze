@@ -1,0 +1,89 @@
+{
+ "title": "Fixes from your play",
+ "topic": "builds",
+ "order": 7,
+ "cards": [
+  {
+   "id": "fixes",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Your notes, fixed",
+   "text": "Fewer enemies, waves you see coming, dash safety, Power and Duration, new cards, shards, new rooms.",
+   "why": "Everything from your stage 3 notes except breakable walls, which come with camps. Mark any part that's off.",
+   "details": "Version 0.5.0. Close and reopen the app twice to get it.\n\nAll numbers are first guesses; say 'more' or 'less' on any part.",
+   "parts": [
+    {
+     "id": "crowd",
+     "title": "Crowd and waves",
+     "text": "5 enemies at the start, a few more each minute. Waves at 0:30, then every 45 s, warned 10 s ahead by a red bar on the screen edge they come from and a countdown. Wave 1 from one side, then two, later sometimes three.",
+     "images": [
+      "../../../films/wave-warn.png"
+     ],
+     "videos": [
+      "../../../films/wave.mp4"
+     ]
+    },
+    {
+     "id": "dash",
+     "title": "Dash safety",
+     "text": "Nothing can touch you during a dash or for 0.35 s after it. A pale ring shows while you're safe."
+    },
+    {
+     "id": "power",
+     "title": "Power and Duration",
+     "text": "New cards for you: Power is +15% damage from everything. Duration is +15% bolt range, spawn life and dash length."
+    },
+    {
+     "id": "levels",
+     "title": "Level-ups",
+     "text": "3 cards, not 4, coming quicker. Bigger steps: health +25, speed +8%, cooldowns 10%.",
+     "images": [
+      "../../../films/card-level.png"
+     ]
+    },
+    {
+     "id": "modules",
+     "title": "New modules",
+     "text": "Runs start with a pick of 3. The first level-up and every 3rd after (levels 2, 5, 8) offer new modules, each already on a cast.",
+     "images": [
+      "../../../films/card-start.png",
+      "../../../films/card-modules.png"
+     ]
+    },
+    {
+     "id": "spawns",
+     "title": "Spawns",
+     "text": "90 health (was 40), draining over 16 s so hits shorten their life. They hit softer and bump off each other.",
+     "videos": [
+      "../../../films/spawns.mp4"
+     ]
+    },
+    {
+     "id": "look",
+     "title": "Cards and build",
+     "text": "New look: a rarity band, an icon, level pips. The build shows a column per cast with empty slots.",
+     "images": [
+      "../../../films/card-shard.png",
+      "../../../films/build.png"
+     ]
+    },
+    {
+     "id": "shard",
+     "title": "Shards",
+     "text": "Chests are now shards: a gold crystal standing in dead ends and rooms. Same as before inside.",
+     "images": [
+      "../../../films/wave-warn.png"
+     ]
+    },
+    {
+     "id": "rooms",
+     "title": "Rooms",
+     "text": "8 rooms, bigger: square, round, L, cross and pillared. Most have 2 ways in, big ones 3. Rooms tinted, shards gold, you white.",
+     "images": [
+      "../../../films/maze-overview.png"
+     ]
+    }
+   ]
+  }
+ ]
+}

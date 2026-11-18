@@ -1,4 +1,4 @@
-// A run's build: modules found in chests, levelled by level-ups, capped by rarity (stage 3).
+// A run's build: modules from shards and level-ups, levelled by level-ups, capped by rarity.
 // The game reads g.build ({cast: {module: level}}), so everything here ends in rebuild(g).
 import { MODULES, MODULE_ORDER, CASTS, CAST_ORDER, allowed } from './modules.js';
 
@@ -11,17 +11,21 @@ export const RARITY = {
 };
 export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 export const SLOTS = { weapon: 3, spawn: 2, dash: 2 };
+export const MODULE_EVERY = 3;   // every 3rd level-up offers new modules (round 4: "every x upgrades can offer a module")
 
-// You, not a module (decisions: player upgrades on level-up cards too). Small steps, no caps for now.
+// You, not a module. Round 4: level-ups felt weak, so bigger steps, and damage + duration join.
 export const VITALS = {
-  health: { name: 'Health', text: (n) => `+20 max health, and heal 20 (${n} → ${n + 1})` },
-  speed: { name: 'Speed', text: (n) => `+7% move speed (${n} → ${n + 1})` },
-  cooldown: { name: 'Cooldowns', text: (n) => `Spawn, Dash and reloads 8% faster (${n} → ${n + 1})` },
-  pickup: { name: 'Pickup', text: (n) => `Pick up XP from 1 cell further (${n} → ${n + 1})` },
+  damage:   { name: 'Power', text: () => `+15% damage from everything` },
+  duration: { name: 'Duration', text: () => `+15% longer: bolt range, spawn life, dash length` },
+  health:   { name: 'Health', text: () => `+25 max health, and heal 25` },
+  speed:    { name: 'Speed', text: () => `+8% move speed` },
+  cooldown: { name: 'Cooldowns', text: () => `Spawn, Dash and reloads 10% faster` },
+  pickup:   { name: 'Pickup', text: () => `Pick up XP from 1.5 cells further` },
 };
 
 export function newRun() {
-  return { mods: { weapon: [], spawn: [], dash: [] }, vitals: { health: 0, speed: 0, cooldown: 0, pickup: 0 }, offers: [] };
+  const vitals = {}; for (const k of Object.keys(VITALS)) vitals[k] = 0;
+  return { mods: { weapon: [], spawn: [], dash: [] }, vitals, offers: [] };
 }
 
 export function rebuild(g) {
@@ -31,7 +35,7 @@ export function rebuild(g) {
   g.build = b;
 }
 
-// Rarity of a chest: rarer as the run goes on (each minute shifts weight up the ladder).
+// Rarity of a shard: rarer as the run goes on (each minute shifts weight up the ladder).
 export function rollRarity(R, minutes) {
   const w = RARITY_ORDER.map((r, i) => RARITY[r].weight * Math.pow(1 + 0.12 * minutes, i));
   let x = R() * w.reduce((a, b) => a + b, 0);
@@ -68,13 +72,34 @@ export function place(g, cast, id, rarity, replaceIdx) {
   return true;
 }
 
-// Level-up: 4 cards, weighted to modules you have that aren't capped, with vitals mixed in.
+// New-module cards: different modules, each already on a cast with a free slot, so one tap takes it.
+function newModCards(g, n, rarity) {
+  const ids = MODULE_ORDER.slice(), out = [];
+  for (let i = ids.length - 1; i > 0; i--) { const j = (g.R() * (i + 1)) | 0; [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  for (const id of ids) {
+    if (out.length >= n) break;
+    const casts = CAST_ORDER.filter(c => placeResult(g, c, id, 'common') === 'new');
+    if (!casts.length) continue;
+    out.push({ type: 'new', id, cast: casts[(g.R() * casts.length) | 0], rarity: rarity || rollRarity(g.R, g.t / 60) });
+  }
+  return out;
+}
+
+// The start of a run (round 4: pick 1 of 3 common modules).
+export function startOffer(g) { return { kind: 'start', cards: newModCards(g, 3, 'common') }; }
+
+// Level-up: 3 cards. Every MODULE_EVERY levels (from the first level-up), new modules while there's room;
+// otherwise levels for modules you have (below their cap) and for you.
 export function levelOffer(g) {
+  if ((g.level - 2) % MODULE_EVERY === 0) {
+    const cards = newModCards(g, 3);
+    if (cards.length >= 2) return { kind: 'level', modules: true, cards };
+  }
   const pool = [];
   for (const c of CAST_ORDER) for (const m of g.run.mods[c]) if (m.level < RARITY[m.rarity].cap) pool.push({ type: 'mod', cast: c, id: m.id, w: 3 });
-  for (const v of Object.keys(VITALS)) pool.push({ type: 'vital', id: v, w: 1 });
+  for (const v of Object.keys(VITALS)) pool.push({ type: 'vital', id: v, w: 1.2 });
   const cards = [];
-  while (cards.length < 4 && pool.length) {
+  while (cards.length < 3 && pool.length) {
     let x = g.R() * pool.reduce((a, p) => a + p.w, 0), i = 0;
     for (; i < pool.length - 1; i++) { x -= pool[i].w; if (x <= 0) break; }
     cards.push(pool.splice(i, 1)[0]);
@@ -83,11 +108,10 @@ export function levelOffer(g) {
 }
 
 export function takeLevelCard(g, card) {
-  if (card.type === 'mod') { const m = g.run.mods[card.cast].find(m => m.id === card.id); if (m) m.level++; rebuild(g); }
-  else {
-    g.run.vitals[card.id]++;
-    if (card.id === 'health') { g.p.maxHp += 20; g.p.hp = Math.min(g.p.maxHp, g.p.hp + 20); }
-  }
+  if (card.type === 'new') { place(g, card.cast, card.id, card.rarity); return; }
+  if (card.type === 'mod') { const m = g.run.mods[card.cast].find(m => m.id === card.id); if (m) m.level++; rebuild(g); return; }
+  g.run.vitals[card.id]++;
+  if (card.id === 'health') { g.p.maxHp += 25; g.p.hp = Math.min(g.p.maxHp, g.p.hp + 25); }
 }
 
 export function cardText(cast, id, level) { return MODULES[id].on[CASTS[cast].shape](level); }

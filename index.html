@@ -34,25 +34,52 @@
   .big { background: #e8f0ff; color: #04060c; border-radius: 10px; padding: 9px 16px; font-size: 15px; }
   .big.alt { background: #182040; color: #e8f0ff; }
   .note { color: #6b7499; font-size: 11px; font-weight: 600; margin-top: 6px; }
-  #buildGrid { border-collapse: collapse; margin-top: 4px; }
-  #buildGrid th { color: #8b94bb; font-size: 12px; font-weight: 700; padding: 2px 8px; text-align: center; }
-  #buildGrid td { padding: 3px 6px; text-align: center; }
-  #buildGrid td.name { text-align: left; font-size: 13px; padding-right: 10px; }
+  .icon { flex: none; vertical-align: middle; }
+  .csub { font-size: 12px; color: #8b94bb; font-weight: 700; }
+  /* cards: shards, the run's start, level-ups */
+  .offerwrap { width: 100%; max-width: 760px; max-height: 100%; overflow: auto; }
+  #offerTitle { text-align: center; font-size: 22px; margin-bottom: 12px; display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  #offerCards { display: flex; gap: 12px; justify-content: center; }
+  #offer .btns { justify-content: center; }
+  .card { --rc: #2a3360; flex: 1 1 0; max-width: 236px; min-height: 150px; background: #0e1428; border: 2px solid var(--rc); border-radius: 14px;
+    padding: 0 0 12px; text-align: left; color: #e8f0ff; overflow: hidden; display: flex; flex-direction: column; }
+  .card:active { transform: scale(0.97); }
+  .card:disabled { opacity: 0.35; }
+  .card .band { color: #04060c; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 12px; }
+  .chead { display: flex; gap: 10px; align-items: center; padding: 10px 12px 4px; }
+  .cname { font-size: 19px; font-weight: 800; }
+  .card .pips { margin: 4px 12px 2px; }
+  .ctext { font-size: 13px; font-weight: 600; line-height: 1.3; color: #c4cbe8; padding: 4px 12px 0; }
+  .pips { display: inline-flex; gap: 4px; }
+  .pips i { width: 10px; height: 10px; border-radius: 3px; border: 2px solid #4a5590; }
+  .pips i.on { background: #e8f0ff; border-color: #e8f0ff; }
+  .pips i.up { background: #ffc23a; border-color: #ffc23a; }
+  .slots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+  .slots i { width: 9px; height: 9px; border: 2px solid #8b94bb; border-radius: 2px; }
+  .slots i.on { background: #8b94bb; }
+  /* the build: one column per cast */
+  .casts { display: flex; gap: 10px; }
+  .castcol { flex: 1 1 0; min-width: 190px; }
+  .casthead { display: flex; align-items: center; gap: 6px; font-size: 15px; margin-bottom: 6px; }
+  .tile { --rc: #2a3360; display: flex; gap: 8px; align-items: flex-start; background: #121a33; border: 2px solid var(--rc); border-radius: 10px; padding: 7px 8px; margin-bottom: 6px; font-size: 13px; }
+  .tile.empty { border-style: dashed; color: #4a5590; justify-content: center; padding: 14px 8px; background: none; }
+  .tbody { flex: 1; }
+  .ttext { font-size: 12px; color: #c4cbe8; font-weight: 600; margin-top: 3px; }
+  .moves { margin-top: 4px; }
+  .mini { background: #182040; color: #c4cbe8; border-radius: 6px; padding: 4px 7px; font-size: 11px; margin: 3px 3px 0 0; display: inline-flex; gap: 4px; align-items: center; }
+  .vitals { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .chip { display: inline-flex; gap: 5px; align-items: center; background: #121a33; color: #6b7499; border-radius: 99px; padding: 4px 10px; font-size: 12px; }
+  .chip.on { color: #e8f0ff; background: #1c2550; }
+  /* practice table */
+  .ptable { border-collapse: collapse; margin-top: 4px; }
+  .ptable th { color: #8b94bb; font-size: 12px; font-weight: 700; padding: 2px 8px; text-align: center; }
+  .ptable td { padding: 3px 6px; text-align: center; }
+  .ptable td.name { text-align: left; font-size: 13px; padding-right: 10px; }
   .step { display: inline-flex; align-items: center; gap: 2px; }
   .step button { width: 30px; height: 28px; border-radius: 7px; background: #182040; color: #c4cbe8; font-size: 16px; }
   .step b { width: 20px; display: inline-block; font-size: 14px; }
   .step.on b { color: #ffc23a; }
-  #buildText { max-width: 560px; line-height: 1.35; }
-  .fam-path { color: #38e8ff; } .fam-form { color: #e8f0ff; } .fam-payload { color: #ff8a1f; } .fam-spawn { color: #ffd23f; }
-  #offerCards { display: flex; gap: 8px; flex-wrap: wrap; }
-  .ocard { background: #121a33; border: 3px solid #2a3360; border-radius: 12px; padding: 9px 10px; width: 188px; text-align: left; color: #e8f0ff; }
-  .ocard:disabled { opacity: 0.35; }
-  .oname { font-size: 15px; font-weight: 800; }
-  .osub { font-size: 11px; color: #8b94bb; margin: 2px 0 4px; font-weight: 700; }
-  .otext { font-size: 12px; font-weight: 600; line-height: 1.3; color: #c4cbe8; }
-  .runcol { vertical-align: top; min-width: 170px; }
-  .runmod { border: 2px solid #2a3360; border-radius: 9px; padding: 5px 7px; margin: 3px 0; text-align: left; font-size: 13px; }
-  .mini { background: #182040; color: #c4cbe8; border-radius: 6px; padding: 3px 7px; font-size: 11px; margin: 3px 3px 0 0; }
+  #buildText { max-width: 620px; line-height: 1.35; }
   #turn { display: none; }
   @media (orientation: portrait) { #turn { display: flex; position: fixed; inset: 0; background: #04060c; z-index: 9; align-items: center; justify-content: center; font-size: 18px; } }
 </style>
@@ -72,22 +99,22 @@
     <div class="row" data-opt="view"><span>Camera</span><div class="seg"></div></div>
     <div class="row" data-opt="fps"><span>Frame rate</span><div class="seg"></div></div>
     <div class="row" data-opt="practice"><span>Practice build</span><div class="seg"></div></div>
-    <div class="note">Practice: no chests or level-ups, build anything in Build. Corridors, maze size and practice start a new run on the same seed. Settings are kept on this phone.</div>
+    <div class="note">Practice: no shards or level-ups, build anything in Build. Corridors, maze size and practice start a new run on the same seed. Settings are kept on this phone.</div>
     <div class="btns"><button id="resume" class="big">Resume</button><button id="openbuild" class="big alt">Build</button><button id="newmaze" class="big alt">New run</button></div>
   </div>
 </div>
 
 <div id="build" class="screen hidden">
   <div class="panel">
-    <h1>Build <span id="buildHead" style="font-size:12px;color:#6b7499;font-weight:600"></span></h1>
-    <table id="buildGrid"></table>
+    <h1>Build <span id="buildHead" class="csub"></span></h1>
+    <div id="buildGrid"></div>
     <div id="buildText" class="note"></div>
     <div class="btns"><button id="buildDone" class="big">Back</button><button id="buildClear" class="big alt">Clear all</button></div>
   </div>
 </div>
 
 <div id="offer" class="screen hidden">
-  <div class="panel" style="max-width:100%">
+  <div class="offerwrap">
     <h1 id="offerTitle"></h1>
     <div id="offerCards"></div>
     <div id="offerFoot" class="btns"></div>

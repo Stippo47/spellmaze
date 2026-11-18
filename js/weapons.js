@@ -16,8 +16,9 @@ export const WEAPONS = {
 };
 export const WEAPON_ORDER = ['pistol', 'smg', 'auto'];
 
-export const DASH = { length: 6, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6 };
+export const DASH = { length: 6, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6, safe: 0.35 };   // safe: untouchable after a dash (round 4)
 
 // The Spawn cast (decisions: on a cooldown, reads as "spawn" not "summon"). A thrown Ball: hits by contact, harder
 // the faster it goes; slows to a stop, sits, and enemies near it go for it instead of you.
-export const SPAWN = { cooldown: 7, hp: 40, life: 15, speed: 22, r: 1.1, drag: 3, contact: 4, speedDamage: 0.7 };
+// Round 4: tougher but softer-hitting, and it wears down: health drains over its life, so hits shorten it.
+export const SPAWN = { cooldown: 7, hp: 90, life: 16, speed: 22, r: 1.1, drag: 3, contact: 2, speedDamage: 0.4 };
