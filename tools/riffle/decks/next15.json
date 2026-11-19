@@ -1,0 +1,39 @@
+{
+ "title": "What next",
+ "topic": "builds",
+ "order": 25,
+ "cards": [
+  {
+   "id": "next",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "The next piece",
+   "text": "Everything so far is marked good. Which comes next? Tick more than one if you like.",
+   "why": "You asked for more polish and charm earlier; the build order also has more modules, Runes and between-run progress.",
+   "pick": "a",
+   "details": "Polish: walk bob and squash on you, enemy faces and idle wobbles, a dash trail that bends, floor dust, shard and key pickup fanfare, a proper game-over screen with your run's numbers.\n\nModules: Orbit, Return, Shrapnel, Trail, Echo, Leech, Pull from the design, each on all your casts.\n\nRunes: modules that cast another spell on hit, on wall, on end, every second or on kill.\n\nBetween runs: what you keep after a run (slots, unlocks, starting choices).",
+   "options": [
+    {
+     "id": "a",
+     "label": "Polish pass",
+     "text": "Charm: movement, faces, pickups, a game-over screen."
+    },
+    {
+     "id": "b",
+     "label": "More modules",
+     "text": "Orbit, Return, Shrapnel, Trail, Echo, Leech, Pull."
+    },
+    {
+     "id": "c",
+     "label": "Runes",
+     "text": "Spells inside spells."
+    },
+    {
+     "id": "d",
+     "label": "Between runs",
+     "text": "What you keep after a run."
+    }
+   ]
+  }
+ ]
+}
