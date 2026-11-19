@@ -87,12 +87,12 @@ export function makeInput(canvas, getPlayerScreen) {
       Object.assign(S.fire, { down: false, engaged: false, mag: 0 });
     }
     if (t.role === 'dash') {
-      if (S.dash.engaged === true) S.events.push({ type: 'dashRelease', x: S.dash.x, y: S.dash.y });
+      if (S.dash.engaged === true) S.events.push({ type: 'dashRelease', x: S.dash.x, y: S.dash.y, mag: S.dash.mag });
       else if (!S.dash.engaged) S.events.push({ type: 'dashTap' });
       Object.assign(S.dash, { down: false, engaged: false, mag: 0 });
     }
     if (t.role === 'spawn') {
-      if (S.spawn.engaged === true) S.events.push({ type: 'spawnRelease', x: S.spawn.x, y: S.spawn.y });
+      if (S.spawn.engaged === true) S.events.push({ type: 'spawnRelease', x: S.spawn.x, y: S.spawn.y, mag: S.spawn.mag });
       else if (!S.spawn.engaged) S.events.push({ type: 'spawnTap' });
       Object.assign(S.spawn, { down: false, engaged: false, mag: 0 });
     }

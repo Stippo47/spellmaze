@@ -3,6 +3,30 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-19 — round 10 answered ("Go"); round 11 built (v0.14.0)
+
+Answers: all good; **"keep going with visual polish / charm"**. Hit effects: **"launch enemies on death? Or the burst
+particles fly away from the direction they took the death blow from?"** Clouds: **"particles meh, kinda jarring"**.
+Shard: **"add glow"**. **Loadout picked at run start.** Then "Go".
+
+Built:
+- **Loadout screen before each run**: pick a weapon (6) and 2 of Spawn, Dash, Burst (tapping a third swaps out the
+  older pick); remembered for next time. Then the start module pick, offering only your casts. Dash, when brought,
+  is on the button; the other ability takes the stick; with Spawn + Burst, Burst is on the button.
+- **Burst** (ability): drag to aim (drag length = distance, up to 12 cells, stops short of walls), let go to throw;
+  a tap throws at the nearest enemy. Lands in 0.5 s, 3-cell blast for 30, 5 s cooldown. Every module has a burst
+  answer (design section 4): Extra more bombs round the aim, Bounce hops on smaller, Home steers onto an enemy near
+  the aim, Pierce blasts through walls, Grow bigger, Haste lands and comes back sooner, Split two small bombs after,
+  payloads to all in the blast, Knock hurls outward, Explode a second blast after a beat, Duration throw range.
+  A Burst cooldown stat card (only offered if you brought it).
+- **Laser** (weapon): hold to fire a beam (18 cells, 42 damage a second, a charge that drains 30 a second and
+  refills 45). Modules on the beam: Pierce burns through enemies, Bounce reflects off walls, Extra fans beams, Split
+  forks partway, Home bends onto a nearby enemy, payloads at 3 hits' worth a second, Knock pushes along it, Explode
+  blasts at the far end every 0.5 s, Grow wider, Haste and Duration longer.
+- Deaths: the body flies off the way the killing blow went, spinning and shrinking; the sparks go that way too.
+- Cloud motes: fewer, round, small, fading in and out (no squares).
+- Shard: a soft gold glow under it.
+
 ## 2026-11-19 — round 9 answered; round 10 built (v0.13.0)
 
 Answers: Hulk good, "a bit more snappy". Cloud motes PROBLEM: **"don't see particles lingering; at the end of their

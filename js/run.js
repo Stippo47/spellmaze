@@ -10,7 +10,9 @@ export const RARITY = {
   legendary: { name: 'Legendary', cap: 9, color: '#ffb300', weight: 1 },
 };
 export const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-export const SLOTS = { weapon: 3, spawn: 2, dash: 2 };
+export const SLOTS = { weapon: 3, spawn: 2, dash: 2, burst: 2 };
+// The casts you brought: your weapon and your 2 abilities (round 11).
+export const castsOf = (g) => ['weapon', ...(g.abilities || ['spawn', 'dash'])];
 export const MODULE_EVERY = 3;   // every 3rd level-up offers new modules (round 4: "every x upgrades can offer a module")
 
 // You, not a module. Round 4: level-ups felt weak, so bigger steps, and damage + duration join.
@@ -18,20 +20,21 @@ export const VITALS = {
   damage:   { name: 'Power', text: () => `+15% damage` },
   health:   { name: 'Health', text: () => `+25 max health, and heal 25` },
   speed:    { name: 'Speed', text: () => `+8% move speed` },
-  spawnCd:  { name: 'Spawn cooldown', icon: 'cooldown', text: () => `Spawn comes back 12% sooner` },
-  dashCd:   { name: 'Dash recharge', icon: 'cooldown', text: () => `Dash charges come back 12% sooner` },
+  spawnCd:  { name: 'Spawn cooldown', icon: 'cooldown', text: () => `Spawn comes back 12% sooner`, needs: 'spawn' },
+  dashCd:   { name: 'Dash recharge', icon: 'cooldown', text: () => `Dash charges come back 12% sooner`, needs: 'dash' },
   reload:   { name: 'Reload', icon: 'cooldown', text: () => `Rounds come back 12% faster` },
+  burstCd:  { name: 'Burst cooldown', icon: 'cooldown', text: () => `Burst comes back 12% sooner`, needs: 'burst' },
   pickup:   { name: 'Pickup', text: () => `Pick up XP from 1.5 cells further` },
 };
 
 export function newRun() {
   const vitals = {}; for (const k of Object.keys(VITALS)) vitals[k] = 0;
-  return { mods: { weapon: [], spawn: [], dash: [] }, vitals, offers: [] };
+  return { mods: { weapon: [], spawn: [], dash: [], burst: [] }, vitals, offers: [] };
 }
 
 export function rebuild(g) {
   if (g.practice) { g.build = g.practice; return; }
-  const b = { weapon: {}, spawn: {}, dash: {} };
+  const b = { weapon: {}, spawn: {}, dash: {}, burst: {} };
   for (const c of CAST_ORDER) for (const m of g.run.mods[c]) b[c][m.id] = m.level;
   g.build = b;
 }
@@ -79,7 +82,7 @@ function newModCards(g, n, rarity) {
   for (let i = ids.length - 1; i > 0; i--) { const j = (g.R() * (i + 1)) | 0; [ids[i], ids[j]] = [ids[j], ids[i]]; }
   for (const id of ids) {
     if (out.length >= n) break;
-    const casts = CAST_ORDER.filter(c => placeResult(g, c, id, 'common') === 'new');
+    const casts = castsOf(g).filter(c => placeResult(g, c, id, 'common') === 'new');
     if (!casts.length) continue;
     out.push({ type: 'new', id, cast: casts[(g.R() * casts.length) | 0], rarity: rarity || rollRarity(g.R, g.t / 60) });
   }
@@ -95,8 +98,8 @@ export function levelOffer(g) {
   if (g.level === 2) { const cards = newModCards(g, 3); if (cards.length >= 2) return { kind: 'level', modules: true, cards }; }
   const chance = (g.level - 2) % MODULE_EVERY === 0 ? 0.6 : 0.15, fresh = newModCards(g, 3);
   const pool = [];
-  for (const c of CAST_ORDER) for (const m of g.run.mods[c]) if (m.level < RARITY[m.rarity].cap) pool.push({ type: 'mod', cast: c, id: m.id, w: 3 });
-  for (const v of Object.keys(VITALS)) pool.push({ type: 'vital', id: v, w: v.endsWith('Cd') || v === 'reload' ? 0.5 : 1.2 });
+  for (const c of castsOf(g)) for (const m of g.run.mods[c]) if (m.level < RARITY[m.rarity].cap) pool.push({ type: 'mod', cast: c, id: m.id, w: 3 });
+  for (const v of Object.keys(VITALS)) if (!VITALS[v].needs || castsOf(g).includes(VITALS[v].needs)) pool.push({ type: 'vital', id: v, w: v.endsWith('Cd') || v === 'reload' ? 0.5 : 1.2 });
   const cards = [];
   while (cards.length < 3) {
     if (fresh.length && (g.R() < chance || !pool.length)) { cards.push(fresh.shift()); continue; }

@@ -96,6 +96,14 @@ const PG = { 'p-hits': ['smg', {}], 'p-knock': ['smg', { weapon: { knock: 3 } }]
   'p-poison': ['smg', { weapon: { poison: 5 } }], 'p-dashsplit': ['pistol', { dash: { split: 3, knock: 2 } }, true] };
 for (const [k, [w, b, dash]] of Object.entries(PG)) SCENES[k] = { q: `weapon=${w}&sight=remember&playground=1`, warm: 6, film: 9, small: true,
   build: { weapon: {}, spawn: {}, dash: {}, ...b }, bot: { fire: dash ? 'none' : w === 'smg' ? 'hold' : 'release', dash: true, dashAt: !!dash, approach: !!dash } };
+// Round 11: Burst (on the button when you don't bring Dash), the Laser, launched deaths.
+SCENES['p-burst'] = { q: 'weapon=pistol&sight=remember&playground=1&abilities=spawn,burst', warm: 6, film: 9, small: true,
+  build: { weapon: {}, spawn: {}, dash: {}, burst: {} }, bot: { fire: 'release', dash: true } };
+SCENES['p-burst-mods'] = { q: 'weapon=pistol&sight=remember&playground=1&abilities=spawn,burst', warm: 6, film: 9, small: true,
+  build: { weapon: {}, spawn: {}, dash: {}, burst: { extra: 2, bounce: 1, split: 2, chill: 3 } }, bot: { fire: 'release', dash: true } };
+SCENES['p-laser'] = { q: 'weapon=laser&sight=remember&playground=1', warm: 1.5, film: 7, small: true, build: { weapon: {}, spawn: {}, dash: {}, burst: {} }, bot: { fire: 'hold', dash: true } };
+SCENES['p-laser-mods'] = { q: 'weapon=laser&sight=remember&playground=1', warm: 1.5, film: 7, small: true,
+  build: { weapon: { split: 3, burn: 3, extra: 1 }, spawn: {}, dash: {}, burst: {} }, bot: { fire: 'hold', dash: true } };
 SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,
@@ -105,7 +113,7 @@ SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, smal
 async function open(browser, q, small) {
   const page = await browser.newPage({ viewport: { width: 896, height: 414 }, deviceScaleFactor: small ? 1.25 : 2, hasTouch: true });
   page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
-  await page.goto(`${BASE}?seed=7&fingers=1&${q}`);
+  await page.goto(`${BASE}?seed=7&fingers=1&quick=1&${q}`);
   await page.waitForFunction(() => window.SM);
   await page.evaluate(() => { SM.setManual(true); });
   await page.addScriptTag({ path: 'tools/bot.js' });

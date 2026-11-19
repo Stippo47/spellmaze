@@ -72,6 +72,13 @@
   .castcol.canDrop { border-color: #2a3360; border-style: dashed; }
   .castcol.hover { border-color: #e8f0ff; border-style: solid; }
   .mini { background: #182040; color: #c4cbe8; border-radius: 6px; padding: 4px 7px; font-size: 11px; margin: 3px 3px 0 0; display: inline-flex; gap: 4px; align-items: center; }
+  .lrow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .lhead { text-align: center; color: #8b94bb; font-size: 12px; margin: 4px 0; }
+  .lcard { background: #0e1428; border: 2px solid #2a3360; border-radius: 12px; padding: 8px 10px; width: 132px; text-align: left; color: #e8f0ff; }
+  .lcard.on { border-color: #e8f0ff; background: #1c2550; }
+  .lcard .cname { font-size: 15px; margin-top: 2px; }
+  #offerCards:has(.lrow) { flex-direction: column; }
+  .big:disabled { opacity: 0.35; }
   .vitals { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   .chip { display: inline-flex; gap: 5px; align-items: center; background: #121a33; color: #6b7499; border-radius: 99px; padding: 4px 10px; font-size: 12px; }
   .chip.on { color: #e8f0ff; background: #1c2550; }

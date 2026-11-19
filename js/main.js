@@ -5,12 +5,13 @@ import { WIDTHS, pathField, lineClear } from './maze.js';
 import { WEAPONS, WEAPON_ORDER } from './weapons.js';
 import { fmtTime } from './util.js';
 import { MODULES, MODULE_ORDER, CASTS, CAST_ORDER, MAX_LEVEL, allowed } from './modules.js';
-import { RARITY, RARITY_ORDER, SLOTS, VITALS, placeResult, place, takeLevelCard, cardText, rebuild } from './run.js';
+import { RARITY, RARITY_ORDER, SLOTS, VITALS, placeResult, place, takeLevelCard, cardText, rebuild, castsOf, startOffer } from './run.js';
+import { ABILITIES } from './game.js';
 import { icon, pips, slots } from './ui.js';
 
 const canvas = document.getElementById('game');
-const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false, practice: false, playground: false };
-const EMPTY_BUILD = () => ({ weapon: {}, spawn: {}, dash: {} });
+const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false, practice: false, playground: false, abilities: 'spawn,dash', quick: false };
+const EMPTY_BUILD = () => ({ weapon: {}, spawn: {}, dash: {}, burst: {} });
 let opts = { ...DEFAULTS };
 try { const sv = JSON.parse(localStorage.getItem('spellmaze-opts') || '{}'); if (sv.v === 2) Object.assign(opts, sv); } catch {}
 opts.v = 2; // new defaults (round 2): saved settings from before are dropped
@@ -121,10 +122,44 @@ function levelCard(c) {
   return card({ color: '#8b94bb', band: 'Stat', ic: V.icon || c.id, icColor: '#e8f0ff', name: V.name, sub: `${n} → ${n + 1}`, text: V.text(n), onClick: take });
 }
 
+// Round 11: before each run, a weapon and 2 abilities (Spawn, Dash, Burst). Remembered for next time.
+function takeLoadout(weapon, abilities) {
+  opts.weapon = weapon; opts.abilities = abilities.join(','); save(); buildSettings();
+  setWeapon(g, weapon); g.abilities = abilities.slice(); rebuild(g);
+  g.run.offers.shift(); $('offer').classList.add('hidden'); last = performance.now();
+  if (!g.practice) g.run.offers.unshift(startOffer(g));
+}
+const WTEXT = { release: 'drag, let go', hold: 'hold to fire', auto: 'fires itself' };
+const WSUB = (W) => W.beam ? 'hold: a burning beam' : `${WTEXT[W.trigger]} · ${W.rounds} round${W.rounds > 1 ? 's' : ''}`;
+function showLoadout() {
+  const cards = $('offerCards'), foot = $('offerFoot');
+  let weapon = opts.weapon, picks = (opts.abilities || 'spawn,dash').split(',');
+  const draw = () => {
+    cards.innerHTML = ''; foot.innerHTML = '';
+    $('offerTitle').textContent = 'Your weapon, and 2 abilities';
+    const wrow = el('div', 'lrow'), arow = el('div', 'lrow');
+    for (const id of WEAPON_ORDER) {
+      const W = WEAPONS[id], b = el('button', 'lcard' + (id === weapon ? ' on' : ''), `${icon('weapon', '#e8f0ff', 20)}<div class="cname">${W.name}</div><div class="csub">${WSUB(W)}</div>`);
+      b.onclick = () => { weapon = id; draw(); }; wrow.appendChild(b);
+    }
+    const ATEXT = { spawn: 'throw a ball that fights for you', dash: 'dash through, untouchable', burst: 'throw a bomb that blasts where it lands' };
+    for (const id of ABILITIES) {
+      const b = el('button', 'lcard' + (picks.includes(id) ? ' on' : ''), `${icon(id, '#e8f0ff', 20)}<div class="cname">${CASTS[id].name}</div><div class="csub">${ATEXT[id]}</div>`);
+      b.onclick = () => { if (picks.includes(id)) picks = picks.filter(x => x !== id); else { picks.push(id); if (picks.length > 2) picks.shift(); } draw(); };
+      arow.appendChild(b);
+    }
+    cards.append(el('div', 'lhead', 'Weapon'), wrow, el('div', 'lhead', 'Abilities: pick 2'), arow);
+    const go = el('button', 'big', 'Go'); go.disabled = picks.length !== 2; go.onclick = () => takeLoadout(weapon, ABILITIES.filter(a => picks.includes(a)));
+    foot.appendChild(go);
+  };
+  draw();
+}
+
 function showOffer() {
   const o = g.run.offers[0], cards = $('offerCards'), foot = $('offerFoot');
   cards.innerHTML = ''; foot.innerHTML = '';
   $('offer').classList.remove('hidden');
+  if (o.kind === 'loadout') { showLoadout(); return; }
   if (o.kind === 'start' || o.kind === 'level') {
     $('offerTitle').innerHTML = o.kind === 'start' ? 'Choose your first module' : o.modules ? `Level ${g.level} · a new module` : `Level ${g.level} · pick one`;
     for (const c of o.cards) cards.appendChild(levelCard(c));
@@ -133,7 +168,7 @@ function showOffer() {
   // a shard: one module, put it in a cast
   const M = MODULES[o.id], Rr = RARITY[o.rarity];
   $('offerTitle').innerHTML = `${icon('shard', Rr.color, 26)} Shard: <span style="color:${modColor(o.id)}">${M.name}</span> · ${rar(o.rarity)} <span class="csub">levels up to ${Rr.cap}</span>`;
-  for (const c of CAST_ORDER) {
+  for (const c of castsOf(g)) {
     const r = placeResult(g, c, o.id, o.rarity), have = g.run.mods[c].find(m => m.id === o.id);
     const what = { new: allowed(c, o.id) ? cardText(c, o.id, 1) : '',
       promote: `Yours becomes ${Rr.name}: keeps level ${have && have.level}, can reach ${Rr.cap}`,
@@ -167,7 +202,7 @@ function buildBuild() {
   $('buildClear').classList.toggle('hidden', !free);
   if (!free) {
     const row = el('div', 'casts');
-    for (const c of CAST_ORDER) {
+    for (const c of castsOf(g)) {
       const col = el('div', 'castcol', `<div class="casthead">${icon(c, '#e8f0ff', 20)}<b>${CASTS[c].name}</b>${slots(g.run.mods[c].length, SLOTS[c])}</div>`);
       g.run.mods[c].forEach((m, i) => {
         const M = MODULES[m.id], Rr = RARITY[m.rarity];
@@ -187,10 +222,10 @@ function buildBuild() {
     return;
   }
   const tbl = el('table', 'ptable'); grid.appendChild(tbl);
-  tbl.appendChild(el('tr', null, '<th></th>' + CAST_ORDER.map(c => `<th>${CASTS[c].name}</th>`).join('')));
+  tbl.appendChild(el('tr', null, '<th></th>' + castsOf(g).map(c => `<th>${CASTS[c].name}</th>`).join('')));
   for (const id of MODULE_ORDER) {
     const M = MODULES[id], tr = el('tr', null, `<td class="name" style="color:${modColor(id)}">${M.name}</td>`);
-    for (const c of CAST_ORDER) {
+    for (const c of castsOf(g)) {
       const td = el('td');
       if (allowed(c, id)) {
         const lv = opts.build[c][id] || 0, st = el('span', 'step' + (lv ? ' on' : ''));
@@ -204,7 +239,7 @@ function buildBuild() {
     tbl.appendChild(tr);
   }
   const lines = [];
-  for (const c of CAST_ORDER) for (const id of MODULE_ORDER) {
+  for (const c of castsOf(g)) for (const id of MODULE_ORDER) {
     const lv = opts.build[c][id]; if (!lv) continue;
     lines.push(`<b>${CASTS[c].name}</b> ${MODULES[id].name} ${lv}: ${cardText(c, id, lv)}`);
   }
@@ -216,16 +251,17 @@ function dragTile(ev, tile, from, idx, m) {
   ev.preventDefault();
   const ok = (to) => to !== from && allowed(to, m.id) && g.run.mods[to].length < SLOTS[to] && !g.run.mods[to].some(x => x.id === m.id);
   const cols = [...document.querySelectorAll('.castcol')];
-  cols.forEach((col, k) => col.classList.toggle('canDrop', ok(CAST_ORDER[k])));
+  const CS = castsOf(g);
+  cols.forEach((col, k) => col.classList.toggle('canDrop', ok(CS[k])));
   const r = tile.getBoundingClientRect(), ghost = tile.cloneNode(true), ox = ev.clientX - r.left, oy = ev.clientY - r.top;
   ghost.classList.add('ghost'); ghost.style.width = r.width + 'px'; document.body.appendChild(ghost);
   const place = (e) => { ghost.style.left = (e.clientX - ox) + 'px'; ghost.style.top = (e.clientY - oy) + 'px'; };
   const over = (e) => cols.findIndex(col => { const b = col.getBoundingClientRect(); return e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top - 20 && e.clientY <= b.bottom + 200; });
   place(ev); tile.classList.add('lifted');
-  const move = (e) => { place(e); const k = over(e); cols.forEach((col, j) => col.classList.toggle('hover', j === k && ok(CAST_ORDER[j]))); };
+  const move = (e) => { place(e); const k = over(e); cols.forEach((col, j) => col.classList.toggle('hover', j === k && ok(CS[j]))); };
   const up = (e) => {
     removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
-    ghost.remove(); const k = over(e), to = CAST_ORDER[k];
+    ghost.remove(); const k = over(e), to = CS[k];
     if (k >= 0 && ok(to)) { g.run.mods[from].splice(idx, 1); g.run.mods[to].push(m); rebuild(g); }
     buildBuild();
   };
@@ -242,7 +278,7 @@ window.SM = { get g() { return g; }, inp, opts, restart, R, setPaused: (v) => { 
   advance: (n = 1) => { for (let i = 0; i < n && !g.over; i++) { step(g, DT, inp); inp.events.length = 0; } R.draw(g, inp, opts); if (g.over && $('over').classList.contains('hidden')) showOver(); },
   setOpt: (k, v) => { opts[k] = v; if (k === 'weapon') setWeapon(g, v); if (k === 'build') { g.practice = v; rebuild(g); } },
   showOffer: () => showOffer(),
-  pickOffer: (i = 0) => { const o = g.run.offers[0]; if (!o) return; if (o.kind !== 'chest') { if (o.cards.length) takeLevelCard(g, o.cards[i] || o.cards[0]); }
-    else { const c = CAST_ORDER.find(c => ['new', 'promote', 'level'].includes(placeResult(g, c, o.id, o.rarity))); if (c) place(g, c, o.id, o.rarity); } closeOffer(); } };
+  pickOffer: (i = 0) => { const o = g.run.offers[0]; if (!o) return; if (o.kind === 'loadout') { takeLoadout(opts.weapon, (opts.abilities || 'spawn,dash').split(',')); return; } if (o.kind !== 'chest') { if (o.cards.length) takeLevelCard(g, o.cards[i] || o.cards[0]); }
+    else { const c = castsOf(g).find(c => ['new', 'promote', 'level'].includes(placeResult(g, c, o.id, o.rarity))); if (c) place(g, c, o.id, o.rarity); } closeOffer(); } };
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');

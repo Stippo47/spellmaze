@@ -1,7 +1,7 @@
 // The simulation: fixed steps, no drawing. Units are maze cells; the player is a 2x2 body (radius 1).
-import { makeMaze, makeArena, rayStamp, lineClear, pathField, breakTile } from './maze.js';
+import { makeMaze, makeArena, rayStamp, rayDist, lineClear, pathField, breakTile } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
-import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUILD, knockOf } from './modules.js';
+import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUILD, knockOf, CASTS } from './modules.js';
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
@@ -33,13 +33,15 @@ export function newGame(opts) {
     p: { x: 0, y: 0, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9, nextId: 1, parts: [], pops: [], boss: null, nextBoss: BOSS_AT,
-    run: newRun(), practice: opts.practice || opts.playground ? opts.build : null, build: null, spawnCool: 0, spawnAim: null,
+    run: newRun(), practice: opts.practice || opts.playground ? opts.build : null, build: null, spawnCool: 0, burstCool: 0, spawnAim: null,
+    abilities: (opts.abilities || 'spawn,dash').split(','),
     vis: new Float32Array(RAYS * 2), spawnAcc: 0, wave: 0, aim: null, dashAim: null, shake: 0, hurtFlash: 0,
   };
   rebuild(g);
   buildFloor(g, seed);
   g.nextWave = FIRST_WAVE;
-  if (!g.practice) g.run.offers.push(startOffer(g));   // pick 1 of 3 to start (round 4)
+  if (!opts.quick) g.run.offers.push({ kind: 'loadout' });   // round 11: weapon + 2 abilities, then the start pick
+  else if (!g.practice) g.run.offers.push(startOffer(g));   // pick 1 of 3 to start (round 4)
   setWeapon(g, opts.weapon || 'pistol');
   return g;
 }
@@ -48,7 +50,7 @@ export function newGame(opts) {
 function buildFloor(g, seed) {
   const m = g.m = g.opts.playground ? makeArena() : makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
   Object.assign(g, {
-    enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], echoes: [], tileFlash: new Map(), clouds: [], arcs: [],
+    enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], echoes: [], bombs: [], later: [], corpses: [], beams: [], tileFlash: new Map(), clouds: [], arcs: [],
     chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null, rings: [],
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0, field: new Uint16Array(m.G * m.G), fieldT: 0,
@@ -131,7 +133,7 @@ export const pickupRange = (g) => 3.5 + 1.5 * g.run.vitals.pickup;
 const dmgMul = (g) => 1 + 0.15 * g.run.vitals.damage;
 export const dashLen = (g, a = g.p) => (a === g.p || a.mine ? DASH.length : ENEMIES[a.type].dashLength || DASH.length) * durOf(dashMods(g, a).duration || 0) * (1 + 0.1 * (dashMods(g, a).haste || 0));
 
-export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
+export function setWeapon(g, id) { g.weapon = WEAPONS[id]; g.weaponId = id; CASTS.weapon.shape = g.weapon.beam ? 'beam' : 'bolt'; g.ammo = g.weapon.rounds; g.cool = 0; g.reloadT = 0; }
 
 // ---------- collision ----------
 function pushOutOfWalls(m, b) {
@@ -292,22 +294,22 @@ function stepStatuses(g, dt) {
     const c = g.clouds[i]; c.t += dt;
     if (c.boom || c.t > c.life) { g.clouds.splice(i, 1); continue; }
     for (const e of g.enemies) if (Math.hypot(e.x - c.x, e.y - c.y) < c.r) { e.poison = (e.poison || 0) + 15 * dt; e.poisonIdle = 0; }
-    if (g.R() < dt * 30) { const a = g.R() * TAU, rr = Math.sqrt(g.R()) * c.r; // lingering motes (round 10: bigger, lighter, more)
-      g.parts.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, vx: (g.R() - 0.5) * 0.8, vy: -0.5 - g.R() * 0.6, life: 2, max: 2, col: 'mote', s: 0.45, drift: true }); }
+    if (g.R() < dt * 12) { const a = g.R() * TAU, rr = Math.sqrt(g.R()) * c.r * 0.9; // lingering motes (round 11: softer: fewer, round, fade in and out)
+      g.parts.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, vx: (g.R() - 0.5) * 0.4, vy: -0.25 - g.R() * 0.3, life: 2.4, max: 2.4, col: 'mote', s: 0.32, drift: true }); }
   }
   for (let i = g.arcs.length - 1; i >= 0; i--) { g.arcs[i].t += dt; if (g.arcs[i].t > 0.15) g.arcs.splice(i, 1); }
 }
 
 // A blast: hits every enemy inside that the blast can see (walls block it). Yours never hurt you.
-function blast(g, x, y, r, dmg, pay) {
+function blast(g, x, y, r, dmg, pay, o = {}) {
   g.blasts.push({ x, y, r, t: 0, col: pay ? STATUSES.find(k => pay[k]) : null });
   g.rings.push({ x, y, r0: r * 0.5, r1: r * 1.25, t: 0, life: 0.3, c: '#ffffff' }); g.shake = Math.max(g.shake, Math.min(0.45, r * 0.08)); burst(g, x, y, 'shot', 6);
   for (const i of tilesNear(g, x, y, r)) hitTile(g, i, dmg * 1.5);
   for (const e of g.enemies) {
     if (e.hp <= 0) continue;
     const dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
-    if (d > r + e.r || !lineClear(g.m, x, y, e.x, e.y)) continue;
-    hurt(g, e, dmg, dx, dy, 0.6);
+    if (d > r + e.r || (!o.walls && !lineClear(g.m, x, y, e.x, e.y))) continue;
+    hurt(g, e, dmg, dx, dy, o.knock ?? 0.6);
     applyPayload(g, e, pay);
   }
 }
@@ -328,6 +330,7 @@ function nearestEnemy(g, x, y, range, dirx, diry, cone) {
 // ---------- the Weapon cast: bolts ----------
 function fire(g, ax, ay) {
   const w = g.weapon;
+  if (w.beam) return false;   // the Laser fires in stepBeam
   if (g.ammo < 1 || g.cool > 0) return false;
   g.reloadT = 0;
   g.ammo -= 1; g.cool = w.cooldown; g.sinceShot = 0;
@@ -510,6 +513,146 @@ function stepShots(g, dt) {
   }
 }
 
+// ---------- the Laser: a held beam (round 11: "Laser is a weapon") ----------
+// While you hold the fire stick it drains its charge and burns everything on its line. Modules work on its shape
+// (beam): Pierce burns through enemies, Bounce reflects off walls, Extra fans more beams, Split forks it partway, Home
+// bends it onto a nearby enemy, payloads build slower (a beam's hits are many and small: decisions).
+const BW = (g, id) => L(g, 'weapon', id);
+function stepBeam(g, dt) {
+  const w = g.weapon, p = g.p;
+  g.beams.length = 0;
+  if (!g.aim || g.ammo < 0.5) return;
+  g.ammo = Math.max(0, g.ammo - w.drain * dt); g.sinceShot = 0; g.reloadT = 0;
+  let a0 = Math.atan2(g.aim.y, g.aim.x);
+  if (BW(g, 'home')) { const e = nearestEnemy(g, p.x, p.y, w.range, Math.cos(a0), Math.sin(a0), Math.cos(0.15 + 0.06 * BW(g, 'home'))); if (e) a0 = Math.atan2(e.y - p.y, e.x - p.x); }
+  const n = 1 + BW(g, 'extra'), grow = BW(g, 'grow');
+  const reach = w.range * durOf(BW(g, 'duration')) * (1 + 0.15 * BW(g, 'haste'));
+  const b = { width: w.radius * 2 * (1 + 0.3 * grow), dps: w.damage * (1 + 0.1 * grow), pierce: BW(g, 'pierce'), bounces: BW(g, 'bounce'),
+    split: BW(g, 'split'), knock: BW(g, 'knock'), pay: payload(g, 'weapon'), ex: BW(g, 'explode') };
+  g.beamExT = (g.beamExT || 0) - dt;
+  const exNow = b.ex && g.beamExT <= 0; if (exNow) g.beamExT = 0.5;
+  for (let i = 0; i < n; i++) {
+    const a = a0 + (i - (n - 1) / 2) * 0.18;
+    traceBeam(g, p.x + Math.cos(a) * 1.1, p.y + Math.sin(a) * 1.1, Math.cos(a), Math.sin(a), reach, b, 1, dt, exNow, !b.split);
+  }
+  p.fx = Math.cos(a0); p.fy = Math.sin(a0);
+}
+// One beam: straight lines, reflecting off walls while it has bounces, stopping at the enemy it can't burn through.
+function traceBeam(g, x, y, dx, dy, reach, b, k, dt, exNow, noSplit) {
+  const m = g.m, G = m.G;
+  let left = reach, bounces = b.bounces, splitAt = noSplit ? -1 : reach * 0.55, gone = 0;
+  for (let seg = 0; seg <= bounces && left > 0.1; seg++) {
+    let d = rayDist(m, x, y, dx, dy, left), end = d, stop = false;
+    // enemies on this stretch, nearest first
+    const on = [];
+    for (const e of g.enemies) {
+      if (e.hp <= 0) continue;
+      const ex = e.x - x, ey = e.y - y, t = ex * dx + ey * dy;
+      if (t < 0 || t > d) continue;
+      if (Math.abs(ex * dy - ey * dx) < e.r + b.width / 2) on.push({ e, t });
+    }
+    on.sort((u, v) => u.t - v.t);
+    let passes = b.pierce;
+    for (const { e, t } of on) {
+      hurt(g, e, b.dps * k * dt, dx, dy, b.knock ? knockOf(b.knock) * dt * 4 : 0, true);
+      applyPayload(g, e, b.pay, k * dt * 3);
+      if (g.R() < dt * 14) g.parts.push({ x: e.x - dx * e.r, y: e.y - dy * e.r, vx: -dx * 6 + (g.R() - 0.5) * 8, vy: -dy * 6 + (g.R() - 0.5) * 8, life: 0.2, max: 0.2, col: e.type, s: 0.3 });
+      if (passes-- <= 0) { end = t; stop = true; break; }
+    }
+    // Split: forks in two partway along
+    if (splitAt >= 0 && gone + end > splitAt) {
+      const s = splitAt - gone, sx = x + dx * s, sy = y + dy * s;
+      g.beams.push({ x0: x, y0: y, x1: sx, y1: sy, w: b.width * k, pay: b.pay });
+      for (const sg of [-0.4, 0.4]) { const c = Math.cos(sg), sn = Math.sin(sg); traceBeam(g, sx, sy, dx * c - dy * sn, dx * sn + dy * c, left - s, b, k * (0.3 + 0.1 * b.split), dt, exNow, true); }
+      return;
+    }
+    const x1 = x + dx * end, y1 = y + dy * end;
+    g.beams.push({ x0: x, y0: y, x1, y1, w: b.width * k, pay: b.pay });
+    gone += end; left -= end;
+    if (stop) { if (exNow) blast(g, x1, y1, blastR(b.ex), blastDmg(b.ex), b.pay); return; }
+    // hit a wall: burn a breakable tile, then reflect if it can
+    const hx = x1 + dx * 0.05, hy = y1 + dy * 0.05, ci = Math.floor(hy) * G + Math.floor(hx);
+    if (m.cells[ci] === 2) hitTile(g, ci, b.dps * k * dt * 2, true);
+    if (left <= 0.1 || seg === bounces) { if (exNow) blast(g, x1 - dx * 0.5, y1 - dy * 0.5, blastR(b.ex), blastDmg(b.ex), b.pay); return; }
+    const sideX = m.cells[Math.floor(y1) * G + Math.floor(hx)], sideY = m.cells[Math.floor(hy) * G + Math.floor(x1)];
+    if (sideX || !sideY) dx = -dx;
+    if (sideY || !sideX) dy = -dy;
+    x = x1 + dx * 0.05; y = y1 + dy * 0.05;
+  }
+}
+
+// ---------- abilities and the Burst cast (round 11) ----------
+// You bring a weapon and 2 abilities from Spawn, Dash and Burst (decisions: "3 actions in: weapon and 2 abilities;
+// Burst is an ability"). Two controls: the stick (above-left of fire) and the button (left of fire). Dash, when you
+// have it, is on the button; the other ability takes the stick.
+export const ABILITIES = ['spawn', 'dash', 'burst'];
+export function abilityControls(g) {
+  const a = g.abilities, B = a.includes('dash') ? 'dash' : a[1], A = a.find(x => x !== B);
+  return { A, B };
+}
+function useAbility(g, id, tap, ev, inp) {
+  const p = g.p;
+  if (id === 'dash') { if (tap) startDash(g, p, inp.move.x, inp.move.y); else startDash(g, p, ev.x, ev.y); }
+  else if (id === 'spawn') {
+    if (tap) { const e = nearestVisible(g, 9); if (e) throwBall(g, e.x - p.x, e.y - p.y); else throwBall(g, p.fx, p.fy); }
+    else throwBall(g, ev.x, ev.y);
+  } else if (id === 'burst') {
+    if (tap) { const e = nearestVisible(g, burstReach(g)); if (e) throwBomb(g, e.x - p.x, e.y - p.y, 1, Math.hypot(e.x - p.x, e.y - p.y)); else throwBomb(g, p.fx, p.fy, 0.6); }
+    else throwBomb(g, ev.x, ev.y, ev.mag ?? 1);
+  }
+}
+
+// Burst: a thrown bomb that blasts where it lands. Drag to aim (how far you drag is how far it goes), let go to throw;
+// a tap throws it at the nearest enemy you can see.
+export const BURST = { cooldown: 5, range: 12, r: 3, damage: 30, flight: 0.5 };
+const BL = (g, id) => L(g, 'burst', id);
+export const burstReach = (g) => BURST.range * durOf(BL(g, 'duration'));
+export const burstRadius = (g) => BURST.r * (1 + 0.25 * BL(g, 'grow'));
+// Where a throw would land: as far as the drag says, stopping short of a wall.
+export function burstTarget(g, ax, ay, mag) {
+  const p = g.p, d = Math.hypot(ax, ay) || 1, dx = ax / d, dy = ay / d, reach = burstReach(g);
+  const want = Math.min(reach, Math.max(2.5, mag * reach));
+  const dist = Math.max(0, Math.min(want, rayDist(g.m, p.x, p.y, dx, dy, want + 1.2) - 1.2));
+  return { x: p.x + dx * dist, y: p.y + dy * dist, dx, dy };
+}
+function throwBomb(g, ax, ay, mag = 1, exact) {
+  if (g.burstCool > 0) return;
+  const haste = BL(g, 'haste'), grow = BL(g, 'grow');
+  g.burstCool = BURST.cooldown * cdMul(g, 'burstCd') * Math.max(0.3, 1 - 0.08 * haste);
+  const T = exact != null ? burstTarget(g, ax, ay, exact / burstReach(g)) : burstTarget(g, ax, ay, mag), n = 1 + BL(g, 'extra');
+  const o = { r: burstRadius(g), dmg: BURST.damage * (1 + 0.15 * grow), T: BURST.flight / (1 + 0.2 * haste), pay: payload(g, 'burst'),
+    hops: BL(g, 'bounce'), home: BL(g, 'home'), split: BL(g, 'split'), ex: BL(g, 'explode'), pierce: BL(g, 'pierce'), knock: BL(g, 'knock'), dx: T.dx, dy: T.dy };
+  for (let i = 0; i < n; i++) { // Extra: more bombs in a ring around the aim point
+    let x = T.x, y = T.y;
+    if (i) { const a = (i - 1) / Math.max(1, n - 1) * TAU, c = Math.floor(T.y + Math.sin(a) * 2.6) * g.m.G + Math.floor(T.x + Math.cos(a) * 2.6); if (g.m.clear[c]) { x = T.x + Math.cos(a) * 2.6; y = T.y + Math.sin(a) * 2.6; } }
+    g.bombs.push({ ...o, sx: g.p.x, sy: g.p.y, x: g.p.x, y: g.p.y, tx: x, ty: y, t: 0 });
+  }
+}
+function stepBombs(g, dt) {
+  for (let i = g.bombs.length - 1; i >= 0; i--) {
+    const b = g.bombs[i]; b.t += dt;
+    if (b.home && !b.child) { // Home: steers in the air onto an enemy near the aim point
+      const e = nearestEnemy(g, b.tx, b.ty, 3 + b.home);
+      if (e) { const dx = e.x - b.tx, dy = e.y - b.ty, d = Math.hypot(dx, dy) || 1, s = Math.min(d, 14 * dt); b.tx += dx / d * s; b.ty += dy / d * s; }
+    }
+    const k = Math.min(1, b.t / b.T); b.x = b.sx + (b.tx - b.sx) * k; b.y = b.sy + (b.ty - b.sy) * k; b.z = Math.sin(Math.PI * k) * (b.child ? 1 : 2.2);
+    if (k < 1) continue;
+    g.bombs.splice(i, 1); landBomb(g, b);
+  }
+  for (let i = g.later.length - 1; i >= 0; i--) { const q = g.later[i]; q.t -= dt; if (q.t <= 0) { g.later.splice(i, 1); q.f(); } }
+}
+function landBomb(g, b) {
+  const x = b.tx, y = b.ty;
+  blast(g, x, y, b.r, b.dmg, b.pay, { walls: b.pierce > 0, knock: b.knock ? knockOf(b.knock) : 0.6 });   // Pierce: through walls; Knock: hurls out
+  if (b.ex) g.later.push({ t: 0.35, f: () => blast(g, x, y, blastR(b.ex) + 1, blastDmg(b.ex), b.pay) });   // Explode: a second blast after a beat
+  const hop = (dx, dy, dist, r, dmg, extra) => { // a smaller bomb from here
+    const d = Math.max(0, Math.min(dist, rayDist(g.m, x, y, dx, dy, dist + 1.2) - 1.2));
+    g.bombs.push({ ...b, ...extra, sx: x, sy: y, x, y, tx: x + dx * d, ty: y + dy * d, t: 0, T: 0.3, r, dmg, ex: 0 });
+  };
+  if (b.hops > 0) hop(b.dx, b.dy, 4, b.r * 0.75, b.dmg * 0.75, { hops: b.hops - 1, split: 0 });   // Bounce: hops on, smaller each time
+  if (b.split && !b.child) for (const s of [-1, 1]) hop(-b.dy * s, b.dx * s, 4, b.r * 0.6, b.dmg * (0.3 + 0.1 * b.split), { child: true, hops: 0, split: 0 });   // Split
+}
+
 // ---------- the Dash cast ----------
 // One Dash for everyone (round 6: "reuse, not reinvent"). A dasher is you, an echo of your dash (Split), or an enemy
 // (the dart). Yours and your echoes hit enemies; an enemy's hits you. Modules come from your build, the echo's own
@@ -660,15 +803,14 @@ export function step(g, dt, inp) {
   for (const ev of inp.events) {
     if (ev.type === 'fireTap' && w.tapNearest) { const e = nearestVisible(g, w.range); if (e) fire(g, e.x - p.x, e.y - p.y); else fire(g, p.fx, p.fy); }
     if (ev.type === 'fireRelease' && w.trigger === 'release') fire(g, ev.x, ev.y);
-    if (ev.type === 'dashTap') startDash(g, p, inp.move.x, inp.move.y);
-    if (ev.type === 'dashRelease') startDash(g, p, ev.x, ev.y);
-    if (ev.type === 'spawnTap') { const e = nearestVisible(g, 9); if (e) throwBall(g, e.x - p.x, e.y - p.y); else throwBall(g, p.fx, p.fy); }
-    if (ev.type === 'spawnRelease') throwBall(g, ev.x, ev.y);
+    const ctl = abilityControls(g);   // the button is 'dash' input, the stick is 'spawn' input
+    if (ev.type === 'dashTap' || ev.type === 'dashRelease') useAbility(g, ctl.B, ev.type === 'dashTap', ev, inp);
+    if (ev.type === 'spawnTap' || ev.type === 'spawnRelease') useAbility(g, ctl.A, ev.type === 'spawnTap', ev, inp);
   }
-  g.spawnAim = inp.spawn.engaged === true ? { x: inp.spawn.x, y: inp.spawn.y } : null;
-  g.spawnCool = Math.max(0, g.spawnCool - dt);
+  g.spawnAim = inp.spawn.engaged === true ? { x: inp.spawn.x, y: inp.spawn.y, mag: inp.spawn.mag } : null;
+  g.spawnCool = Math.max(0, g.spawnCool - dt); g.burstCool = Math.max(0, g.burstCool - dt);
   g.aim = inp.fire.engaged === true ? { x: inp.fire.x, y: inp.fire.y } : null;
-  g.dashAim = inp.dash.engaged === true ? { x: inp.dash.x, y: inp.dash.y } : null;
+  g.dashAim = inp.dash.engaged === true ? { x: inp.dash.x, y: inp.dash.y, mag: inp.dash.mag } : null;
   if (g.aim && (w.trigger === 'hold' || w.trigger === 'auto')) fire(g, g.aim.x, g.aim.y);
   if (!g.aim && w.trigger === 'auto') { const e = nearestVisible(g, w.range); if (e) fire(g, e.x - p.x, e.y - p.y); }
 
@@ -832,8 +974,10 @@ export function step(g, dt, inp) {
     if (d < p.r + e.r + 0.15 && !(e.dashT > 0) && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) hurtPlayer(g, ENEMIES[e.type].damage);
   }
 
+  if (w.beam) stepBeam(g, dt); else g.beams.length = 0;
   stepBolts(g, dt);
   stepBalls(g, dt);
+  stepBombs(g, dt);
   stepShots(g, dt);
   for (const b of g.blasts) b.t += dt;
   g.blasts = g.blasts.filter(b => b.t < 0.35);
@@ -869,6 +1013,8 @@ export function step(g, dt, inp) {
   for (const [i, t] of g.tileFlash) { if (t - dt <= 0) g.tileFlash.delete(i); else g.tileFlash.set(i, t - dt); }
   for (let i = g.ghosts.length - 1; i >= 0; i--) { g.ghosts[i].t += dt; if (g.ghosts[i].t > GHOST) g.ghosts.splice(i, 1); }
   for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; if (!q.drift) { q.vx *= 0.9; q.vy *= 0.9; } if (q.life <= 0) g.parts.splice(i, 1); }
+  for (let i = g.corpses.length - 1; i >= 0; i--) { const c = g.corpses[i]; c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= 0.9; c.vy *= 0.9;
+    const a = c.spin * dt, cs = Math.cos(a), sn = Math.sin(a), fx = c.fx; c.fx = fx * cs - c.fy * sn; c.fy = fx * sn + c.fy * cs; if (c.t > 0.3) g.corpses.splice(i, 1); }
   for (let i = g.rings.length - 1; i >= 0; i--) { g.rings[i].t += dt; if (g.rings[i].t > g.rings[i].life) g.rings.splice(i, 1); }
   g.shake = Math.max(0, g.shake - dt * 2.5); g.hurtFlash = Math.max(0, g.hurtFlash - dt);
   for (let i = g.pops.length - 1; i >= 0; i--) { g.pops[i].t += dt; if (g.pops[i].t > 1.6) g.pops.splice(i, 1); }
@@ -895,7 +1041,10 @@ function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
     for (let i = 0; i < 3; i++) { const a = Math.atan2(vy, vx) + (g.R() - 0.5) * 1.6, sp = 5 + g.R() * 8; g.parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.25, max: 0.25, col: e.type, s: 0.35 }); }
   }
   if (e.hp <= 0) {
-    g.kills++; burst(g, e.x, e.y, e.type, 12 + Math.round(e.r * 6));
+    g.kills++;
+    const ka = (vx || vy) ? Math.atan2(vy, vx) : g.R() * TAU, kn = 12 + Math.round(e.r * 6);
+    for (let i = 0; i < kn; i++) { const a = ka + (g.R() - 0.5) * 1.8, sp = 4 + g.R() * 12; g.parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.35 + g.R() * 0.25, max: 0.6, col: e.type, s: 0.3 + g.R() * 0.35 }); }
+    if (!S.boss) g.corpses.push({ type: e.type, x: e.x, y: e.y, r: e.r, fx: e.fx, fy: e.fy, vx: Math.cos(ka) * 16 / Math.sqrt(S.mass), vy: Math.sin(ka) * 16 / Math.sqrt(S.mass), spin: (g.R() - 0.5) * 20, t: 0 });
     g.rings.push({ x: e.x, y: e.y, r0: e.r, r1: e.r + 2.2, t: 0, life: 0.28, c: e.type });
     if (S.mass > 4) g.shake = Math.max(g.shake, S.boss ? 1 : 0.35);
     g.gems.push({ x: e.x, y: e.y, v: S.xp });

@@ -7,7 +7,7 @@ const browser = await chromium.launch({ executablePath: EDGE, headless: true });
 const page = await browser.newPage({ viewport: { width: 896, height: 414 }, hasTouch: true });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto(`http://127.0.0.1:8737/?seed=${seed}&weapon=pistol&practice=0`);
+await page.goto(`http://127.0.0.1:8737/?seed=${seed}&weapon=pistol&practice=0&quick=1`);
 await page.waitForFunction(() => window.SM);
 await page.evaluate(() => { SM.setManual(true); SM.setOpt('build', null); });
 await page.addScriptTag({ path: 'tools/bot.js' });

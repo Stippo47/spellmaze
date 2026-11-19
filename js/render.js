@@ -1,6 +1,6 @@
 // Drawing. Flat, solid shapes, no glow (docs/DECISIONS.md: "solid and flat"). Canvas 2D.
 import { COL, TAU, fmtTime } from './util.js';
-import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST, ENEMIES, KEYS } from './game.js';
+import { canSee, SIGHT, dashLen, xpNeed, WARN, GHOST, ENEMIES, KEYS, abilityControls, burstTarget, burstRadius, BURST } from './game.js';
 import { rayDist } from './maze.js';
 import { DASH, SPAWN } from './weapons.js';
 
@@ -69,6 +69,10 @@ export function makeRenderer(canvas) {
       if (!vis && !(mode === 'remember' && g.seen[Math.floor(c.y) * G + Math.floor(c.x)])) continue;
       ctx.globalAlpha = vis ? 1 : 0.35;
       const star = (rr0, rr1) => { ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? rr1 : rr0; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); };
+      if (!c.open) { // round 11: a soft glow under it
+        const gl = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 4), a = 0.32 + 0.1 * Math.sin(g.t * 2.5 + c.x);
+        gl.addColorStop(0, `rgba(255,194,58,${a})`); gl.addColorStop(1, 'rgba(255,194,58,0)'); ctx.fillStyle = gl; ctx.fillRect(c.x - 4, c.y - 4, 8, 8);
+      }
       if (!c.open) { // round 7: a second, darker star underneath, turning the other way
         ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-g.t * 0.4 - c.x + Math.PI / 4);   // round 10: a third of the top one's speed, bigger
         const pulse = 1 + 0.08 * Math.sin(g.t * 3 + c.y); star(2.3 * pulse, 0.6); ctx.fillStyle = '#c98a00'; ctx.fill(); ctx.restore();
@@ -96,8 +100,16 @@ export function makeRenderer(canvas) {
       const L = rayDist(m, p.x, p.y, ax, ay, g.weapon.range);
       strip(p.x + ax * 1.2, p.y + ay * 1.2, p.x + ax * L, p.y + ay * L, Math.max(0.5, g.weapon.radius * 2.4), 'rgba(255,255,255,0.22)');
     }
-    if (g.dashAim) {
-      const d = Math.hypot(g.dashAim.x, g.dashAim.y) || 1, ax = g.dashAim.x / d, ay = g.dashAim.y / d;
+    const ctl = abilityControls(g);
+    const burstAim = ctl.A === 'burst' ? g.spawnAim : ctl.B === 'burst' ? g.dashAim : null;
+    if (burstAim) { // where the bomb lands, and how wide it blasts
+      const T = burstTarget(g, burstAim.x, burstAim.y, burstAim.mag);
+      strip(p.x, p.y, T.x, T.y, 0.3, 'rgba(255,210,63,0.3)');
+      ctx.strokeStyle = 'rgba(255,210,63,0.6)'; ctx.lineWidth = 0.18; ctx.beginPath(); ctx.arc(T.x, T.y, burstRadius(g), 0, TAU); ctx.stroke();
+    }
+    const dashAim = ctl.A === 'dash' ? g.spawnAim : ctl.B === 'dash' ? g.dashAim : null;
+    if (dashAim) {
+      const d = Math.hypot(dashAim.x, dashAim.y) || 1, ax = dashAim.x / d, ay = dashAim.y / d;
       const L = rayDist(m, p.x, p.y, ax, ay, dashLen(g) + 1) - 1;
       strip(p.x, p.y, p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 2, 'rgba(159,233,255,0.25)');
       circle(p.x + ax * Math.max(0, L), p.y + ay * Math.max(0, L), 1, 'rgba(159,233,255,0.35)');
@@ -110,12 +122,23 @@ export function makeRenderer(canvas) {
       circle(b.x, b.y, b.r * (0.6 + 0.4 * Math.min(1, k * 3)), b.col ? COL[b.col] : '#ffffff');
     }
     ctx.globalAlpha = 1;
-    if (g.spawnAim) {
-      const d = Math.hypot(g.spawnAim.x, g.spawnAim.y) || 1, ax = g.spawnAim.x / d, ay = g.spawnAim.y / d;
+    const spawnAim = ctl.A === 'spawn' ? g.spawnAim : ctl.B === 'spawn' ? g.dashAim : null;
+    if (spawnAim) {
+      const d = Math.hypot(spawnAim.x, spawnAim.y) || 1, ax = spawnAim.x / d, ay = spawnAim.y / d;
       const L = rayDist(m, p.x, p.y, ax, ay, SPAWN.speed / SPAWN.drag);
       strip(p.x + ax * 1.3, p.y + ay * 1.3, p.x + ax * L, p.y + ay * L, 2.2, 'rgba(255,255,255,0.14)');
       circle(p.x + ax * Math.max(1.3, L - SPAWN.r), p.y + ay * Math.max(1.3, L - SPAWN.r), SPAWN.r, 'rgba(255,255,255,0.25)');
     }
+    // bombs in flight: a shadow on the floor and the bomb above it
+    for (const b of g.bombs) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(b.x, b.y + 0.4, 0.7, 0.3, 0, 0, TAU); ctx.fill();
+      circle(b.x, b.y - (b.z || 0), b.child ? 0.45 : 0.7, payCol(b.pay) || '#ffd23f'); circle(b.x, b.y - (b.z || 0), b.child ? 0.18 : 0.3, '#1a2240');
+      if (!b.child) { ctx.strokeStyle = 'rgba(255,210,63,0.35)'; ctx.lineWidth = 0.12; ctx.beginPath(); ctx.arc(b.tx, b.ty, b.r, 0, TAU); ctx.stroke(); }
+    }
+    // the dead fly off the way the killing blow went, shrinking (round 11)
+    for (const c of g.corpses) { const k = c.t / 0.3; ctx.globalAlpha = 0.8 * (1 - k); enemyShape(c, c.r * (1 - 0.5 * k), (ECOL[c.type] || ECOL.mite)[0]); }
+    ctx.globalAlpha = 1;
+
     // balls (your spawns)
     for (const b of g.balls) {
       if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
@@ -168,6 +191,12 @@ export function makeRenderer(canvas) {
       if (!ENEMIES[e.type].boss && e.hp < e.maxHp) { ctx.fillStyle = lite; ctx.fillRect(e.x - 0.9, e.y - e.r - 0.55, 1.8 * e.hp / e.maxHp, 0.22); }
     }
 
+    // the Laser: a wide soft line in its colour with a white core
+    for (const b of g.beams) {
+      ctx.globalAlpha = 0.45; strip(b.x0, b.y0, b.x1, b.y1, b.w * 1.8, payCol(b.pay) || '#ff5ad1', true);
+      ctx.globalAlpha = 1; strip(b.x0, b.y0, b.x1, b.y1, b.w * 0.6, '#ffffff', true);
+    }
+
     // bolts
     for (const b of g.bolts) {
       if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
@@ -212,6 +241,7 @@ export function makeRenderer(canvas) {
 
     // bits
     for (const q of g.parts) {
+      if (q.col === 'mote') { const k = q.life / q.max; ctx.globalAlpha = 0.45 * Math.sin(Math.PI * k); circle(q.x, q.y, q.s, '#ead2ff'); continue; }
       ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.col === 'dash' ? 0.5 : 1);
       ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'tile' ? COL.wallEdge
         : q.col === 'mote' ? '#ead2ff' : ECOL[q.col] ? ECOL[q.col][0] : COL[q.col] || COL.shot;
@@ -413,7 +443,9 @@ export function makeRenderer(canvas) {
     if (opts.fps) { ctx.textAlign = 'left'; ctx.fillText(`${R.fps | 0} fps · ${g.enemies.length} foes`, x, y + 40); }
   }
 
+  let gNow = null;
   function drawControls(g, inp) {
+    gNow = g;
     const L = inp.layout, f = L.fire, d = L.dash, w = g.weapon, p = g.p;
     // move stick
     if (inp.moveBase) {
@@ -444,28 +476,30 @@ export function makeRenderer(canvas) {
     }
     ctx.fillStyle = COL.ui; ctx.font = '700 10px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(w.trigger === 'release' ? 'drag · let go' : w.trigger === 'hold' ? 'hold to fire' : 'auto · drag to aim', f.x, f.y + f.r + 26);
-    // dash button with its charges
-    const ready = p.charges >= 1;
-    const dx = d.x + (inp.dash.down ? inp.dash.x * d.r * 0.8 : 0), dy = d.y + (inp.dash.down ? inp.dash.y * d.r * 0.8 : 0);
-    ringAt(d.x, d.y, d.r, ready ? 'rgba(159,233,255,0.22)' : 'rgba(255,255,255,0.06)', ready ? 'rgba(159,233,255,0.6)' : 'rgba(255,255,255,0.15)');
-    if (inp.dash.down) circle(dx, dy, d.r * 0.5, 'rgba(159,233,255,0.6)');
-    for (let i = 0; i < DASH.charges; i++) {
-      const full = i < p.charges, part = i === p.charges ? 1 - p.recharge / DASH.recharge : 0;
-      const bx = d.x - 9 + i * 18, by = d.y + d.r + 9;
-      ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(bx - 7, by, 14, 4);
-      ctx.fillStyle = COL.dash; ctx.fillRect(bx - 7, by, 14 * (full ? 1 : part), 4);
+    // the two ability controls: the button (B) and the stick (A), drawn for the abilities you brought (round 11)
+    const ctl2 = abilityControls(g);
+    drawAbility(ctl2.B, d, inp.dash);
+    drawAbility(ctl2.A, L.spawn, inp.spawn);
+  }
+  const ANAME = { spawn: 'SPAWN', dash: 'DASH', burst: 'BURST' };
+  function drawAbility(id, S, st) {
+    const p = gNow.p;
+    const kx = S.x + (st.down ? st.x * S.r * 0.8 : 0), ky = S.y + (st.down ? st.y * S.r * 0.8 : 0);
+    if (id === 'dash') {
+      const ready = p.charges >= 1;
+      ringAt(S.x, S.y, S.r, ready ? 'rgba(159,233,255,0.22)' : 'rgba(255,255,255,0.06)', ready ? 'rgba(159,233,255,0.6)' : 'rgba(255,255,255,0.15)');
+      if (st.down) circle(kx, ky, S.r * 0.5, 'rgba(159,233,255,0.6)');
+      for (let i = 0; i < DASH.charges; i++) {
+        const full = i < p.charges, part = i === p.charges ? 1 - p.recharge / DASH.recharge : 0, bx = S.x - 9 + i * 18, by = S.y + S.r + 9;
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(bx - 7, by, 14, 4); ctx.fillStyle = COL.dash; ctx.fillRect(bx - 7, by, 14 * (full ? 1 : part), 4);
+      }
+    } else {
+      const cool = id === 'burst' ? gNow.burstCool / BURST.cooldown : gNow.spawnCool / SPAWN.cooldown, ready = cool <= 0, col = id === 'burst' ? '255,210,63' : '255,255,255';
+      ringAt(S.x, S.y, S.r, ready ? `rgba(${col},0.22)` : 'rgba(255,255,255,0.06)', ready ? `rgba(${col},0.7)` : 'rgba(255,255,255,0.15)');
+      if (!ready) { ctx.strokeStyle = `rgba(${col},0.6)`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(S.x, S.y, S.r + 5, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - Math.min(1, cool))); ctx.stroke(); }
+      if (st.down) circle(kx, ky, S.r * 0.5, `rgba(${col},0.6)`);
     }
-    ctx.fillStyle = COL.ui; ctx.fillText('DASH', d.x, d.y + 4);
-    // spawn stick: a cooldown sweep
-    const S = L.spawn, sready = g.spawnCool <= 0;
-    const sx = S.x + (inp.spawn.down ? inp.spawn.x * S.r * 0.8 : 0), sy = S.y + (inp.spawn.down ? inp.spawn.y * S.r * 0.8 : 0);
-    ringAt(S.x, S.y, S.r, sready ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)', sready ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.15)');
-    if (!sready) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(S.x, S.y, S.r + 5, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - g.spawnCool / SPAWN.cooldown)); ctx.stroke();
-    }
-    if (inp.spawn.down) circle(sx, sy, S.r * 0.5, 'rgba(255,255,255,0.6)');
-    ctx.fillStyle = COL.ui; ctx.fillText('SPAWN', S.x, S.y + 4);
+    ctx.fillStyle = COL.ui; ctx.font = '700 10px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(ANAME[id], S.x, S.y + 4);
   }
   function ringAt(x, y, r, fill, stroke) {
     ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
