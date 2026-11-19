@@ -3,6 +3,15 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-19 — round 13 answered; round 14 built (v0.17.0)
+
+Answers: size, shards, red shards, laser start good; balance decent. Auto: **"I said no control over it. Just
+movement."** Laser: **"aim line should stop where the laser will stop."**
+
+Built: in Auto, every touch anywhere is the move stick; the fire stick and ability controls are gone, replaced by three
+small gauges bottom right (weapon rounds, each ability's cooldown) that can't be touched. The Laser's aim line stops
+at the first enemy it can't burn through.
+
 ## 2026-11-19 — their chat notes after round 12; round 13 built (v0.16.0)
 
 Said in chat: **"Laser should instantly turn when you start it up again" (it started from its last position). "The game

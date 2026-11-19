@@ -34,6 +34,7 @@ function frame(now) {
   frames++; fpsT += dt; if (fpsT > 0.5) { R.fps = frames / fpsT; frames = 0; fpsT = 0; }
   // iOS home-screen apps don't always send a resize when the phone turns: check the size every frame.
   if (canvas.clientWidth !== sizeW || canvas.clientHeight !== sizeH) { sizeW = canvas.clientWidth; sizeH = canvas.clientHeight; R.resize(); inp.relayout(); }
+  inp.auto = !!opts.auto;
   if (manual) { requestAnimationFrame(frame); return; }
   if (!paused && !g.over) {
     acc += dt; let n = 0;
@@ -276,7 +277,7 @@ $('buildClear').onclick = () => { opts.build = EMPTY_BUILD(); save(); buildBuild
 // manual: the page stops running by itself; advance(n) runs n steps and draws (frame-exact films).
 window.SM = { get g() { return g; }, inp, opts, restart, R, setPaused: (v) => { paused = v; },
   setManual: (v) => { manual = v; }, lib: { pathField, lineClear, makeEnemy },
-  advance: (n = 1) => { for (let i = 0; i < n && !g.over; i++) { step(g, DT, inp); inp.events.length = 0; } R.draw(g, inp, opts); if (g.over && $('over').classList.contains('hidden')) showOver(); },
+  advance: (n = 1) => { inp.auto = !!opts.auto; for (let i = 0; i < n && !g.over; i++) { step(g, DT, inp); inp.events.length = 0; } R.draw(g, inp, opts); if (g.over && $('over').classList.contains('hidden')) showOver(); },
   setOpt: (k, v) => { opts[k] = v; if (k === 'weapon') setWeapon(g, v); if (k === 'build') { g.practice = v; rebuild(g); } },
   showOffer: () => showOffer(),
   pickOffer: (i = 0) => { const o = g.run.offers[0]; if (!o) return; if (o.kind === 'loadout') { takeLoadout(opts.weapon, (opts.abilities || 'spawn,dash').split(',')); return; } if (o.kind !== 'chest') { if (o.cards.length) takeLevelCard(g, o.cards[i] || o.cards[0]); }

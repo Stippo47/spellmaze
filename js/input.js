@@ -42,7 +42,8 @@ export function makeInput(canvas, getPlayerScreen) {
     const inD = Math.hypot(x - L.dash.x, y - L.dash.y) < L.dash.r * 1.8;
     const inS = Math.hypot(x - L.spawn.x, y - L.spawn.y) < L.spawn.r * 1.9;
     let role = null;
-    if (inS && !S.spawn.down) role = 'spawn';
+    if (S.auto) { if (!S.moveBase) role = 'move'; }   // round 14: Auto is movement only, anywhere on the screen
+    else if (inS && !S.spawn.down) role = 'spawn';
     else if (inD && !S.dash.down) role = 'dash';
     else if (inF && !S.fire.down) role = 'fire';
     else if (x < L.w * 0.5 && !S.moveBase) role = 'move';

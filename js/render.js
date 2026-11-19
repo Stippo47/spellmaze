@@ -106,7 +106,12 @@ export function makeRenderer(canvas) {
     // aim lines
     if (g.aim) {
       const d = Math.hypot(g.aim.x, g.aim.y) || 1, ax = g.aim.x / d, ay = g.aim.y / d;
-      const L = rayDist(m, p.x, p.y, ax, ay, g.weapon.range);
+      let L = rayDist(m, p.x, p.y, ax, ay, g.weapon.range);
+      if (g.weapon.beam) { // round 14: the line stops where the beam would (the first enemy it can't burn through)
+        const hits = [];
+        for (const e of g.enemies) { const ex = e.x - p.x, ey = e.y - p.y, t = ex * ax + ey * ay; if (t > 0 && t < L && Math.abs(ex * ay - ey * ax) < e.r + 0.4) hits.push(t); }
+        hits.sort((a, b) => a - b); const pierce = (g.build.weapon && g.build.weapon.pierce) || 0; if (hits.length > pierce) L = hits[pierce];
+      }
       strip(p.x + ax * 1.2, p.y + ay * 1.2, p.x + ax * L, p.y + ay * L, Math.max(0.5, g.weapon.radius * 2.4), 'rgba(255,255,255,0.22)');
     }
     const ctl = abilityControls(g);
@@ -458,6 +463,7 @@ export function makeRenderer(canvas) {
   let gNow = null;
   function drawControls(g, inp) {
     gNow = g;
+    if (g.opts.auto) { drawAutoHud(g, inp); return; }
     const L = inp.layout, f = L.fire, d = L.dash, w = g.weapon, p = g.p;
     // move stick
     if (inp.moveBase) {
@@ -494,6 +500,25 @@ export function makeRenderer(canvas) {
     drawAbility(ctl2.A, L.spawn, inp.spawn);
   }
   const ANAME = { spawn: 'SPAWN', dash: 'DASH', burst: 'BURST' };
+  // Auto (round 14: "no control over it, just movement"): the move stick, and small gauges bottom right that can't be touched.
+  function drawAutoHud(g, inp) {
+    const L = inp.layout, p = g.p, w = g.weapon;
+    if (inp.moveBase) {
+      ringAt(inp.moveBase.x, inp.moveBase.y, L.moveR, 'rgba(255,255,255,0.10)', 'rgba(255,255,255,0.25)');
+      circle(inp.moveBase.x + inp.move.x * L.moveR, inp.moveBase.y + inp.move.y * L.moveR, L.moveR * 0.42, 'rgba(255,255,255,0.45)');
+    }
+    const r = 16, y = H - 34, items = [...g.abilities.slice().reverse(), 'weapon'];
+    items.forEach((id, i) => {
+      const x = W - 34 - i * 46;
+      const frac = id === 'weapon' ? (g.reloadT > 0 ? 1 - g.reloadT / w.reloadTime : g.ammo / w.rounds) : id === 'dash' ? Math.min(1, (p.charges + (p.charges < DASH.charges ? 1 - p.recharge / DASH.recharge : 0)) / DASH.charges)
+        : 1 - Math.min(1, id === 'burst' ? g.burstCool / BURST.cooldown : g.spawnCool / SPAWN.cooldown);
+      const col = id === 'weapon' ? COL.gold : id === 'dash' ? COL.dash : id === 'burst' ? '#ffd23f' : '#e8f0ff';
+      ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, frac)); ctx.stroke();
+      ctx.fillStyle = COL.ui; ctx.font = '700 8px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(id === 'weapon' ? w.name.toUpperCase() : ANAME[id], x, y);
+    });
+  }
   function drawAbility(id, S, st) {
     const p = gNow.p;
     const kx = S.x + (st.down ? st.x * S.r * 0.8 : 0), ky = S.y + (st.down ? st.y * S.r * 0.8 : 0);
