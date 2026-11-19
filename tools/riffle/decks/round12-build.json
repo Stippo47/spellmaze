@@ -1,0 +1,46 @@
+{
+ "title": "Laser feel, punchier deaths",
+ "topic": "builds",
+ "order": 22,
+ "cards": [
+  {
+   "id": "build",
+   "kind": "report",
+   "rarity": "uncommon",
+   "title": "Your round 11 notes",
+   "text": "The Laser swings round slowly and builds up while held. Deaths hit much harder. Small polish.",
+   "why": "Everything from the last deck. Mark any part that's off.",
+   "details": "Version 0.15.0. Close and reopen the app twice to get it.",
+   "parts": [
+    {
+     "id": "laser",
+     "title": "Laser",
+     "text": "Turns toward your aim at a limited speed, so sweeping it takes time. Starts at 30% and builds to full over 1.2 s held, getting wider too.",
+     "videos": [
+      "../../../films/p-laser.mp4",
+      "../../../films/p-laser-mods.mp4"
+     ]
+    },
+    {
+     "id": "deaths",
+     "title": "Deaths",
+     "text": "A white pop, the body flung hard and spinning, broken bits of its shape, more sparks, a small shake, and a few frames' freeze.",
+     "images": [
+      "../../../films/death-a.png"
+     ],
+     "videos": [
+      "../../../films/p-hits.mp4"
+     ]
+    },
+    {
+     "id": "polish",
+     "title": "Small polish",
+     "text": "A small muzzle flash, short tails on bolts, enemies grow in when they arrive, XP pickups pop.",
+     "videos": [
+      "../../../films/p-split.mp4"
+     ]
+    }
+   ]
+  }
+ ]
+}

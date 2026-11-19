@@ -136,7 +136,7 @@ export function makeRenderer(canvas) {
       if (!b.child) { ctx.strokeStyle = 'rgba(255,210,63,0.35)'; ctx.lineWidth = 0.12; ctx.beginPath(); ctx.arc(b.tx, b.ty, b.r, 0, TAU); ctx.stroke(); }
     }
     // the dead fly off the way the killing blow went, shrinking (round 11)
-    for (const c of g.corpses) { const k = c.t / 0.3; ctx.globalAlpha = 0.8 * (1 - k); enemyShape(c, c.r * (1 - 0.5 * k), (ECOL[c.type] || ECOL.mite)[0]); }
+    for (const c of g.corpses) { const k = c.t / (c.life || 0.3); ctx.globalAlpha = 0.9 * (1 - k * k); enemyShape(c, c.r * (1 - 0.45 * k), c.t < 0.05 ? '#ffffff' : (ECOL[c.type] || ECOL.mite)[0]); }
     ctx.globalAlpha = 1;
 
     // balls (your spawns)
@@ -176,8 +176,9 @@ export function makeRenderer(canvas) {
         strip(e.x, e.y, e.x + e.ax * L, e.y + e.ay * L, 0.5, lite);
         ctx.globalAlpha = 1;
       }
-      enemyShape(e, e.r, e.flash > 0 ? '#ffffff' : dark);
-      if (e.flash <= 0) enemyShape(e, e.r * 0.7, lite);
+      const grow = e.born > 0 ? 1 - e.born / 0.25 : 1;   // arriving: grows in
+      enemyShape(e, e.r * grow, e.flash > 0 ? '#ffffff' : dark);
+      if (e.flash <= 0) enemyShape(e, e.r * 0.7 * grow, lite);
       ctx.globalAlpha = 1;
       // statuses: a ring each in its colour (thicker with more build-up), outside the body
       let ring = e.r + 0.15;
@@ -197,10 +198,12 @@ export function makeRenderer(canvas) {
       ctx.globalAlpha = 1; strip(b.x0, b.y0, b.x1, b.y1, b.w * 0.6, '#ffffff', true);
     }
 
-    // bolts
+    // bolts, each with a short fading tail (round 12)
+    if (g.flashT > 0 && !g.weapon.beam) { g.flashT -= 1 / 60; circle(p.x + p.fx * 1.4, p.y + p.fy * 1.4, 0.42, 'rgba(255,255,255,0.9)'); }
     for (const b of g.bolts) {
       if (mode !== 'all' && !canSee(g, b.x, b.y)) continue;
       const sp = Math.hypot(b.vx, b.vy) || 1, tx = b.vx / sp, ty = b.vy / sp;
+      ctx.globalAlpha = 0.3; strip(b.x - tx * 2.6, b.y - ty * 2.6, b.x - tx * 0.6, b.y - ty * 0.6, b.r * 1.2, payCol(b.pay) || COL.shot, true); ctx.globalAlpha = 1;
       strip(b.x - tx * 0.9, b.y - ty * 0.9, b.x, b.y, b.r * 2, payCol(b.pay) || COL.shot, true);
     }
 

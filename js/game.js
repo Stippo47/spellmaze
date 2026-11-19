@@ -118,6 +118,7 @@ export function makeEnemy(g, type, x, y, extra) {
   const e = { id: g.nextId++, type, x, y, r: s.r, hp, maxHp: hp, speed: s.speed * (0.9 + g.R() * 0.2), vx: 0, vy: 0, flash: 0,
     fx: 1, fy: 0, cd: 0.5 + g.R() * 1.5, st: null, t: 0, ...extra };
   g.enemies.push(e);
+  if (!extra || !extra.sleep) { e.born = 0.25; }   // round 12: arrives growing in from nothing
   return e;
 }
 
@@ -333,7 +334,7 @@ function fire(g, ax, ay) {
   if (w.beam) return false;   // the Laser fires in stepBeam
   if (g.ammo < 1 || g.cool > 0) return false;
   g.reloadT = 0;
-  g.ammo -= 1; g.cool = w.cooldown; g.sinceShot = 0;
+  g.ammo -= 1; g.cool = w.cooldown; g.sinceShot = 0; g.flashT = 0.06;
   const n = (w.pellets || 1) + L(g, 'weapon', 'extra'), base = Math.atan2(ay, ax) + (g.R() - 0.5) * 2 * w.spread;
   const pay = payload(g, 'weapon'), bounces = L(g, 'weapon', 'bounce'), home = L(g, 'weapon', 'home'), ex = L(g, 'weapon', 'explode');
   const grow = L(g, 'weapon', 'grow'), speed = w.speed * (1 + 0.15 * L(g, 'weapon', 'haste'));
@@ -521,13 +522,21 @@ const BW = (g, id) => L(g, 'weapon', id);
 function stepBeam(g, dt) {
   const w = g.weapon, p = g.p;
   g.beams.length = 0;
-  if (!g.aim || g.ammo < 0.5) return;
+  if (!g.aim || g.ammo < 0.5) { g.beamHeld = 0; g.beamAng = null; return; }
   g.ammo = Math.max(0, g.ammo - w.drain * dt); g.sinceShot = 0; g.reloadT = 0;
-  let a0 = Math.atan2(g.aim.y, g.aim.x);
+  // round 12: "should take time to turn, adds drag; starts weak and builds up the longer it's held, to a peak"
+  const want = Math.atan2(g.aim.y, g.aim.x);
+  if (g.beamAng == null) g.beamAng = want;
+  let df = want - g.beamAng; df = Math.atan2(Math.sin(df), Math.cos(df));
+  g.beamAng += Math.max(-w.turn * dt, Math.min(w.turn * dt, df));
+  g.beamHeld = Math.min(w.rampTime, (g.beamHeld || 0) + dt);
+  const power = 0.3 + 0.7 * (g.beamHeld / w.rampTime);   // 30% at first, full after rampTime
+  g.beamPower = power;
+  let a0 = g.beamAng;
   if (BW(g, 'home')) { const e = nearestEnemy(g, p.x, p.y, w.range, Math.cos(a0), Math.sin(a0), Math.cos(0.15 + 0.06 * BW(g, 'home'))); if (e) a0 = Math.atan2(e.y - p.y, e.x - p.x); }
   const n = 1 + BW(g, 'extra'), grow = BW(g, 'grow');
   const reach = w.range * durOf(BW(g, 'duration')) * (1 + 0.15 * BW(g, 'haste'));
-  const b = { width: w.radius * 2 * (1 + 0.3 * grow), dps: w.damage * (1 + 0.1 * grow), pierce: BW(g, 'pierce'), bounces: BW(g, 'bounce'),
+  const b = { width: w.radius * 2 * (1 + 0.3 * grow) * (0.5 + 0.5 * power), dps: w.damage * (1 + 0.1 * grow) * power, pierce: BW(g, 'pierce'), bounces: BW(g, 'bounce'),
     split: BW(g, 'split'), knock: BW(g, 'knock'), pay: payload(g, 'weapon'), ex: BW(g, 'explode') };
   g.beamExT = (g.beamExT || 0) - dt;
   const exNow = b.ex && g.beamExT <= 0; if (exNow) g.beamExT = 0.5;
@@ -796,6 +805,8 @@ function trickleType(g) {
 // ---------- step ----------
 export function step(g, dt, inp) {
   if (g.over || g.run.offers.length) return;   // a chest or level-up card is up: the game waits
+  g.stopCd = (g.stopCd || 0) - dt;
+  if (g.hitStop > 0) { g.hitStop -= dt; return; }   // round 12: a few frames' freeze when something dies
   g.t += dt; g.frame = (g.frame || 0) + 1;
   const p = g.p, m = g.m, w = g.weapon;
 
@@ -876,7 +887,7 @@ export function step(g, dt, inp) {
   const G = m.G, f = g.field;
   for (const e of g.enemies) {
     const S = ENEMIES[e.type];
-    e.flash = Math.max(0, e.flash - dt);
+    e.flash = Math.max(0, e.flash - dt); if (e.born > 0) e.born -= dt;
     if (e.frozen > 0 || e.stun > 0) { e.vx = e.vy = 0; continue; }   // frozen or stunned: still
     if (e.dashT > 0) { stepDash(g, e, dt, null); if (e.dashT <= 0) { e.st = 'rest'; e.t = 0.6; } continue; }
     if (e.sleep) { // a camp at rest: the whole camp wakes when one sees you close, or is hurt
@@ -1002,7 +1013,7 @@ export function step(g, dt, inp) {
     const q = g.gems[i], dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
     if (d < pickupRange(g) || q.pull) { q.pull = true; const sp = 6 + (q.sp = (q.sp || 0) + dt * 40); q.x += dx / d * sp * dt; q.y += dy / d * sp * dt; }
     if (d < p.r + 0.3) {
-      g.gems.splice(i, 1); g.xp += q.v;
+      g.gems.splice(i, 1); g.xp += q.v; g.parts.push({ x: p.x + (g.R() - 0.5), y: p.y + (g.R() - 0.5), vx: (g.R() - 0.5) * 6, vy: -3 - g.R() * 3, life: 0.3, max: 0.3, col: 'xp', s: 0.3 });
     }
   }
   for (let need = xpNeed(g.level); g.xp >= need; need = xpNeed(g.level)) { // XP from gems or a scrapped shard
@@ -1013,8 +1024,8 @@ export function step(g, dt, inp) {
   for (const [i, t] of g.tileFlash) { if (t - dt <= 0) g.tileFlash.delete(i); else g.tileFlash.set(i, t - dt); }
   for (let i = g.ghosts.length - 1; i >= 0; i--) { g.ghosts[i].t += dt; if (g.ghosts[i].t > GHOST) g.ghosts.splice(i, 1); }
   for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; if (!q.drift) { q.vx *= 0.9; q.vy *= 0.9; } if (q.life <= 0) g.parts.splice(i, 1); }
-  for (let i = g.corpses.length - 1; i >= 0; i--) { const c = g.corpses[i]; c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= 0.9; c.vy *= 0.9;
-    const a = c.spin * dt, cs = Math.cos(a), sn = Math.sin(a), fx = c.fx; c.fx = fx * cs - c.fy * sn; c.fy = fx * sn + c.fy * cs; if (c.t > 0.3) g.corpses.splice(i, 1); }
+  for (let i = g.corpses.length - 1; i >= 0; i--) { const c = g.corpses[i]; c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= 0.93; c.vy *= 0.93;
+    const a = c.spin * dt, cs = Math.cos(a), sn = Math.sin(a), fx = c.fx; c.fx = fx * cs - c.fy * sn; c.fy = fx * sn + c.fy * cs; if (c.t > (c.life || 0.3)) g.corpses.splice(i, 1); }
   for (let i = g.rings.length - 1; i >= 0; i--) { g.rings[i].t += dt; if (g.rings[i].t > g.rings[i].life) g.rings.splice(i, 1); }
   g.shake = Math.max(0, g.shake - dt * 2.5); g.hurtFlash = Math.max(0, g.hurtFlash - dt);
   for (let i = g.pops.length - 1; i >= 0; i--) { g.pops[i].t += dt; if (g.pops[i].t > 1.6) g.pops.splice(i, 1); }
@@ -1042,10 +1053,17 @@ function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
   }
   if (e.hp <= 0) {
     g.kills++;
-    const ka = (vx || vy) ? Math.atan2(vy, vx) : g.R() * TAU, kn = 12 + Math.round(e.r * 6);
-    for (let i = 0; i < kn; i++) { const a = ka + (g.R() - 0.5) * 1.8, sp = 4 + g.R() * 12; g.parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.35 + g.R() * 0.25, max: 0.6, col: e.type, s: 0.3 + g.R() * 0.35 }); }
-    if (!S.boss) g.corpses.push({ type: e.type, x: e.x, y: e.y, r: e.r, fx: e.fx, fy: e.fy, vx: Math.cos(ka) * 16 / Math.sqrt(S.mass), vy: Math.sin(ka) * 16 / Math.sqrt(S.mass), spin: (g.R() - 0.5) * 20, t: 0 });
-    g.rings.push({ x: e.x, y: e.y, r0: e.r, r1: e.r + 2.2, t: 0, life: 0.28, c: e.type });
+    // round 12 ("not enough"): a white pop, the body flung hard and spinning, broken bits, more sparks, a tiny freeze
+    const ka = (vx || vy) ? Math.atan2(vy, vx) : g.R() * TAU, kn = 20 + Math.round(e.r * 10);
+    for (let i = 0; i < kn; i++) { const a = ka + (g.R() - 0.5) * 2.2, sp = 5 + g.R() * 18; g.parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4 + g.R() * 0.35, max: 0.75, col: g.R() < 0.25 ? 'player' : e.type, s: 0.3 + g.R() * 0.5 }); }
+    const fling = 30 / Math.sqrt(S.mass);
+    if (!S.boss) g.corpses.push({ type: e.type, x: e.x, y: e.y, r: e.r, fx: e.fx, fy: e.fy, vx: Math.cos(ka) * fling, vy: Math.sin(ka) * fling, spin: (g.R() < 0.5 ? -1 : 1) * (14 + g.R() * 14), t: 0, life: 0.5 });
+    for (let i = 0; i < 3; i++) { const a = ka + (g.R() - 0.5) * 1.6, sp = fling * (0.5 + g.R() * 0.7); // broken bits: small copies of its shape
+      g.corpses.push({ type: e.type, x: e.x, y: e.y, r: e.r * 0.38, fx: Math.cos(a), fy: Math.sin(a), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, spin: (g.R() - 0.5) * 40, t: 0, life: 0.45 }); }
+    g.rings.push({ x: e.x, y: e.y, r0: e.r * 0.6, r1: e.r + 1.2, t: 0, life: 0.12, c: '#ffffff' });
+    g.shake = Math.max(g.shake, 0.18);
+    if (!g.stopCd || g.stopCd <= 0) { g.hitStop = S.mass > 4 ? 0.07 : 0.025; g.stopCd = 0.12; }
+    g.rings.push({ x: e.x, y: e.y, r0: e.r, r1: e.r + 3, t: 0, life: 0.35, c: e.type });
     if (S.mass > 4) g.shake = Math.max(g.shake, S.boss ? 1 : 0.35);
     g.gems.push({ x: e.x, y: e.y, v: S.xp });
     if (e.poison > 0) g.clouds.push({ x: e.x, y: e.y, r: 3, t: 0, life: 4 });   // Rot's gas: poisons those inside

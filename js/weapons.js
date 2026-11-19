@@ -21,7 +21,8 @@ export const WEAPONS = {
 };
 // Round 11: the Laser, a held beam. rounds = its charge (drains `drain` a second while firing); damage is per second.
 WEAPONS.laser = { name: 'Laser', trigger: 'hold', refill: 'trickle', rounds: 100, drain: 30, refillDelay: 0.6, refillRate: 45, cooldown: 0,
-  damage: 42, speed: 0, range: 18, radius: 0.35, spread: 0, tapNearest: false, beam: true };
+  turn: 2.6, rampTime: 1.2,   // round 12: turns 2.6 rad a second; builds from 30% to full over 1.2 s held
+  damage: 52, speed: 0, range: 18, radius: 0.35, spread: 0, tapNearest: false, beam: true };
 export const WEAPON_ORDER = ['pistol', 'smg', 'auto', 'shotgun', 'rail', 'laser'];
 
 export const DASH = { length: 5, time: 0.15, charges: 2, recharge: 2.4, shove: 1.6, safe: 0.35, block: 45 };   // block: damage to each breakable tile it hits   // safe: untouchable after a dash (round 4)

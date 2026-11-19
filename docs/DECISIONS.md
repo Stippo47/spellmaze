@@ -3,6 +3,19 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-19 — round 11 answered; round 12 built (v0.15.0)
+
+Answers: loadout, Burst, Laser all good. Laser: **"should take time to turn, adds drag; starts off weak and builds up
+strength the longer it's held, to a peak."** Deaths: **"not enough."** Motes and shard glow good.
+
+Built:
+- Laser turns toward your aim at 2.6 rad a second, and builds from 30% to full damage (and from half to full width)
+  over 1.2 s held; peak 52 a second (was a flat 42). Letting go resets it.
+- Deaths: a white flash ring, the body flung twice as hard and spinning, 3 broken bits of its shape, ~70% more sparks
+  (some white), a bigger colour ring, a small shake, and a tiny freeze (0.025 s; 0.07 s for big ones; at most one
+  every 0.12 s).
+- More polish: a small muzzle flash, short fading tails on bolts, enemies grow in when they arrive, XP pickups pop.
+
 ## 2026-11-19 — round 10 answered ("Go"); round 11 built (v0.14.0)
 
 Answers: all good; **"keep going with visual polish / charm"**. Hit effects: **"launch enemies on death? Or the burst
