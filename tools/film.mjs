@@ -88,9 +88,14 @@ const R9 = { 'm5-pierce': ['rail', { weapon: { pierce: 2 } }], 'm5-split': ['pis
   'shotgun': ['shotgun', {}], 'rail': ['rail', {}] };
 for (const [k, [w, b, spawn, dash]] of Object.entries(R9)) SCENES[k] = { q: `weapon=${w}&sight=remember`, warm: 40, film: 8, small: true,
   build: { weapon: {}, spawn: {}, dash: {}, ...b }, bot: { fire: dash ? 'none' : 'release', spawn: !!spawn, dash: true, dashAt: !!dash, approach: !!dash } };
-SCENES['shard'] = { q: 'weapon=pistol&sight=remember', warm: 1, film: 4, setup: `(() => { const g = SM.g, m = g.m; g.nextWave = 1e9; g.spawnAcc = -1e9; g.enemies = g.enemies.filter(e => e.camp);
+SCENES['shard'] = { q: 'weapon=pistol&sight=remember&view=16', warm: 1, film: 5, setup: `(() => { const g = SM.g, m = g.m; g.nextWave = 1e9; g.spawnAcc = -1e9; g.enemies = g.enemies.filter(e => e.camp);
   const c = g.chests.filter(c => !c.open).sort((a, b) => Math.hypot(a.x - g.p.x, a.y - g.p.y) - Math.hypot(b.x - g.p.x, b.y - g.p.y));
   for (const s of c) for (const [dx, dy] of [[0, 6], [0, -6], [6, 0], [-6, 0]]) { const x = s.x + dx, y = s.y + dy; if (m.clear[Math.floor(y) * m.G + Math.floor(x)] && SM.lib.lineClear(m, x, y, s.x, s.y)) { g.p.x = x; g.p.y = y; BOT.think = () => {}; return; } } })()`, bot: {} };
+// Round 10: the playground (one open room, small groups) for showing abilities, as asked.
+const PG = { 'p-hits': ['smg', {}], 'p-knock': ['smg', { weapon: { knock: 3 } }], 'p-split': ['pistol', { weapon: { split: 3 } }], 'p-rail': ['rail', {}],
+  'p-poison': ['smg', { weapon: { poison: 5 } }], 'p-dashsplit': ['pistol', { dash: { split: 3, knock: 2 } }, true] };
+for (const [k, [w, b, dash]] of Object.entries(PG)) SCENES[k] = { q: `weapon=${w}&sight=remember&playground=1`, warm: 6, film: 9, small: true,
+  build: { weapon: {}, spawn: {}, dash: {}, ...b }, bot: { fire: dash ? 'none' : w === 'smg' ? 'hold' : 'release', dash: true, dashAt: !!dash, approach: !!dash } };
 SCENES['camp'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 14, small: true, setup: NEAR_CAMP, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['enemies'] = { q: 'weapon=pistol&sight=remember', warm: 3, film: 10, small: true, setup: TRIO, bot: { fire: 'release', dash: true, approach: true } };
 SCENES['combo-fire'] = { q: 'weapon=smg&sight=remember', warm: 60, film: 9, small: true,

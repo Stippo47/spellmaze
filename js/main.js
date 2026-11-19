@@ -9,7 +9,7 @@ import { RARITY, RARITY_ORDER, SLOTS, VITALS, placeResult, place, takeLevelCard,
 import { icon, pips, slots } from './ui.js';
 
 const canvas = document.getElementById('game');
-const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false, practice: false };
+const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false, practice: false, playground: false };
 const EMPTY_BUILD = () => ({ weapon: {}, spawn: {}, dash: {} });
 let opts = { ...DEFAULTS };
 try { const sv = JSON.parse(localStorage.getItem('spellmaze-opts') || '{}'); if (sv.v === 2) Object.assign(opts, sv); } catch {}
@@ -66,8 +66,9 @@ const CHOICES = {
   view: [[16, 'Close'], [22, 'Normal'], [28, 'Far'], [36, 'Farther']],
   fps: [[false, 'Off'], [true, 'On']],
   practice: [[false, 'Off'], [true, 'On']],
+  playground: [[false, 'Off'], [true, 'On']],
 };
-const REBUILD = new Set(['widths', 'nodes', 'practice']);
+const REBUILD = new Set(['widths', 'nodes', 'practice', 'playground']);
 function buildSettings() {
   for (const [k, list] of Object.entries(CHOICES)) {
     const row = document.querySelector(`[data-opt="${k}"] .seg`); row.innerHTML = '';
@@ -161,9 +162,10 @@ function showOffer() {
 // Practice on: every module free, any level. Practice off: the run's own build, and modules can be moved.
 function buildBuild() {
   const grid = $('buildGrid'); grid.innerHTML = '';
-  $('buildHead').textContent = opts.practice ? 'practice: free, any level' : 'this run';
-  $('buildClear').classList.toggle('hidden', !opts.practice);
-  if (!opts.practice) {
+  const free = opts.practice || opts.playground;
+  $('buildHead').textContent = free ? 'practice: free, any level' : 'this run';
+  $('buildClear').classList.toggle('hidden', !free);
+  if (!free) {
     const row = el('div', 'casts');
     for (const c of CAST_ORDER) {
       const col = el('div', 'castcol', `<div class="casthead">${icon(c, '#e8f0ff', 20)}<b>${CASTS[c].name}</b>${slots(g.run.mods[c].length, SLOTS[c])}</div>`);

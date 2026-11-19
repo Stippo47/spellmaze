@@ -1,0 +1,75 @@
+{
+ "title": "Juice and a playground",
+ "topic": "builds",
+ "order": 19,
+ "cards": [
+  {
+   "id": "fixes",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Your round 9 notes",
+   "text": "Knock moves them for real, hits and kills burst, the screen shakes, and a playground to show abilities.",
+   "why": "Everything from the last decks. Films are in the playground now, so you can see each thing.",
+   "details": "Version 0.13.0. Close and reopen the app twice to get it. Pause → Playground: On to try it yourself.",
+   "parts": [
+    {
+     "id": "knock",
+     "title": "Knock is motion",
+     "text": "Knockback is a push of speed that slides them and dies off, not a jump. The Hulk shoves you the same way, and turns snappier.",
+     "videos": [
+      "../../../films/p-knock.mp4"
+     ]
+    },
+    {
+     "id": "juice",
+     "title": "Hit effects",
+     "text": "Sparks in the enemy's colour on every hit, a burst and ring on every kill, rings on blasts and pickups, shake on big hits, a red flash when you're hurt.",
+     "videos": [
+      "../../../films/p-hits.mp4"
+     ]
+    },
+    {
+     "id": "playground",
+     "title": "Playground",
+     "text": "One open room; groups of 4 walk in every 4 s, never more than 10. Build anything, like practice.",
+     "images": [
+      "../../../films/playground.png"
+     ]
+    },
+    {
+     "id": "split",
+     "title": "Split",
+     "text": "The two halves skip the enemy that split them.",
+     "videos": [
+      "../../../films/p-split.mp4",
+      "../../../films/p-dashsplit.mp4"
+     ]
+    },
+    {
+     "id": "rail",
+     "title": "Rail budget",
+     "text": "90 damage to spend: each enemy takes what it needs to die, the shot goes on with the rest.",
+     "videos": [
+      "../../../films/p-rail.mp4"
+     ]
+    },
+    {
+     "id": "clouds",
+     "title": "Clouds",
+     "text": "Swell from a point, fade fast at the end, and pale motes drift up out of them.",
+     "videos": [
+      "../../../films/p-poison.mp4"
+     ]
+    },
+    {
+     "id": "shard",
+     "title": "Shard",
+     "text": "Bigger under-star at a third of the speed. In this clip it's the gold star at the left (top left of the screen).",
+     "videos": [
+      "../../../films/shard.mp4"
+     ]
+    }
+   ]
+  }
+ ]
+}

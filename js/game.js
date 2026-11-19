@@ -1,5 +1,5 @@
 // The simulation: fixed steps, no drawing. Units are maze cells; the player is a 2x2 body (radius 1).
-import { makeMaze, rayStamp, lineClear, pathField, breakTile } from './maze.js';
+import { makeMaze, makeArena, rayStamp, lineClear, pathField, breakTile } from './maze.js';
 import { WEAPONS, DASH, SPAWN } from './weapons.js';
 import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUILD, knockOf } from './modules.js';
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
@@ -33,8 +33,8 @@ export function newGame(opts) {
     p: { x: 0, y: 0, r: 1, hp: 100, maxHp: 100, vx: 0, vy: 0, fx: 1, fy: 0, hurtT: 0,
          dashT: 0, dx: 0, dy: 0, charges: DASH.charges, recharge: 0, safeT: 0 },
     weapon: null, ammo: 0, cool: 0, sinceShot: 9, nextId: 1, parts: [], pops: [], boss: null, nextBoss: BOSS_AT,
-    run: newRun(), practice: opts.practice ? opts.build : null, build: null, spawnCool: 0, spawnAim: null,
-    vis: new Float32Array(RAYS * 2), spawnAcc: 0, wave: 0, aim: null, dashAim: null,
+    run: newRun(), practice: opts.practice || opts.playground ? opts.build : null, build: null, spawnCool: 0, spawnAim: null,
+    vis: new Float32Array(RAYS * 2), spawnAcc: 0, wave: 0, aim: null, dashAim: null, shake: 0, hurtFlash: 0,
   };
   rebuild(g);
   buildFloor(g, seed);
@@ -46,18 +46,16 @@ export function newGame(opts) {
 
 // A floor: a maze and everything in it. The run (build, level, health, time, boss timer) carries to the next floor.
 function buildFloor(g, seed) {
-  const m = g.m = makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
+  const m = g.m = g.opts.playground ? makeArena() : makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
   Object.assign(g, {
     enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], echoes: [], tileFlash: new Map(), clouds: [], arcs: [],
-    chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null,
+    chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null, rings: [],
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0, field: new Uint16Array(m.G * m.G), fieldT: 0,
     waveWarn: null, incoming: null, ring: [],
   });
   g.p.x = m.start.x; g.p.y = m.start.y; g.p.vx = g.p.vy = 0; g.p.dashT = 0;
-  placeChests(g);
-  placeCamps(g);
-  placeKeys(g);
+  if (!m.arena) { placeChests(g); placeCamps(g); placeKeys(g); }
   refreshField(g);
   updateSight(g);
 }
@@ -123,7 +121,7 @@ export function makeEnemy(g, type, x, y, extra) {
 
 function hurtPlayer(g, dmg) {
   const p = g.p;
-  p.hp -= dmg; p.hurtT = 0.5;
+  p.hp -= dmg; p.hurtT = 0.5; g.shake = Math.max(g.shake, 0.5); g.hurtFlash = 0.35; burst(g, p.x, p.y, 'hp', 6);
   if (p.hp <= 0) { p.hp = 0; g.over = true; burst(g, p.x, p.y, 'player', 30); }
 }
 
@@ -294,8 +292,8 @@ function stepStatuses(g, dt) {
     const c = g.clouds[i]; c.t += dt;
     if (c.boom || c.t > c.life) { g.clouds.splice(i, 1); continue; }
     for (const e of g.enemies) if (Math.hypot(e.x - c.x, e.y - c.y) < c.r) { e.poison = (e.poison || 0) + 15 * dt; e.poisonIdle = 0; }
-    if (g.R() < dt * 14) { const a = g.R() * TAU, rr = Math.sqrt(g.R()) * c.r; // lingering motes (round 9)
-      g.parts.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, vx: (g.R() - 0.5) * 0.6, vy: -0.4 - g.R() * 0.5, life: 1.4, max: 1.4, col: 'poison', s: 0.28 }); }
+    if (g.R() < dt * 30) { const a = g.R() * TAU, rr = Math.sqrt(g.R()) * c.r; // lingering motes (round 10: bigger, lighter, more)
+      g.parts.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr, vx: (g.R() - 0.5) * 0.8, vy: -0.5 - g.R() * 0.6, life: 2, max: 2, col: 'mote', s: 0.45, drift: true }); }
   }
   for (let i = g.arcs.length - 1; i >= 0; i--) { g.arcs[i].t += dt; if (g.arcs[i].t > 0.15) g.arcs.splice(i, 1); }
 }
@@ -303,6 +301,7 @@ function stepStatuses(g, dt) {
 // A blast: hits every enemy inside that the blast can see (walls block it). Yours never hurt you.
 function blast(g, x, y, r, dmg, pay) {
   g.blasts.push({ x, y, r, t: 0, col: pay ? STATUSES.find(k => pay[k]) : null });
+  g.rings.push({ x, y, r0: r * 0.5, r1: r * 1.25, t: 0, life: 0.3, c: '#ffffff' }); g.shake = Math.max(g.shake, Math.min(0.45, r * 0.08)); burst(g, x, y, 'shot', 6);
   for (const i of tilesNear(g, x, y, r)) hitTile(g, i, dmg * 1.5);
   for (const e of g.enemies) {
     if (e.hp <= 0) continue;
@@ -339,18 +338,18 @@ function fire(g, ax, ay) {
     const a = base + (i - (n - 1) / 2) * (w.fan || 0.16), dx = Math.cos(a), dy = Math.sin(a);
     g.bolts.push({ x: g.p.x + dx * 0.9, y: g.p.y + dy * 0.9, vx: dx * speed, vy: dy * speed, r: w.radius * (1 + 0.3 * grow),
       dmg: w.damage * (1 + 0.1 * grow), left: w.range * durOf(L(g, 'weapon', 'duration')), bounces, home, pay, ex,
-      pierce: (w.pierce || 0) + L(g, 'weapon', 'pierce'), split: L(g, 'weapon', 'split'), knock: L(g, 'weapon', 'knock'), hit: null });
+      pierce: (w.pierce || 0) + L(g, 'weapon', 'pierce'), budget: !!w.budget, split: L(g, 'weapon', 'split'), knock: L(g, 'weapon', 'knock'), hit: null });
   }
   g.p.fx = Math.cos(base); g.p.fy = Math.sin(base);
   return true;
 }
 
-function boltEnd(g, b, x, y) {
+function boltEnd(g, b, x, y, hitE) {
   if (b.ex) blast(g, x, y, blastR(b.ex), blastDmg(b.ex), b.pay);
   if (b.split && !b.child) { // Split: two weaker bolts fork off, 0.5 rad either side
     const sp = Math.hypot(b.vx, b.vy) || 1, a0 = Math.atan2(b.vy, b.vx), k = 0.3 + 0.1 * b.split;
     for (const s of [-0.5, 0.5]) { const a = a0 + s; g.bolts.push({ ...b, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: b.dmg * k, r: b.r * 0.8,
-      left: 6, child: true, split: 0, ex: 0, bounces: 0, hit: b.hit ? new Set(b.hit) : null }); }
+      left: 6, child: true, split: 0, ex: 0, bounces: 0, hit: hitE ? new Set([...(b.hit || []), hitE]) : b.hit ? new Set(b.hit) : null }); }
   }
 }
 
@@ -389,9 +388,15 @@ function stepBolts(g, dt) {
         const dx = e.x - b.x, dy = e.y - b.y;
         if (dx * dx + dy * dy < (e.r + b.r) ** 2) {
           if (b.hit && b.hit.has(e)) continue;
+          if (b.budget) { // round 10: the Rail spends what it needs on each enemy, and goes on with the rest
+            const mul = dmgMul(g) * (e.mark > 0 ? 1.25 : 1), deal = Math.min(b.dmg, e.hp / mul + 0.01);
+            hurt(g, e, deal, b.vx, b.vy, b.knock ? knockOf(b.knock) : 0.25); applyPayload(g, e, b.pay);
+            b.dmg -= deal; if (b.dmg > 0.5) { (b.hit = b.hit || new Set()).add(e); continue; }
+            dead = true; boltEnd(g, b, b.x, b.y, e); break;
+          }
           hurt(g, e, b.dmg, b.vx, b.vy, b.knock ? knockOf(b.knock) : 0.25); applyPayload(g, e, b.pay);
           if (b.pierce > 0) { b.pierce--; (b.hit = b.hit || new Set()).add(e); continue; }   // Pierce: on through
-          dead = true; boltEnd(g, b, b.x, b.y); break;
+          dead = true; boltEnd(g, b, b.x, b.y, e); break;
         }
       }
       if (!dead && b.left <= 0) { dead = true; boltEnd(g, b, b.x, b.y); }
@@ -608,6 +613,17 @@ function targetAlive(t) { const mn = t / 60; return Math.min(80, Math.round(5 + 
 const waveSize = (w) => 8 + (w - 1) * 6;
 // Bosses: the Hulk at 5:00, then every 5 minutes, half as tough again each time (until the Queen and Mirror exist).
 const BOSS_AT = 300, BOSS_EVERY = 300;
+// Playground: a small group walks in from the right every few seconds, never more than 10 at once.
+const PLAY = ['mite', 'mite', 'mite', 'dart', 'spitter', 'mite', 'brute'];
+function stepPlayground(g, dt) {
+  g.playT = (g.playT || 0) - dt;
+  if (g.playT > 0 || g.enemies.length >= 10) return;
+  g.playT = 4;
+  const side = g.p.x < 110 ? 1 : -1, x0 = Math.max(14, Math.min(156, g.p.x + side * 30));   // 30 cells off, on the roomier side
+  for (let i = 0; i < 4; i++) { const x = x0 + g.R() * 4, y = Math.max(45, Math.min(125, g.p.y + (g.R() - 0.5) * 24));
+    if (g.m.clear[Math.floor(y) * g.m.G + Math.floor(x)]) makeEnemy(g, PLAY[(g.R() * PLAY.length) | 0], x, y); }
+}
+
 function stepBoss(g) {
   if (g.boss || g.t < g.nextBoss) return;
   const n = Math.round((g.nextBoss - BOSS_AT) / BOSS_EVERY);
@@ -677,6 +693,10 @@ export function step(g, dt, inp) {
     moveBody(m, p, p.vx * dt, p.vy * dt);
     if (mm > 0.2 && !g.aim) { p.fx = mx / Math.hypot(mx, my); p.fy = my / Math.hypot(mx, my); }
   }
+  if (p.kx || p.ky) { // shoved (by the Hulk): a push of speed that dies off, like enemy knockback
+    if (p.dashT <= 0) moveBody(m, p, p.kx * dt, p.ky * dt);
+    const f = Math.exp(-8 * dt); p.kx *= f; p.ky *= f; if (Math.abs(p.kx) + Math.abs(p.ky) < 0.05) p.kx = p.ky = 0;
+  }
   if (g.aim) { const d = Math.hypot(g.aim.x, g.aim.y) || 1; p.fx = g.aim.x / d; p.fy = g.aim.y / d; }
   p.hurtT = Math.max(0, p.hurtT - dt); p.safeT = Math.max(0, p.safeT - dt);
 
@@ -684,6 +704,7 @@ export function step(g, dt, inp) {
   g.fieldT -= dt;
   if (g.fieldT <= 0) { refreshField(g); g.fieldT = 0.2; }
 
+  if (m.arena) { stepPlayground(g, dt); } else {
   // spawning: a few wanderers between waves; waves warned ahead, from a few sides
   const want = targetAlive(g.t);
   let roam = 0; for (const e of g.enemies) if (!e.camp) roam++;   // camps don't count
@@ -704,9 +725,10 @@ export function step(g, dt, inp) {
     while (w.acc >= 1 && w.left > 0) { w.acc -= 1; w.left--; spawnEnemy(g, waveType(w.wave, w.left), 18, 40, w.sides[w.left % w.sides.length] + (g.R() - 0.5) * 0.4); }
     if (w.left <= 0) g.incoming = null;
   }
+  }
 
   stepStatuses(g, dt);
-  stepBoss(g);
+  if (!m.arena) stepBoss(g);
 
   // enemies
   const G = m.G, f = g.field;
@@ -774,9 +796,13 @@ export function step(g, dt, inp) {
       e.fx = e.dir[0]; e.fy = e.dir[1];
       const want = Math.atan2(e.dir[1], e.dir[0]); if (e.ang == null) e.ang = want;
       let df = want - e.ang; df = Math.atan2(Math.sin(df), Math.cos(df));
-      e.angV = ((e.angV || 0) + df * 90 * dt) * Math.exp(-9 * dt); e.ang += e.angV * dt;
+      e.angV = ((e.angV || 0) + df * 260 * dt) * Math.exp(-15 * dt); e.ang += e.angV * dt;   // snappier (round 10)
     }
     if (e.st === 'aim') { e.fx = e.ax; e.fy = e.ay; } else if (v > 0.5 && e.type !== 'spitter' && !e.dir) { e.fx = e.vx / v; e.fy = e.vy / v; }
+  }
+  for (const e of g.enemies) if (e.kx || e.ky) { // knockback: moves them, then dies off
+    e.x += e.kx * dt; e.y += e.ky * dt; const f = Math.exp(-9 * dt); e.kx *= f; e.ky *= f;
+    if (Math.abs(e.kx) + Math.abs(e.ky) < 0.05) e.kx = e.ky = 0;
   }
   // enemies don't overlap each other, or you
   separate(g);
@@ -825,7 +851,7 @@ export function step(g, dt, inp) {
   if (g.clearT > 0 && (g.clearT -= dt) <= 0) { nextFloor(g); return; }
 
   // chests: walk into one to open it
-  for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; g.run.offers.push(chestOffer(g, c.rarity)); }
+  for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; burst(g, c.x, c.y, 'gold', 18); g.rings.push({ x: c.x, y: c.y, r0: 1, r1: 5, t: 0, life: 0.4, c: '#ffc23a' }); g.run.offers.push(chestOffer(g, c.rarity)); }
 
   // XP
   for (let i = g.gems.length - 1; i >= 0; i--) {
@@ -836,13 +862,15 @@ export function step(g, dt, inp) {
     }
   }
   for (let need = xpNeed(g.level); g.xp >= need; need = xpNeed(g.level)) { // XP from gems or a scrapped shard
-    g.xp -= need; g.level++; g.pops.push({ text: `Level ${g.level}`, t: 0 });
+    g.xp -= need; g.level++; g.pops.push({ text: `Level ${g.level}`, t: 0 }); g.rings.push({ x: p.x, y: p.y, r0: 1, r1: 7, t: 0, life: 0.5, c: '#35f0a0' });
     if (!g.practice) g.run.offers.push(levelOffer(g));
   }
 
   for (const [i, t] of g.tileFlash) { if (t - dt <= 0) g.tileFlash.delete(i); else g.tileFlash.set(i, t - dt); }
   for (let i = g.ghosts.length - 1; i >= 0; i--) { g.ghosts[i].t += dt; if (g.ghosts[i].t > GHOST) g.ghosts.splice(i, 1); }
-  for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.9; q.vy *= 0.9; if (q.life <= 0) g.parts.splice(i, 1); }
+  for (let i = g.parts.length - 1; i >= 0; i--) { const q = g.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; if (!q.drift) { q.vx *= 0.9; q.vy *= 0.9; } if (q.life <= 0) g.parts.splice(i, 1); }
+  for (let i = g.rings.length - 1; i >= 0; i--) { g.rings[i].t += dt; if (g.rings[i].t > g.rings[i].life) g.rings.splice(i, 1); }
+  g.shake = Math.max(0, g.shake - dt * 2.5); g.hurtFlash = Math.max(0, g.hurtFlash - dt);
   for (let i = g.pops.length - 1; i >= 0; i--) { g.pops[i].t += dt; if (g.pops[i].t > 1.6) g.pops.splice(i, 1); }
 }
 
@@ -861,9 +889,15 @@ function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
   }
   e.hp -= dmg * dmgMul(g); if (!silent) e.flash = 0.08;
   if (e.sleep) wakeCamp(g, e.camp);
-  const d = Math.hypot(vx, vy) || 1, kb = knock / ENEMIES[e.type].mass; e.x += vx / d * kb; e.y += vy / d * kb;
+  // knockback is a push of speed that dies off (distance = speed / 9), not a jump in position (round 10)
+  const d = Math.hypot(vx, vy) || 1, kb = knock / S.mass; e.kx = (e.kx || 0) + vx / d * kb * 9; e.ky = (e.ky || 0) + vy / d * kb * 9;
+  if (!silent) { // hit effects: sparks in its colour, off the way the hit came
+    for (let i = 0; i < 3; i++) { const a = Math.atan2(vy, vx) + (g.R() - 0.5) * 1.6, sp = 5 + g.R() * 8; g.parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.25, max: 0.25, col: e.type, s: 0.35 }); }
+  }
   if (e.hp <= 0) {
-    g.kills++; burst(g, e.x, e.y, 'enemy', 8);
+    g.kills++; burst(g, e.x, e.y, e.type, 12 + Math.round(e.r * 6));
+    g.rings.push({ x: e.x, y: e.y, r0: e.r, r1: e.r + 2.2, t: 0, life: 0.28, c: e.type });
+    if (S.mass > 4) g.shake = Math.max(g.shake, S.boss ? 1 : 0.35);
     g.gems.push({ x: e.x, y: e.y, v: S.xp });
     if (e.poison > 0) g.clouds.push({ x: e.x, y: e.y, r: 3, t: 0, life: 4 });   // Rot's gas: poisons those inside
     if (e.key) { e.key = false; g.keysOnFloor.push({ x: e.x, y: e.y }); g.pops.push({ text: 'A key dropped', t: 0 }); }
@@ -917,6 +951,7 @@ function separate(g) {
       e.x += -p.dy * side * 0.6; e.y += p.dx * side * 0.6;
     } else { // the crowd pushes back: you take a third of the shove (more from a brute), so a packed corridor holds you
       const k = (rr - d) / (d || 0.01), yours = ENEMIES[e.type].mass > 1 ? 0.8 : 0.33;
+      if (ENEMIES[e.type].boss && d > 0.01) { p.kx = (p.kx || 0) - dx / d * 4; p.ky = (p.ky || 0) - dy / d * 4; }   // the Hulk shoves you away
       e.x += dx * k * (1 - yours); e.y += dy * k * (1 - yours); p.x -= dx * k * yours; p.y -= dy * k * yours;
     }
   }

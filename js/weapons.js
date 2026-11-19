@@ -17,7 +17,7 @@ export const WEAPONS = {
   shotgun: { name: 'Shotgun', trigger: 'release', refill: 'full', rounds: 2, refillDelay: 0.8, reloadTime: 1.1, cooldown: 0.28,
     damage: 6, speed: 40, range: 9, radius: 0.3, spread: 0.02, tapNearest: true, pellets: 5, fan: 0.11 },
   rail: { name: 'Rail', trigger: 'release', refill: 'trickle', rounds: 1, refillDelay: 0.2, refillRate: 0.8, cooldown: 0.3,
-    damage: 45, speed: 90, range: 32, radius: 0.32, spread: 0, tapNearest: true, pierce: 4 },
+    damage: 90, speed: 90, range: 32, radius: 0.32, spread: 0, tapNearest: true, budget: true },   // round 10: a damage budget, spent enemy by enemy
 };
 export const WEAPON_ORDER = ['pistol', 'smg', 'auto', 'shotgun', 'rail'];
 

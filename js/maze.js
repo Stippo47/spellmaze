@@ -264,6 +264,20 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     halls: rooms, start: { x: startX, y: startY }, widths, bhp };
 }
 
+// The playground (round 10: "make a playground to show off abilities, you're always being hoarded"): one big open
+// room with a few pillars and breakable arms, no maze. Same shape of object as makeMaze.
+export function makeArena() {
+  const G = 170, cells = new Uint8Array(G * G).fill(1), bhp = new Float32Array(G * G);
+  const open = (x0, y0, x1, y1, v = 0) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) cells[y * G + x] = v; };
+  open(10, 40, 160, 130);
+  for (const [x, y] of [[60, 60], [60, 104], [110, 60], [110, 104]]) open(x - 3, y - 3, x + 3, y + 3, 1);   // pillars
+  for (const [x, y0, y1] of [[85, 40, 52], [85, 118, 130]]) for (let y = y0; y < y1; y++) for (let x2 = x; x2 < x + 2; x2++) { cells[y * G + x2] = 2; bhp[y * G + x2] = TILE_HP; }
+  for (let y = 78; y < 92; y++) for (let x = 132; x < 134; x++) { cells[y * G + x] = 2; bhp[y * G + x] = TILE_HP; }
+  const clear = new Uint8Array(G * G), m = { G, N: 1, P: G, cells, clear, bhp, deadEnds: [], halls: [], cxs: [85], cys: [85], start: { x: 30, y: 85 }, widths: 'arena', arena: true };
+  updateClear(m, 1, 1, G - 1, G - 1);
+  return m;
+}
+
 export const solid = (m, x, y) => {
   const cx = Math.floor(x), cy = Math.floor(y);
   if (cx < 0 || cy < 0 || cx >= m.G || cy >= m.G) return true;

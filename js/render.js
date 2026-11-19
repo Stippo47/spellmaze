@@ -20,7 +20,7 @@ export function makeRenderer(canvas) {
   R.draw = (g, inp, opts, alpha = 1) => {
     const p = g.p, m = g.m, G = m.G;
     const s = H / opts.view;                     // pixels per cell
-    const cx = p.x, cy = p.y;
+    const sh = g.shake * g.shake * 0.9, cx = p.x + (Math.random() - 0.5) * sh, cy = p.y + (Math.random() - 0.5) * sh;   // screen shake (round 10)
     R.cam = { x: cx, y: cy, s };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, W, H);
@@ -70,8 +70,8 @@ export function makeRenderer(canvas) {
       ctx.globalAlpha = vis ? 1 : 0.35;
       const star = (rr0, rr1) => { ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? rr1 : rr0; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); };
       if (!c.open) { // round 7: a second, darker star underneath, turning the other way
-        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-g.t * 0.8 - c.x + Math.PI / 4);
-        const pulse = 1 + 0.08 * Math.sin(g.t * 3 + c.y); star(1.75 * pulse, 0.5); ctx.fillStyle = '#c98a00'; ctx.fill(); ctx.restore();
+        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(-g.t * 0.4 - c.x + Math.PI / 4);   // round 10: a third of the top one's speed, bigger
+        const pulse = 1 + 0.08 * Math.sin(g.t * 3 + c.y); star(2.3 * pulse, 0.6); ctx.fillStyle = '#c98a00'; ctx.fill(); ctx.restore();
       }
       ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.open ? 0.4 : g.t * 1.2 + c.x);
       ctx.beginPath();
@@ -213,13 +213,25 @@ export function makeRenderer(canvas) {
     // bits
     for (const q of g.parts) {
       ctx.globalAlpha = Math.max(0, q.life / q.max) * (q.col === 'dash' ? 0.5 : 1);
-      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'tile' ? COL.wallEdge : COL[q.col] || COL.shot;
+      ctx.fillStyle = q.col === 'enemy' ? COL.enemy : q.col === 'dash' ? COL.dash : q.col === 'player' ? COL.player : q.col === 'orb' ? ECOL.spitter[0] : q.col === 'tile' ? COL.wallEdge
+        : q.col === 'mote' ? '#ead2ff' : ECOL[q.col] ? ECOL[q.col][0] : COL[q.col] || COL.shot;
       ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s);
+    }
+    ctx.globalAlpha = 1;
+    // rings: kills, blasts, shards, level-ups (round 10: hit effects on everything)
+    for (const q of g.rings) {
+      const k = q.t / q.life; ctx.globalAlpha = 0.8 * (1 - k); ctx.strokeStyle = ECOL[q.c] ? ECOL[q.c][0] : q.c; ctx.lineWidth = 0.25 * (1 - k) + 0.05;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r0 + (q.r1 - q.r0) * (1 - (1 - k) * (1 - k)), 0, TAU); ctx.stroke();
     }
     ctx.globalAlpha = 1;
 
     // ---------- screen space ----------
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (g.hurtFlash > 0) { // hurt: the screen's edge goes red for a moment
+      const gr = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.7);
+      gr.addColorStop(0, 'rgba(255,51,85,0)'); gr.addColorStop(1, `rgba(255,51,85,${0.55 * g.hurtFlash / 0.35})`);
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    }
     drawWaveWarn(g);
     drawBoss(g);
     drawHud(g, opts);
@@ -257,8 +269,13 @@ export function makeRenderer(canvas) {
   function drawClouds(g) {
     if (!g.clouds.length) return;
     ctx.beginPath();
-    for (const c of g.clouds) { ctx.moveTo(c.x + c.r, c.y); ctx.arc(c.x, c.y, c.r, 0, TAU); }
-    ctx.globalAlpha = 0.28; ctx.fillStyle = COL.poison; ctx.fill('nonzero'); ctx.globalAlpha = 1;
+    // round 10: a cloud swells from a point in 0.25 s and fades out fast in its last 0.4 s; fading ones drawn on their own
+    const grow = (c) => c.r * (1 - Math.pow(1 - Math.min(1, c.t / 0.25), 3)), fade = (c) => Math.min(1, (c.life - c.t) / 0.4);
+    ctx.fillStyle = COL.poison;
+    for (const c of g.clouds) { if (fade(c) >= 1) { ctx.moveTo(c.x + grow(c), c.y); ctx.arc(c.x, c.y, grow(c), 0, TAU); } }
+    ctx.globalAlpha = 0.28; ctx.fill('nonzero');
+    for (const c of g.clouds) { const f = fade(c); if (f < 1) { ctx.globalAlpha = 0.28 * Math.max(0, f); ctx.beginPath(); ctx.arc(c.x, c.y, grow(c), 0, TAU); ctx.fill(); } }
+    ctx.globalAlpha = 1;
   }
 
   function canSeeCached(g, q) { return canSee(g, q.x, q.y); }
@@ -386,7 +403,7 @@ export function makeRenderer(canvas) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x, y + 18, 160, 7);
     ctx.fillStyle = COL.xp; ctx.fillRect(x + 1.5, y + 19.5, 157 * Math.min(1, g.xp / need), 4);
     ctx.fillStyle = COL.ui; ctx.fillText(`Lv ${g.level}`, x + 166, y + 21);
-    ctx.fillStyle = g.keys ? COL.gold : COL.uiDim; ctx.fillText(`Keys ${g.keys}/${KEYS}${g.depth ? ` · Floor ${g.depth + 1}` : ''}`, x, y + 36);
+    if (!g.m.arena) ctx.fillStyle = g.keys ? COL.gold : COL.uiDim, ctx.fillText(`Keys ${g.keys}/${KEYS}${g.depth ? ` · Floor ${g.depth + 1}` : ''}`, x, y + 36);
     ctx.fillStyle = COL.ui;
     // time and kills, right of the pause button
     ctx.textAlign = 'right'; ctx.font = '800 16px system-ui, -apple-system, sans-serif';

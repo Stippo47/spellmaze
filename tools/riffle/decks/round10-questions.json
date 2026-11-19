@@ -1,0 +1,33 @@
+{
+ "title": "Weapon and 2 abilities",
+ "topic": "builds",
+ "order": 20,
+ "cards": [
+  {
+   "id": "loadout",
+   "kind": "options",
+   "rarity": "rare",
+   "title": "Picking your 2 abilities",
+   "text": "You bring a weapon and 2 abilities: Spawn, Dash or Burst. When do you pick them?",
+   "why": "Burst becomes an ability and Laser a weapon next; this decides how the third ability gets in.",
+   "pick": "a",
+   "options": [
+    {
+     "id": "a",
+     "label": "Run start",
+     "text": "Pick a weapon and 2 abilities before each run."
+    },
+    {
+     "id": "b",
+     "label": "Settings",
+     "text": "Chosen in the pause menu, like the weapon now."
+    },
+    {
+     "id": "c",
+     "label": "Found in runs",
+     "text": "Start with one; the second is found in a run."
+    }
+   ]
+  }
+ ]
+}

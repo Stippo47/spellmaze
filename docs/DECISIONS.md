@@ -3,6 +3,29 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-19 — round 9 answered; round 10 built (v0.13.0)
+
+Answers: Hulk good, "a bit more snappy". Cloud motes PROBLEM: **"don't see particles lingering; at the end of their
+life they should quickly fade out; on creation they should rapidly expand from a single point."** Pierce, Grow, Haste
+good. Split: **"splits should not collide with the initial entity hit. Make a playground to show off abilities,
+you're always being hoarded."** Knock decent: **"not kinematic? just changes position? Hulk also has this problem.
+No hit effects. Particle burst on anything. A visual overhaul pass: make it juicy."** Shotgun decent. Rail: **"give
+it a damage budget: dish as much as it can into an enemy, then continue with the remaining."** Shard: they never see
+it; **"make the bottom one bigger and spin slower, maybe 1/3 the speed."** Casts: **"you only bring 3 actions in:
+weapon and 2 abilities. Laser is a weapon. Burst is an ability."**
+
+Built:
+- Knockback is a push of speed that dies off (distance = speed / 9), for every enemy; the Hulk shoves you the same
+  way. Hulk turns snappier (spring 260, damping 15).
+- Juice: sparks in the enemy's colour on every hit, a burst and ring on every kill (bigger for big ones), rings on
+  blasts, shards and level-ups, screen shake on blasts, big kills and when you're hit, and a red edge flash when hurt.
+- Split bolts skip the enemy that split them. Rail: 90 damage as a budget, spending what each enemy needs.
+- Clouds swell from a point in 0.25 s, fade out over their last 0.4 s, and give off many pale motes that drift up.
+- Shard: the under-star 2.3 big (was 1.75), turning at a third of the top one's speed.
+- **Playground** setting: one open room (pillars, a few breakable arms), small groups of 4 walk in from 30 cells off
+  every 4 s, at most 10; the build is free like practice. Films of abilities now use it.
+- Next: loadout = a weapon + 2 abilities from Spawn, Dash, Burst; Laser as a weapon.
+
 ## 2026-11-18 — round 8 answered; round 9 + stage 5 batch 1 built (v0.12.0)
 
 Answers: keys, statuses good. Hulk: **"I don't see a smooth turn. Lerp, with some overshoot. Boss should be very fast but
