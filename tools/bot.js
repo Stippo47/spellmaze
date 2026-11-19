@@ -9,7 +9,7 @@
     const m = g.m, G = m.G, P = m.P, N = m.N; let d = null;
     for (let t = 0; t < 200 && !d; t++) {
       const i = (Math.random() * N) | 0, j = (Math.random() * N) | 0, x = m.cxs[i], y = m.cys[j];
-      if (Math.hypot(x - g.p.x, y - g.p.y) > 35 && !m.deadEnds.some(e => e.x === x && e.y === y)) d = { x, y };
+      if (Math.hypot(x - g.p.x, y - g.p.y) > 80 && !m.deadEnds.some(e => e.x === x && e.y === y)) d = { x, y };
     }
     if (!d && m.arena) for (let t = 0; t < 200 && !d; t++) { const x = 20 + Math.random() * 130, y = 45 + Math.random() * 80; if (m.clear[Math.floor(y) * G + Math.floor(x)]) d = { x, y }; }
     d = d || m.deadEnds[0];

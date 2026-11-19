@@ -24,6 +24,8 @@ export const VITALS = {
   dashCd:   { name: 'Dash recharge', icon: 'cooldown', text: () => `Dash charges come back 12% sooner`, needs: 'dash' },
   reload:   { name: 'Reload', icon: 'cooldown', text: () => `Rounds come back 12% faster` },
   burstCd:  { name: 'Burst cooldown', icon: 'cooldown', text: () => `Burst comes back 12% sooner`, needs: 'burst' },
+  healPower: { name: 'Heal shards', icon: 'health', text: () => `Red shards heal 5 more` },
+  regen:    { name: 'Regeneration', icon: 'health', text: () => `Heal 0.5 health a second`, rare: true },
   pickup:   { name: 'Pickup', text: () => `Pick up XP from 1.5 cells further` },
 };
 
@@ -99,7 +101,7 @@ export function levelOffer(g) {
   const chance = (g.level - 2) % MODULE_EVERY === 0 ? 0.6 : 0.15, fresh = newModCards(g, 3);
   const pool = [];
   for (const c of castsOf(g)) for (const m of g.run.mods[c]) if (m.level < RARITY[m.rarity].cap) pool.push({ type: 'mod', cast: c, id: m.id, w: 3 });
-  for (const v of Object.keys(VITALS)) if (!VITALS[v].needs || castsOf(g).includes(VITALS[v].needs)) pool.push({ type: 'vital', id: v, w: v.endsWith('Cd') || v === 'reload' ? 0.5 : 1.2 });
+  for (const v of Object.keys(VITALS)) if (!VITALS[v].needs || castsOf(g).includes(VITALS[v].needs)) pool.push({ type: 'vital', id: v, w: VITALS[v].rare ? 0.25 : v.endsWith('Cd') || v === 'reload' ? 0.5 : 1.2 });   // Regeneration is rare
   const cards = [];
   while (cards.length < 3) {
     if (fresh.length && (g.R() < chance || !pool.length)) { cards.push(fresh.shift()); continue; }

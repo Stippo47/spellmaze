@@ -1,0 +1,60 @@
+{
+ "title": "Bigger, auto, beatable",
+ "topic": "builds",
+ "order": 23,
+ "cards": [
+  {
+   "id": "build",
+   "kind": "report",
+   "rarity": "rare",
+   "title": "Your chat notes",
+   "text": "Maze 2.5x bigger, camera further out, auto fire, fewer enemies, more shards, red health shards.",
+   "why": "Everything you wrote after the last deck. Mark any part that's off.",
+   "details": "Version 0.16.0. Close and reopen the app twice to get it. Auto fire is a setting (on).",
+   "parts": [
+    {
+     "id": "size",
+     "title": "2.5x bigger",
+     "text": "Every 2x2 is now 5x5: corridors 20 to 40 cells wide, walls 10. The camera is further out (48 rows by default) and you see 70 cells.",
+     "images": [
+      "../../../films/maze-overview.png"
+     ],
+     "videos": [
+      "../../../films/pistol.mp4"
+     ]
+    },
+    {
+     "id": "auto",
+     "title": "Auto fire",
+     "text": "Your weapon fires at the nearest enemy you can see. Spawn and Burst throw themselves. Dash dodges when something's about to touch you. Touch the fire stick to aim yourself.",
+     "videos": [
+      "../../../films/pistol.mp4"
+     ]
+    },
+    {
+     "id": "balance",
+     "title": "Beatable",
+     "text": "At most 24 wanderers; none come while 8 or more are near you; waves top out at 28; crowds shove you less, so you can push out of a dead end."
+    },
+    {
+     "id": "shards",
+     "title": "More shards",
+     "text": "In most dead ends now, and at some corridor crossings."
+    },
+    {
+     "id": "hearts",
+     "title": "Red shards",
+     "text": "7% of kills drop one (30% big ones, always the boss). Pulled in like XP, heals 15. New cards: Heal shards (+5 each) and a rare Regeneration."
+    },
+    {
+     "id": "laser",
+     "title": "Laser start",
+     "text": "Points straight at your aim when you start firing, then turns slowly.",
+     "videos": [
+      "../../../films/p-laser.mp4"
+     ]
+    }
+   ]
+  }
+ ]
+}

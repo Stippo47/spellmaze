@@ -10,11 +10,11 @@ import { ABILITIES } from './game.js';
 import { icon, pips, slots } from './ui.js';
 
 const canvas = document.getElementById('game');
-const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 28, weapon: 'pistol', fps: false, practice: false, playground: false, abilities: 'spawn,dash', quick: false };
+const DEFAULTS = { sight: 'remember', ticks: false, widths: 'mixed', nodes: 24, view: 48, weapon: 'pistol', fps: false, practice: false, playground: false, abilities: 'spawn,dash', quick: false, auto: true };
 const EMPTY_BUILD = () => ({ weapon: {}, spawn: {}, dash: {}, burst: {} });
 let opts = { ...DEFAULTS };
-try { const sv = JSON.parse(localStorage.getItem('spellmaze-opts') || '{}'); if (sv.v === 2) Object.assign(opts, sv); } catch {}
-opts.v = 2; // new defaults (round 2): saved settings from before are dropped
+try { const sv = JSON.parse(localStorage.getItem('spellmaze-opts') || '{}'); if (sv.v === 2 || sv.v === 3) Object.assign(opts, sv, sv.v === 2 ? { view: DEFAULTS.view, auto: true } : {}); } catch {}   // round 13: v2 settings keep everything but the camera
+opts.v = 3; // new defaults (round 2): saved settings from before are dropped
 if (!opts.build) opts.build = EMPTY_BUILD();
 const q = new URLSearchParams(location.search);
 for (const k of Object.keys(DEFAULTS)) if (q.has(k)) { const v = q.get(k); opts[k] = typeof DEFAULTS[k] === 'number' ? +v : typeof DEFAULTS[k] === 'boolean' ? v === '1' : v; }
@@ -64,7 +64,8 @@ const CHOICES = {
   weapon: WEAPON_ORDER.map(id => [id, WEAPONS[id].name]),
   widths: Object.entries(WIDTHS).map(([k, v]) => [k, v.label]),
   nodes: [[16, 'Small'], [24, 'Medium'], [32, 'Large']],
-  view: [[16, 'Close'], [22, 'Normal'], [28, 'Far'], [36, 'Farther']],
+  view: [[32, 'Close'], [40, 'Normal'], [48, 'Far'], [60, 'Farther']],   // round 13: zoomed out for the bigger maze
+  auto: [[true, 'On'], [false, 'Off']],
   fps: [[false, 'Off'], [true, 'On']],
   practice: [[false, 'Off'], [true, 'On']],
   playground: [[false, 'Off'], [true, 'On']],

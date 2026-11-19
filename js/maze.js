@@ -5,12 +5,13 @@ import { rng } from './util.js';
 // Corridor sets: widths in cells for main roads, normal corridors and side tunnels.
 // Round 5: everything twice the size ("every 1 cell becomes 2x2"), the player stays 2x2. Walls 4 thick.
 export const WIDTHS = {
-  mixed:    { road: 16, normal: 12, tunnel: 8, label: 'Mixed' },
-  standard: { road: 12, normal: 12, tunnel: 12, label: 'All 6 wide' },
-  narrow:   { road: 8, normal: 8, tunnel: 8, label: 'All 4 wide' },
-  wide:     { road: 16, normal: 16, tunnel: 16, label: 'All 8 wide' },
+  mixed:    { road: 40, normal: 30, tunnel: 20, label: 'Mixed' },
+  standard: { road: 30, normal: 30, tunnel: 30, label: 'All 15 wide' },
+  narrow:   { road: 20, normal: 20, tunnel: 20, label: 'All 10 wide' },
+  wide:     { road: 40, normal: 40, tunnel: 40, label: 'All 20 wide' },
 };
-const WALL = 4;
+// Round 13: 2.5x again ("every 2x2 becomes 5x5"), so corridors 20-40 cells and walls 10. The player stays 2x2.
+const WALL = 10;
 export const TILE_HP = 12;   // a breakable tile: one cell (round 6)
 
 export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15, halls = Math.round(nodes * nodes / 72) } = {}) {   // 24x24: 8 rooms, bigger and of several shapes (round 4)
@@ -20,7 +21,7 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
   const P = Math.max(W.road, W.normal, W.tunnel) + WALL;   // pitch: widest corridor + a wall
   // Some rows and columns sit further apart, so some walls are as thick as a tunnel (round 2 answer).
   const gapX = [], gapY = [];
-  for (let i = 0; i < N; i++) { gapX.push(R() < 0.3 ? 8 : 0); gapY.push(R() < 0.3 ? 8 : 0); }
+  for (let i = 0; i < N; i++) { gapX.push(R() < 0.3 ? 20 : 0); gapY.push(R() < 0.3 ? 20 : 0); }
   const cxs = [], cys = [];
   let ax = 1, ay = 1;
   for (let i = 0; i < N; i++) { cxs.push(ax + (P + gapX[i]) / 2); ax += P + gapX[i]; cys.push(ay + (P + gapY[i]) / 2); ay += P + gapY[i]; }
@@ -206,7 +207,7 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
     if (r.kind === 'pillars') // 6x6 pillars where four room nodes meet
       for (let j = r.j; j < r.j + r.h - 1; j++) for (let i = r.i; i < r.i + r.w - 1; i++) {
         const px = Math.floor((cx(i) + cx(i + 1)) / 2), py = Math.floor((cy(j) + cy(j + 1)) / 2);
-        open(px - 3, py - 3, px + 3, py + 3, 1);
+        open(px - 7, py - 7, px + 8, py + 8, 1);
       }
     // where its shard goes: the room node nearest the middle
     const mx = (cx(r.i) + cx(r.i + r.w - 1)) / 2, my = (cy(r.j) + cy(r.j + r.h - 1)) / 2;
@@ -223,28 +224,28 @@ export function makeMaze({ nodes = 24, widths = 'mixed', seed = 1, loops = 0.15,
   const sx0 = cx(N >> 1), sy0 = cy(N >> 1);
   const tile = (x, y, any) => {
     x = Math.round(x); y = Math.round(y);
-    if (x < 2 || y < 2 || x >= G - 2 || y >= G - 2 || (Math.abs(x - sx0) < 12 && Math.abs(y - sy0) < 12)) return false;
+    if (x < 2 || y < 2 || x >= G - 2 || y >= G - 2 || (Math.abs(x - sx0) < 30 && Math.abs(y - sy0) < 30)) return false;
     const i = y * G + x;
     if (bhp[i] || (!any && cells[i])) return false;
     cells[i] = 2; bhp[i] = TILE_HP; return true;
   };
   for (const [k, w] of edges) {
-    if (w < 8 || R() > 0.22) continue;
+    if (w < 20 || R() > 0.22) continue;
     const [a, b] = k.split('-').map(Number), ax = cx(a % N), ay = cy((a / N) | 0), bx = cx(b % N), by = cy((b / N) | 0);
-    const len = R() < 0.25 ? w : 2 + ri(w - 4), fromLow = R() < 0.5;
-    for (let c = 0; c < len; c++) for (let t = 0; t < 2; t++) {
-      if (ay === by) { const x = Math.round((ax + bx) / 2) - 1 + t; tile(x, fromLow ? ay - w / 2 + c : ay + w / 2 - 1 - c); }
-      else { const y = Math.round((ay + by) / 2) - 1 + t; tile(fromLow ? ax - w / 2 + c : ax + w / 2 - 1 - c, y); }
+    const len = R() < 0.25 ? w : 5 + ri(w - 10), fromLow = R() < 0.5;
+    for (let c = 0; c < len; c++) for (let t = 0; t < 5; t++) {
+      if (ay === by) { const x = Math.round((ax + bx) / 2) - 2 + t; tile(x, fromLow ? ay - w / 2 + c : ay + w / 2 - 1 - c); }
+      else { const y = Math.round((ay + by) / 2) - 2 + t; tile(fromLow ? ax - w / 2 + c : ax + w / 2 - 1 - c, y); }
     }
   }
-  const cluster = (x0, y0) => { const s = 2 + ri(2); for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) tile(x0 + x, y0 + y); };
+  const cluster = (x0, y0) => { const s = 5 + ri(3); for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) tile(x0 + x, y0 + y); };
   for (let c = 0; c < N * N; c++) {
-    const w = nodeW[c]; if (roomOf[c] >= 0 || w < 12 || R() > 0.08) continue;
-    cluster(cx(c % N) - w / 2 + 2 + ri(w - 6), cy((c / N) | 0) - w / 2 + 2 + ri(w - 6));
+    const w = nodeW[c]; if (roomOf[c] >= 0 || w < 30 || R() > 0.08) continue;
+    cluster(cx(c % N) - w / 2 + 5 + ri(w - 15), cy((c / N) | 0) - w / 2 + 5 + ri(w - 15));
   }
   for (const r of rooms) for (let t = 0, made = 0; t < 30 && made < 2 + ri(3); t++) {
-    const x = r.box.x0 + 2 + ri(Math.max(1, r.box.x1 - r.box.x0 - 6)), y = r.box.y0 + 2 + ri(Math.max(1, r.box.y1 - r.box.y0 - 6));
-    if (Math.hypot(x + 1 - r.x, y + 1 - r.y) > 7) { cluster(x, y); made++; }
+    const x = r.box.x0 + 5 + ri(Math.max(1, r.box.x1 - r.box.x0 - 15)), y = r.box.y0 + 5 + ri(Math.max(1, r.box.y1 - r.box.y0 - 15));
+    if (Math.hypot(x + 3 - r.x, y + 3 - r.y) > 17) { cluster(x, y); made++; }
   }
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) for (const [di, dj] of [[1, 0], [0, 1]]) {
     if (i + di >= N || j + dj >= N || R() > 0.08) continue;
@@ -335,9 +336,9 @@ export function rayStamp(m, x, y, dx, dy, max, now, stamp, seen, seenAt = 1) {
     if (cx < 0 || cy < 0 || cx >= G || cy >= G) return Math.min(t, max);
     const i = cy * G + cx;
     if (t < max) { stamp[i] = now; seen[i] = seenAt; }
-    if (cells[i]) { // round 7: light the wall's whole thickness (up to 3 more wall cells along the ray), not just its face
+    if (cells[i]) { // round 7: light the wall's whole thickness (up to 10 more wall cells along the ray), not just its face
       const hit = Math.min(t, max);
-      for (let k = 0; k < 3; k++) {
+      for (let k = 0; k < 10; k++) {   // walls are 10 thick since round 13
         if (tx < ty) { tx += tdx; cx += sx; } else { ty += tdy; cy += sy; }
         if (cx < 0 || cy < 0 || cx >= G || cy >= G) break;
         const j = cy * G + cx; if (!cells[j]) break;

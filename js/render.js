@@ -54,6 +54,15 @@ export function makeRenderer(canvas) {
       for (const i of g.tileFlash.keys()) ctx.fillRect(i % G, (i / G) | 0, 1, 1);
     }
 
+    // health shards: small red four-point stars with a faint glow (round 13)
+    for (const h of g.hearts) {
+      if (mode !== 'all' && !canSee(g, h.x, h.y)) continue;
+      const gl = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, 2); gl.addColorStop(0, 'rgba(255,51,85,0.35)'); gl.addColorStop(1, 'rgba(255,51,85,0)');
+      ctx.fillStyle = gl; ctx.fillRect(h.x - 2, h.y - 2, 4, 4);
+      ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(g.t * 2 + h.x); ctx.beginPath();
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? 0.25 : 0.85; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fillStyle = COL.hp; ctx.fill(); ctx.restore();
+    }
     // keys on the floor: small gold keys
     for (const k of g.keysOnFloor) {
       if (mode !== 'all' && !canSee(g, k.x, k.y)) continue;

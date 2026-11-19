@@ -3,6 +3,28 @@
 Rulings from the designer, newest first. The Riffle pack `spellmaze` holds the cards; this is the log.
 "Mine" marks a call I made myself where they said idk or left it to me.
 
+## 2026-11-19 — their chat notes after round 12; round 13 built (v0.16.0)
+
+Said in chat: **"Laser should instantly turn when you start it up again" (it started from its last position). "The game
+is literally unbeatable. Once you get stuck in a dead end you aren't ever leaving. Unlimited enemies." "Expand tunnels
+by 2.5x: every 2x2 cells becomes 5x5. Zoom camera out." "Make all weapons and abilities auto fire. No aiming. Wanna
+try it out." "More chests throughout the caves." "HP drops: a chance to drop red shards; base heal ~15 hp; can increase
+that with upgrades, and a rare passive healing upgrade."**
+
+Built:
+- Laser points straight at the aim for its first 0.12 s, then turns at its limited rate.
+- Balance: wanderers capped at 24 (7 + 1.6 a minute), none trickle in while 8+ enemies are near you, waves at most 28
+  (6, 10, 14...), a crowd shoves you less (a fifth, brutes 0.6).
+- Maze 2.5x again: corridors 40/30/20, walls 10, pillars 15, tile arms 5 thick, everything placed by distance scaled
+  to match (spawns 45-120 steps away, sight 70, camp wake 28). Camera choices 32/40/48/60, default 48; old saved
+  settings keep everything but the camera.
+- **Auto fire** (setting, on by default): the weapon fires at the nearest enemy in sight, the Laser points itself,
+  Spawn and Burst throw themselves at the nearest enemy when ready, Dash dodges when something's about to touch you or
+  an orb is about to hit (where you're steering, else away). Touching the fire stick takes over the weapon.
+- More shards: 60% of dead ends (was 25%) plus 7% of corridor crossings.
+- **Red shards**: 7% of kills (30% big ones, always the boss) drop one; it's pulled in like XP and heals 15. Stat
+  cards: Heal shards (+5) and, rare, Regeneration (0.5 a second a level).
+
 ## 2026-11-19 — round 11 answered; round 12 built (v0.15.0)
 
 Answers: loadout, Burst, Laser all good. Laser: **"should take time to turn, adds drag; starts off weak and builds up

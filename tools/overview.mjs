@@ -5,7 +5,7 @@ import { writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const seed = +(process.argv[2] || 7), nodes = +(process.argv[3] || 24), out = process.argv[4] || 'films/maze-overview.png';
-const m = makeMaze({ nodes, seed }), G = m.G, S = 2;
+const m = makeMaze({ nodes, seed }), G = m.G, S = 1;
 const img = Buffer.alloc(G * S * G * S * 3);
 const put = (x, y, c) => { for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) { const i = ((y * S + dy) * G * S + x * S + dx) * 3; img[i] = c[0]; img[i + 1] = c[1]; img[i + 2] = c[2]; } };
 const inRoom = new Uint8Array(G * G);

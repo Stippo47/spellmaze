@@ -5,9 +5,9 @@ import { level, turn, hunt, lunge, burn, blastR, blastDmg, durOf, STATUSES, BUIL
 import { newRun, rebuild, chestOffer, levelOffer, startOffer } from './run.js';
 import { TAU, rng } from './util.js';
 
-export const SIGHT = 34;          // how far you can see, in cells
-const RAYS = 540;
-const FIELD_STEPS = 90;
+export const SIGHT = 70;          // how far you can see, in cells (round 13: the maze is 2.5x bigger)
+const RAYS = 720;
+const FIELD_STEPS = 160;
 
 // Stage 4: the first three new enemies (design section 6). Each has its own colour and shape (render.js).
 //   dart: when it sees you, stops and aims (a line shows where), then charges straight until a wall.
@@ -51,7 +51,7 @@ function buildFloor(g, seed) {
   const m = g.m = g.opts.playground ? makeArena() : makeMaze({ nodes: g.opts.nodes, widths: g.opts.widths, seed });
   Object.assign(g, {
     enemies: [], bolts: [], balls: [], blasts: [], gems: [], shots: [], camps: [], ghosts: [], echoes: [], bombs: [], later: [], corpses: [], beams: [], tileFlash: new Map(), clouds: [], arcs: [],
-    chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null, rings: [],
+    chests: [], keys: 0, keysOnFloor: [], clearT: 0, boss: null, rings: [], hearts: [],
     seen: new Float32Array(m.G * m.G), // when each cell was last in view (+1; 0 = never)
     visStamp: new Uint32Array(m.G * m.G), visNow: 0, field: new Uint16Array(m.G * m.G), fieldT: 0,
     waveWarn: null, incoming: null, ring: [],
@@ -76,7 +76,7 @@ function placeKeys(g) {
     for (const e of g.enemies) if (e.camp === c && (!keeper || e.maxHp > keeper.maxHp)) keeper = e;
     if (keeper) { keeper.key = true; keeper.maxHp = keeper.hp = keeper.maxHp * 1.5; placed++; }
   }
-  const ends = g.m.deadEnds.filter(d => Math.hypot(d.x - g.m.start.x, d.y - g.m.start.y) > 30);
+  const ends = g.m.deadEnds.filter(d => Math.hypot(d.x - g.m.start.x, d.y - g.m.start.y) > 75);
   while (placed < KEYS && ends.length) { const d = ends.splice((g.R() * ends.length) | 0, 1)[0]; g.keysOnFloor.push({ x: d.x, y: d.y }); placed++; }
 }
 
@@ -92,7 +92,11 @@ function nextFloor(g) {
 function placeChests(g) {
   if (g.practice) return;
   const m = g.m, s = m.start;
-  for (const d of m.deadEnds) if (Math.hypot(d.x - s.x, d.y - s.y) > 16 && g.R() < 0.25) g.chests.push({ x: d.x, y: d.y });
+  for (const d of m.deadEnds) if (Math.hypot(d.x - s.x, d.y - s.y) > 40 && g.R() < 0.6) g.chests.push({ x: d.x, y: d.y });
+  for (let j = 0; j < m.N; j++) for (let i = 0; i < m.N; i++) { // round 13: "more chests throughout": some at corridor crossings too
+    const x = m.cxs[i], y = m.cys[j];
+    if (g.R() < 0.07 && Math.hypot(x - s.x, y - s.y) > 40 && m.clear[Math.floor(y) * m.G + Math.floor(x)] && !g.chests.some(c => c.x === x && c.y === y)) g.chests.push({ x, y });
+  }
   for (const h of m.halls) g.chests.push({ x: h.x, y: h.y, hall: true });
 }
 
@@ -103,7 +107,7 @@ function placeCamps(g) {
     const tier = Math.min(2, Math.floor(k / rooms.length * 3)), camp = { tier, x: r.x, y: r.y, box: r.box };
     g.camps.push(camp);
     for (const [type, n] of Object.entries(CAMPS[tier])) for (let i = 0; i < n; i++) for (let t = 0; t < 40; t++) {
-      const a = g.R() * TAU, rad = 2.5 + g.R() * 5.5, x = Math.floor(r.x + Math.cos(a) * rad) + 0.5, y = Math.floor(r.y + Math.sin(a) * rad) + 0.5;
+      const a = g.R() * TAU, rad = 6 + g.R() * 14, x = Math.floor(r.x + Math.cos(a) * rad) + 0.5, y = Math.floor(r.y + Math.sin(a) * rad) + 0.5;
       if (!m.clear[Math.floor(y) * m.G + Math.floor(x)] || x < r.box.x0 || x > r.box.x1 || y < r.box.y0 || y > r.box.y1) continue;
       makeEnemy(g, type, x, y, { camp, sleep: true, home: { x, y } });
       break;
@@ -514,6 +518,30 @@ function stepShots(g, dt) {
   }
 }
 
+// ---------- Auto (round 13) ----------
+// Every weapon fires at the nearest enemy you can see; Spawn and Burst throw themselves at it when ready; Dash dodges
+// when something is about to touch you (where you're steering, or away from it). Touching the fire stick takes over.
+function autoAct(g, inp) {
+  const p = g.p, w = g.weapon, e = nearestVisible(g, w.range * (w.beam ? 1 : 0.95));
+  if (e) {
+    const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy) || 1;
+    if (w.beam) g.aim = { x: dx / d, y: dy / d }; else fire(g, dx, dy);
+  }
+  for (const id of g.abilities) {
+    if (id === 'spawn' && g.spawnCool <= 0) { const t = nearestVisible(g, 12); if (t) throwBall(g, t.x - p.x, t.y - p.y); }
+    if (id === 'burst' && g.burstCool <= 0) { const t = nearestVisible(g, burstReach(g)); if (t) throwBomb(g, t.x - p.x, t.y - p.y, 1, Math.hypot(t.x - p.x, t.y - p.y)); }
+    if (id === 'dash' && p.charges >= 1 && p.dashT <= 0 && p.safeT <= 0 && p.hurtT <= 0) {
+      let near = null, nd = 1e9;
+      for (const o of g.enemies) { if (o.sleep) continue; const d = Math.hypot(o.x - p.x, o.y - p.y) - o.r - p.r; if (d < nd) { nd = d; near = o; } }
+      for (const s of g.shots) { const d = Math.hypot(s.x - p.x, s.y - p.y) - p.r; if (d < 1.5 && d < nd) { nd = d; near = s; } }
+      if (near && nd < 1.2) {
+        const mv = Math.hypot(inp.move.x, inp.move.y) > 0.3;
+        startDash(g, p, mv ? inp.move.x : p.x - near.x, mv ? inp.move.y : p.y - near.y);
+      }
+    }
+  }
+}
+
 // ---------- the Laser: a held beam (round 11: "Laser is a weapon") ----------
 // While you hold the fire stick it drains its charge and burns everything on its line. Modules work on its shape
 // (beam): Pierce burns through enemies, Bounce reflects off walls, Extra fans more beams, Split forks it partway, Home
@@ -528,7 +556,8 @@ function stepBeam(g, dt) {
   const want = Math.atan2(g.aim.y, g.aim.x);
   if (g.beamAng == null) g.beamAng = want;
   let df = want - g.beamAng; df = Math.atan2(Math.sin(df), Math.cos(df));
-  g.beamAng += Math.max(-w.turn * dt, Math.min(w.turn * dt, df));
+  if ((g.beamHeld || 0) < 0.12) g.beamAng = want;   // round 13: starting up again, it points straight at the aim
+  else g.beamAng += Math.max(-w.turn * dt, Math.min(w.turn * dt, df));
   g.beamHeld = Math.min(w.rampTime, (g.beamHeld || 0) + dt);
   const power = 0.3 + 0.7 * (g.beamHeld / w.rampTime);   // 30% at first, full after rampTime
   g.beamPower = power;
@@ -738,7 +767,7 @@ function stepDash(g, a, dt, steer) {
 function refreshField(g) {
   const n = pathField(g.m, g.p.x, g.p.y, FIELD_STEPS, g.field), q = pathField.q;
   g.ring.length = 0;
-  for (let i = 0; i < n; i++) { const d = g.field[q[i]]; if (d >= 16 && d <= 44) g.ring.push(q[i]); }
+  for (let i = 0; i < n; i++) { const d = g.field[q[i]]; if (d >= 45 && d <= 120) g.ring.push(q[i]); }
 }
 
 function spawnEnemy(g, type, minD, maxD, angle) {
@@ -761,8 +790,8 @@ function spawnEnemy(g, type, minD, maxD, angle) {
 // few seconds rather than all at once.
 const FIRST_WAVE = 30, WAVE_EVERY = 45;
 export const WARN = 10;
-function targetAlive(t) { const mn = t / 60; return Math.min(80, Math.round(5 + 2.5 * mn + 0.3 * mn * mn)); }
-const waveSize = (w) => 8 + (w - 1) * 6;
+function targetAlive(t) { const mn = t / 60; return Math.min(24, Math.round(7 + 1.6 * mn)); }
+const waveSize = (w) => Math.min(28, 6 + (w - 1) * 4);
 // Bosses: the Hulk at 5:00, then every 5 minutes, half as tough again each time (until the Queen and Mirror exist).
 const BOSS_AT = 300, BOSS_EVERY = 300;
 // Playground: a small group walks in from the right every few seconds, never more than 10 at once.
@@ -781,9 +810,9 @@ function stepBoss(g) {
   const n = Math.round((g.nextBoss - BOSS_AT) / BOSS_EVERY);
   // round 8: "boss fight is in rooms too small": it arrives in the biggest room you can't see, else nearby out of sight
   const rooms = g.m.halls.slice().sort((a, b) => (b.box.x1 - b.box.x0) * (b.box.y1 - b.box.y0) - (a.box.x1 - a.box.x0) * (a.box.y1 - a.box.y0));
-  const room = rooms.find(r => !canSee(g, r.x, r.y) && Math.hypot(r.x - g.p.x, r.y - g.p.y) > 25);
+  const room = rooms.find(r => !canSee(g, r.x, r.y) && Math.hypot(r.x - g.p.x, r.y - g.p.y) > 60);
   if (room) makeEnemy(g, 'hulk', room.x, room.y);
-  else if (!spawnEnemy(g, 'hulk', 30, 44)) return;   // try again next step
+  else if (!spawnEnemy(g, 'hulk', 70, 120)) return;   // try again next step
   const e = g.enemies[g.enemies.length - 1]; e.maxHp = e.hp = ENEMIES.hulk.hp * (1 + 0.5 * n);
   g.boss = e; g.nextBoss += BOSS_EVERY; g.pops.push({ text: 'The Hulk', t: 0, big: true });
 }
@@ -822,8 +851,11 @@ export function step(g, dt, inp) {
   g.spawnCool = Math.max(0, g.spawnCool - dt); g.burstCool = Math.max(0, g.burstCool - dt);
   g.aim = inp.fire.engaged === true ? { x: inp.fire.x, y: inp.fire.y } : null;
   g.dashAim = inp.dash.engaged === true ? { x: inp.dash.x, y: inp.dash.y, mag: inp.dash.mag } : null;
-  if (g.aim && (w.trigger === 'hold' || w.trigger === 'auto')) fire(g, g.aim.x, g.aim.y);
-  if (!g.aim && w.trigger === 'auto') { const e = nearestVisible(g, w.range); if (e) fire(g, e.x - p.x, e.y - p.y); }
+  if (g.opts.auto && !g.aim) autoAct(g, inp);
+  else {
+    if (g.aim && (w.trigger === 'hold' || w.trigger === 'auto') && !w.beam) fire(g, g.aim.x, g.aim.y);
+    if (!g.aim && w.trigger === 'auto') { const e = nearestVisible(g, w.range); if (e) fire(g, e.x - p.x, e.y - p.y); }
+  }
 
   // rounds come back
   g.cool = Math.max(0, g.cool - dt); g.sinceShot += dt;
@@ -860,9 +892,9 @@ export function step(g, dt, inp) {
   if (m.arena) { stepPlayground(g, dt); } else {
   // spawning: a few wanderers between waves; waves warned ahead, from a few sides
   const want = targetAlive(g.t);
-  let roam = 0; for (const e of g.enemies) if (!e.camp) roam++;   // camps don't count
-  g.spawnAcc += dt * (roam < want ? 0.8 + g.t / 200 : 0);
-  while (g.spawnAcc >= 1) { g.spawnAcc -= 1; spawnEnemy(g, trickleType(g), 22, 40); }
+  let roam = 0, close = 0; for (const e of g.enemies) { if (!e.camp) roam++; if (!e.sleep && Math.abs(e.x - p.x) + Math.abs(e.y - p.y) < 35) close++; }   // camps don't count
+  g.spawnAcc += dt * (roam < want && close < 8 ? 0.9 + g.t / 300 : 0);   // a crowd on you: nothing new trickles in
+  while (g.spawnAcc >= 1) { g.spawnAcc -= 1; spawnEnemy(g, trickleType(g), 55, 110); }
   if (!g.waveWarn && g.t >= g.nextWave - WARN) {
     const w = g.wave + 1, k = w === 1 ? 1 : w <= 3 ? 2 : 2 + (g.R() < 0.5 ? 1 : 0), a0 = g.R() * TAU, sides = [];
     for (let j = 0; j < k; j++) sides.push(a0 + j * TAU / k + (g.R() - 0.5) * 0.8);
@@ -875,7 +907,7 @@ export function step(g, dt, inp) {
   }
   if (g.incoming) { // the wave arrives over about 3 seconds
     const w = g.incoming; w.acc += dt * w.rate;
-    while (w.acc >= 1 && w.left > 0) { w.acc -= 1; w.left--; spawnEnemy(g, waveType(w.wave, w.left), 18, 40, w.sides[w.left % w.sides.length] + (g.R() - 0.5) * 0.4); }
+    while (w.acc >= 1 && w.left > 0) { w.acc -= 1; w.left--; spawnEnemy(g, waveType(w.wave, w.left), 50, 110, w.sides[w.left % w.sides.length] + (g.R() - 0.5) * 0.4); }
     if (w.left <= 0) g.incoming = null;
   }
   }
@@ -892,7 +924,7 @@ export function step(g, dt, inp) {
     if (e.dashT > 0) { stepDash(g, e, dt, null); if (e.dashT <= 0) { e.st = 'rest'; e.t = 0.6; } continue; }
     if (e.sleep) { // a camp at rest: the whole camp wakes when one sees you close, or is hurt
       e.vx = e.vy = 0;
-      if ((g.frame + e.id) % 6 === 0 && Math.hypot(p.x - e.x, p.y - e.y) < 16 && lineClear(m, e.x, e.y, p.x, p.y)) wakeCamp(g, e.camp);
+      if ((g.frame + e.id) % 6 === 0 && Math.hypot(p.x - e.x, p.y - e.y) < 28 && lineClear(m, e.x, e.y, p.x, p.y)) wakeCamp(g, e.camp);
       continue;
     }
     let dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy), toBall = false;
@@ -902,7 +934,7 @@ export function step(g, dt, inp) {
       const bx = b.x - e.x, by = b.y - e.y, bd = Math.hypot(bx, by);
       if (bd < 7 && bd < d && lineClear(m, e.x, e.y, b.x, b.y)) { dx = bx; dy = by; d = bd; toBall = true; }
     }
-    const sees = toBall || (d < 20 && (e.type !== 'mite' || d < 12) && lineClear(m, e.x, e.y, p.x, p.y));
+    const sees = toBall || (d < 30 && (e.type !== 'mite' || d < 16) && lineClear(m, e.x, e.y, p.x, p.y));
     if (sees && d < 12) { tx = dx / (d || 1); ty = dy / (d || 1); }
     else {
       const cx = Math.floor(e.x), cy = Math.floor(e.y), c = cy * G + cx;
@@ -969,14 +1001,14 @@ export function step(g, dt, inp) {
     if (ENEMIES[e.type].boss) continue;   // a boss never gives up
     if (e.camp) { // round 5: leave their room and a camp goes home (out of your sight) and heals
       if (e.sleep) continue;
-      const bx = e.camp.box, out = p.x < bx.x0 - 8 || p.x > bx.x1 + 8 || p.y < bx.y0 - 8 || p.y > bx.y1 + 8;
+      const bx = e.camp.box, out = p.x < bx.x0 - 20 || p.x > bx.x1 + 20 || p.y < bx.y0 - 20 || p.y > bx.y1 + 20;
       e.away = out ? (e.away || 0) + dt : 0;
       if ((e.away > 3 || (e.lost || 0) > 3) && !canSee(g, e.x, e.y) && !canSee(g, e.home.x, e.home.y)) {
         e.x = e.home.x; e.y = e.home.y; e.sleep = true; e.lost = 0; e.away = 0; e.st = null; e.hp = e.maxHp; e.burn = 0;
       }
       continue;
     }
-    if ((fd > 60 && fd !== 65535) || (e.lost || 0) > 1.5) { g.enemies.splice(i, 1); spawnEnemy(g, e.type, 20, 36, Math.atan2(e.y - p.y, e.x - p.x)) || spawnEnemy(g, e.type, 20, 36); }
+    if ((fd > 150 && fd !== 65535) || (e.lost || 0) > 1.5) { g.enemies.splice(i, 1); spawnEnemy(g, e.type, 55, 110, Math.atan2(e.y - p.y, e.x - p.x)) || spawnEnemy(g, e.type, 55, 110); }
   }
 
   // touching you
@@ -1007,6 +1039,17 @@ export function step(g, dt, inp) {
 
   // chests: walk into one to open it
   for (const c of g.chests) if (!c.open && Math.hypot(c.x - p.x, c.y - p.y) < p.r + 1.1) { c.open = true; burst(g, c.x, c.y, 'gold', 18); g.rings.push({ x: c.x, y: c.y, r0: 1, r1: 5, t: 0, life: 0.4, c: '#ffc23a' }); g.run.offers.push(chestOffer(g, c.rarity)); }
+
+  // health shards: pulled in like XP, heal 15 (+5 a Heal shards card)
+  for (let i = g.hearts.length - 1; i >= 0; i--) {
+    const q = g.hearts[i], dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy) || 1;
+    if (d < pickupRange(g) || q.pull) { q.pull = true; const sp = 6 + (q.sp = (q.sp || 0) + dt * 40); q.x += dx / d * sp * dt; q.y += dy / d * sp * dt; }
+    if (d < p.r + 0.4) {
+      g.hearts.splice(i, 1); p.hp = Math.min(p.maxHp, p.hp + 15 + 5 * (g.run.vitals.healPower || 0));
+      g.rings.push({ x: p.x, y: p.y, r0: 1, r1: 3.5, t: 0, life: 0.35, c: '#ff3355' }); burst(g, p.x, p.y, 'hp', 8);
+    }
+  }
+  if (g.run.vitals.regen) p.hp = Math.min(p.maxHp, p.hp + 0.5 * g.run.vitals.regen * dt);   // Regeneration: 0.5 a second a level
 
   // XP
   for (let i = g.gems.length - 1; i >= 0; i--) {
@@ -1066,6 +1109,7 @@ function hurt(g, e, dmg, vx, vy, knock = 0.25, silent = false) {
     g.rings.push({ x: e.x, y: e.y, r0: e.r, r1: e.r + 3, t: 0, life: 0.35, c: e.type });
     if (S.mass > 4) g.shake = Math.max(g.shake, S.boss ? 1 : 0.35);
     g.gems.push({ x: e.x, y: e.y, v: S.xp });
+    if (g.R() < (S.boss ? 1 : S.mass > 4 ? 0.3 : 0.07)) g.hearts.push({ x: e.x + (g.R() - 0.5), y: e.y + (g.R() - 0.5) });
     if (e.poison > 0) g.clouds.push({ x: e.x, y: e.y, r: 3, t: 0, life: 4 });   // Rot's gas: poisons those inside
     if (e.key) { e.key = false; g.keysOnFloor.push({ x: e.x, y: e.y }); g.pops.push({ text: 'A key dropped', t: 0 }); }
     if (S.boss) { g.boss = null; g.chests.push({ x: e.x, y: e.y, rarity: 'epic' }); g.pops.push({ text: 'Hulk down', t: 0, big: true }); }
@@ -1117,7 +1161,7 @@ function separate(g) {
       const side = Math.sign(dx * -p.dy + dy * p.dx) || 1;
       e.x += -p.dy * side * 0.6; e.y += p.dx * side * 0.6;
     } else { // the crowd pushes back: you take a third of the shove (more from a brute), so a packed corridor holds you
-      const k = (rr - d) / (d || 0.01), yours = ENEMIES[e.type].mass > 1 ? 0.8 : 0.33;
+      const k = (rr - d) / (d || 0.01), yours = ENEMIES[e.type].mass > 1 ? 0.6 : 0.2;   // round 13: a crowd holds you less
       if (ENEMIES[e.type].boss && d > 0.01) { p.kx = (p.kx || 0) - dx / d * 4; p.ky = (p.ky || 0) - dy / d * 4; }   // the Hulk shoves you away
       e.x += dx * k * (1 - yours); e.y += dy * k * (1 - yours); p.x -= dx * k * yours; p.y -= dy * k * yours;
     }
